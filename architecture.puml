@@ -1,0 +1,103 @@
+@startuml MaxHype Architecture
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+
+title MaxHype - Application Architecture
+
+package "UI Layer" #E3F2FD {
+  component [HomeScreen] as Screen
+  component [WorkoutCardsScroll] as Cards
+  component [MonthlyCalendar] as Calendar
+  component [MonthlyHistoryScroll] as History
+  component [MonthlyChart] as Chart
+  component [WorkoutCard] as Card
+}
+
+package "BLoC Layer" #FFF3E0 {
+  component [HomeBloc] as Bloc
+  component [HomeEvent] as Event
+  component [HomeState] as State
+}
+
+package "Repository Layer" #F1F8E9 {
+  interface "WorkoutRepository" as IRepo <<interface>>
+  component [MockWorkoutRepository] as MockRepo
+}
+
+package "Data Layer" #FCE4EC {
+  component [MockData] as Data
+  component [Models:\nWorkout\nMonthlyData\nDailyData] as Models
+}
+
+package "Dependency Injection" #EDE7F6 {
+  component [GetIt\nServiceLocator] as DI
+  component [BlocFactory] as Factory
+}
+
+' Relationships
+Screen -down-> Bloc : BlocProvider
+Bloc -up-> Event : receives
+Bloc -up-> State : emits
+Screen -up-> State : BlocBuilder\nrebuilds on state
+Screen -down-> Cards : contains
+Screen -down-> Calendar : contains
+Screen -down-> History : contains
+History -down-> Chart : contains (2x)
+Cards -down-> Card : contains (3x)
+
+Bloc -down-> IRepo : getWorkouts()\ngetMonthlyData()
+IRepo <|.down. MockRepo : implements
+MockRepo -down-> Data : uses
+Data -down-> Models : creates
+
+DI -right-> MockRepo : registers as\nLazySingleton
+DI -right-> Factory : registers as\nLazySingleton
+Factory -up-> Bloc : creates new\ninstance
+
+' Notes
+note right of History
+  **PageView Scaling**
+  • Handles any number of months
+  • Only renders visible + adjacent pages
+  • O(1) performance per month
+  • Memory: ~3 KB per month
+end note
+
+note right of Calendar
+  **Calendar Grid**
+  • O(weeks) rendering
+  • Max ~35 cells per month
+  • Dynamic week calculation
+  • Color-coded workout days
+end note
+
+note right of MockRepo
+  **Easy Backend Swap**
+  Replace MockWorkoutRepository
+  with ApiWorkoutRepository
+
+  No UI changes needed!
+end note
+
+note left of Bloc
+  **Unidirectional Data Flow**
+  1. UI dispatches Event
+  2. BLoC processes via Repository
+  3. BLoC emits new State
+  4. UI rebuilds automatically
+end note
+
+note bottom of Models
+  **MonthlyData Structure**
+  • monthName, year
+  • dailyData: List<DailyData>
+  • completionPercentage
+  • totalKcal
+
+  **DailyData Structure**
+  • day, kcal, volume
+  • isWorkoutDay
+end note
+
+@enduml

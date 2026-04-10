@@ -1,0 +1,194 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class ChartData {
+  final String monthName;
+  final int year;
+  final List<double> values;
+  final String legendText;
+
+  ChartData({
+    required this.monthName,
+    required this.year,
+    required this.values,
+    required this.legendText,
+  });
+
+  String get displayName => '$monthName $year';
+}
+
+class MonthlyChart extends StatelessWidget {
+  final ChartData chartData;
+  final String title;
+  final Color lineColor;
+
+  const MonthlyChart({
+    super.key,
+    required this.chartData,
+    required this.title,
+    required this.lineColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (chartData.values.isEmpty) {
+      return _buildEmptyChart(context);
+    }
+
+    final spots = chartData.values.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), entry.value);
+    }).toList();
+
+    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 11,
+                  letterSpacing: 1.0,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            chartData.displayName,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                gridData: const FlGridData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontSize: 10,
+                              ),
+                        );
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() % 5 == 0) {
+                          return Text(
+                            (value.toInt() + 1).toString(),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontSize: 10,
+                                ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                minY: minY * 0.8,
+                maxY: maxY * 1.2,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: lineColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          lineColor.withOpacity(0.3),
+                          lineColor.withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                    shadow: Shadow(
+                      color: lineColor.withOpacity(0.5),
+                      blurRadius: 8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            chartData.legendText,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 10,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyChart(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 11,
+                  letterSpacing: 1.0,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            chartData.displayName,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 80),
+          Center(
+            child: Text(
+              'No workout data',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+}
