@@ -92,76 +92,22 @@ for (int i = 0; i < 12; i++) {  // Change from 3 to 12 months
 
 ## Architecture Diagram
 
-```plantuml
-@startuml
-!theme plain
+![Architecture Diagram](diagram/architecture.png)
 
-package "UI Layer" {
-  [HomeScreen] as Screen
-  [WorkoutCardsScroll] as Cards
-  [MonthlyCalendar] as Calendar
-  [MonthlyHistoryScroll] as History
-  [MonthlyChart] as Chart
-}
+The diagram above illustrates the layered architecture of the MaxHype application, showing:
 
-package "BLoC Layer" {
-  [HomeBloc] as Bloc
-  [HomeEvent] as Event
-  [HomeState] as State
-}
+- **UI Layer**: Screen components and widgets
+- **BLoC Layer**: Business logic and state management
+- **Repository Layer**: Abstract data interface
+- **Data Layer**: Mock data generators and models
+- **Dependency Injection**: GetIt service locator and BlocFactory
 
-package "Repository Layer" {
-  interface "WorkoutRepository" as IRepo
-  [MockWorkoutRepository] as MockRepo
-}
+Key design notes:
+- **PageView** efficiently handles any number of months
+- **Calendar** renders with O(weeks) complexity (~35 cells max per month)
+- **Repository pattern** allows easy swap between mock and real API
 
-package "Data Layer" {
-  [MockData] as Data
-  [Models] as Models
-}
-
-package "DI" {
-  [GetIt ServiceLocator] as DI
-  [BlocFactory] as Factory
-}
-
-Screen --> Bloc : BlocProvider
-Bloc --> Event : receives
-Bloc --> State : emits
-Screen --> State : BlocBuilder
-Screen --> Cards : contains
-Screen --> Calendar : contains
-Screen --> History : contains
-History --> Chart : contains
-
-Bloc --> IRepo : calls
-IRepo <|.. MockRepo : implements
-MockRepo --> Data : uses
-Data --> Models : creates
-
-DI --> MockRepo : registers
-DI --> Factory : registers
-Factory --> Bloc : creates
-
-note right of History
-  PageView handles
-  any number of months
-  efficiently
-end note
-
-note right of Calendar
-  O(weeks) rendering
-  ~35 cells max
-  per month
-end note
-
-note right of MockRepo
-  Easy to swap with
-  real API repository
-end note
-
-@enduml
-```
+For the PlantUML source, see [architecture.puml](architecture.puml).
 
 ---
 
