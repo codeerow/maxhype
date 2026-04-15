@@ -1,5 +1,6 @@
 import '../models/workout.dart';
 import '../models/monthly_data.dart';
+import '../models/all_time_stats.dart';
 import '../data/mock_data.dart';
 import 'workout_repository.dart';
 
@@ -18,5 +19,12 @@ class MockWorkoutRepository implements WorkoutRepository {
     // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 500));
     return MockData.getMonthlyData();
+  }
+
+  @override
+  Future<AllTimeStats> getAllTimeStats() async {
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 300));
+    return MockData.getAllTimeStats();
   }
 }

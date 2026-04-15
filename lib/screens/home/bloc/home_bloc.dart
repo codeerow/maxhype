@@ -16,10 +16,12 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     try {
       final workouts = await repository.getWorkouts();
       final monthlyData = await repository.getMonthlyData();
+      final allTimeStats = await repository.getAllTimeStats();
 
       emit(HomeSuccess(
         workouts: workouts,
         monthlyData: monthlyData,
+        allTimeStats: allTimeStats,
       ));
     } catch (e) {
       emit(HomeError(e.toString()));

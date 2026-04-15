@@ -2,6 +2,7 @@ import 'dart:math';
 import '../models/workout.dart';
 import '../models/monthly_data.dart';
 import '../models/muscle_group.dart';
+import '../models/all_time_stats.dart';
 import '../repositories/mock_exercise_repository.dart';
 
 class MockData {
@@ -183,5 +184,52 @@ class MockData {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return months[month - 1];
+  }
+
+  static AllTimeStats getAllTimeStats() {
+    final monthlyData = getMonthlyData();
+
+    // Calculate totals from monthly data
+    final totalWorkouts = monthlyData.fold<int>(
+      0,
+      (sum, month) => sum + month.dailyData.where((d) => d.isWorkoutDay).length,
+    );
+
+    final totalKcal = monthlyData.fold<double>(
+      0,
+      (sum, month) => sum + month.totalKcal,
+    );
+
+    final totalVolume = monthlyData.fold<double>(
+      0,
+      (sum, month) => sum + month.dailyData
+          .where((d) => d.isWorkoutDay)
+          .fold<double>(0, (s, d) => s + d.volume),
+    );
+
+    // Calculate current streak (simplified - count consecutive workout days from today)
+    final now = DateTime.now();
+    int currentStreak = 0;
+    final latestMonth = monthlyData.first;
+
+    for (int day = now.day; day >= 1; day--) {
+      final dayData = latestMonth.dailyData[day - 1];
+      if (dayData.isWorkoutDay) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    // Mock longest streak
+    final longestStreak = currentStreak + 3;
+
+    return AllTimeStats(
+      totalWorkouts: totalWorkouts,
+      totalKcal: totalKcal,
+      totalVolume: totalVolume,
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+    );
   }
 }
