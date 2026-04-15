@@ -11,7 +11,9 @@
       "Bash(git commit:*)",
       "WebFetch(domain:pub.dev)",
       "Bash(flutter --version:*)",
-      "Bash(flutter upgrade:*)"
+      "Bash(flutter upgrade:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter build:*)"
     ],
     "deny": [],
     "ask": []

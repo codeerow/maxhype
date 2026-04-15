@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../repositories/workout_repository.dart';
+import '../../../models/workout.dart';
 import 'workout_detail_event.dart';
 import 'workout_detail_state.dart';
 
@@ -19,7 +20,7 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
   ) async {
     emit(WorkoutDetailLoading());
     try {
-      final workouts = workoutRepository.getWorkouts();
+      final workouts = await workoutRepository.getWorkouts();
       final workout = workouts.firstWhere(
         (w) => w.id == event.workoutId,
         orElse: () => throw Exception('Workout not found'),

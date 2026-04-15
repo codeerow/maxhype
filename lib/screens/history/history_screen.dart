@@ -3,7 +3,7 @@ import '../../theme/app_theme.dart';
 import '../../models/monthly_data.dart';
 import '../../data/mock_data.dart';
 import '../../widgets/monthly_calendar.dart';
-import '../../widgets/monthly_chart.dart';
+import '../../widgets/monthly_chart.dart' show MonthlyChart, ChartData;
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -133,7 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         const SizedBox(height: 16),
                         // Monthly Calendar
                         MonthlyCalendar(
-                          monthlyData: monthData,
+                          monthlyData: [monthData],
                           currentDay: index == 0 ? DateTime.now().day : null,
                         ),
                         const SizedBox(height: 16),
@@ -163,7 +163,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                         const SizedBox(height: 16),
                         // Monthly Chart
-                        MonthlyChart(monthlyData: monthData),
+                        MonthlyChart(
+                          chartData: ChartData(
+                            monthName: monthData.monthName,
+                            year: monthData.year,
+                            values: monthData.dailyData.map((d) => d.kcal).toList(),
+                            legendText: 'KCAL burned per day',
+                          ),
+                          title: 'KCAL BURNED',
+                          lineColor: AppTheme.primaryOrange,
+                        ),
                         const SizedBox(height: 24),
                       ],
                     ),

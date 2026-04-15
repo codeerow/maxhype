@@ -298,6 +298,7 @@ class WorkoutDetailScreen extends StatelessWidget {
           // Dispatch replace event to BLoC
           context.read<WorkoutDetailBloc>().add(
                 ReplaceExercise(
+                  workoutId: workout.id,
                   oldExerciseId: currentExercise.id,
                   newExercise: newExercise,
                 ),
