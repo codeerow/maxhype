@@ -1,7 +1,10 @@
 import 'package:get_it/get_it.dart';
 import '../repositories/workout_repository.dart';
 import '../repositories/mock_workout_repository.dart';
+import '../repositories/exercise_repository.dart';
+import '../repositories/mock_exercise_repository.dart';
 import '../screens/home/bloc/home_bloc.dart';
+import '../screens/workout_detail/bloc/workout_detail_bloc.dart';
 
 /// Global instance of GetIt for dependency injection
 final getIt = GetIt.instance;
@@ -16,10 +19,18 @@ Future<void> setupDependencies() async {
     () => MockWorkoutRepository(),
   );
 
+  getIt.registerLazySingleton<ExerciseRepository>(
+    () => MockExerciseRepository(),
+  );
+
   // Register BLoCs
   // Using registerFactory means a new instance is created each time
   // This is appropriate for BLoCs that should be fresh for each screen
   getIt.registerFactory<HomeBloc>(
     () => HomeBloc(repository: getIt<WorkoutRepository>()),
+  );
+
+  getIt.registerFactory<WorkoutDetailBloc>(
+    () => WorkoutDetailBloc(workoutRepository: getIt<WorkoutRepository>()),
   );
 }
