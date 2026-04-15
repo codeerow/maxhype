@@ -5,7 +5,13 @@
       "Bash(flutter run:*)",
       "Bash(flutter devices:*)",
       "Bash(flutter emulators:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:pub.dev)",
+      "Bash(flutter --version:*)",
+      "Bash(flutter upgrade:*)"
     ],
     "deny": [],
     "ask": []

@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
+import '../../models/exercise.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
 import 'bloc/workout_detail_state.dart';
 import 'widgets/exercise_card.dart';
+import 'widgets/exercise_options_sheet.dart';
+import 'widgets/replace_exercise_sheet.dart';
 
 class WorkoutDetailScreen extends StatelessWidget {
   final Workout workout;
@@ -111,9 +114,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                   final exercise = workout.exercises[index];
                   return ExerciseCard(
                     exercise: exercise,
-                    onOptionsPressed: () {
-                      // TODO: Show exercise options bottom sheet
-                    },
+                    onOptionsPressed: () => _showExerciseOptions(context, exercise),
                   );
                 },
               ),
@@ -270,6 +271,47 @@ class WorkoutDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showExerciseOptions(BuildContext context, Exercise exercise) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => ExerciseOptionsSheet(
+        exercise: exercise,
+        onReplaceExercise: () => _showReplaceExercise(context, exercise),
+      ),
+    );
+  }
+
+  void _showReplaceExercise(BuildContext context, Exercise currentExercise) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (modalContext) => ReplaceExerciseSheet(
+        currentExercise: currentExercise,
+        onExerciseSelected: (newExercise) {
+          // Dispatch replace event to BLoC
+          context.read<WorkoutDetailBloc>().add(
+                ReplaceExercise(
+                  oldExerciseId: currentExercise.id,
+                  newExercise: newExercise,
+                ),
+              );
+
+          // Show success feedback
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Replaced with ${newExercise.name}'),
+              backgroundColor: AppTheme.recoveryGreen,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
       ),
     );
   }
