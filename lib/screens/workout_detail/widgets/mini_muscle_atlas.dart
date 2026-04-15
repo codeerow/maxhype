@@ -129,6 +129,31 @@ class MiniMuscleAtlas extends StatelessWidget {
     return muscles.toList();
   }
 
+  /// Determine if we should show back view based on muscle group
+  bool _shouldShowBackView() {
+    if (muscleGroups.isEmpty) return false;
+
+    final primaryGroup = muscleGroups.first;
+
+    switch (primaryGroup) {
+      case app_models.MuscleGroup.back:
+      case app_models.MuscleGroup.lowerBack:
+      case app_models.MuscleGroup.triceps:
+      case app_models.MuscleGroup.hamstrings:
+      case app_models.MuscleGroup.glutes:
+      case app_models.MuscleGroup.calves:
+        return true;
+      case app_models.MuscleGroup.chest:
+      case app_models.MuscleGroup.shoulders:
+      case app_models.MuscleGroup.biceps:
+      case app_models.MuscleGroup.forearms:
+      case app_models.MuscleGroup.quads:
+      case app_models.MuscleGroup.abs:
+      case app_models.MuscleGroup.obliques:
+        return false;
+    }
+  }
+
   /// Get the appropriate body region and zoom level based on muscle groups
   ({Alignment alignment, double scale}) _getZoomSettings() {
     if (muscleGroups.isEmpty) {
@@ -175,12 +200,18 @@ class MiniMuscleAtlas extends StatelessWidget {
   Widget build(BuildContext context) {
     final atlasMuscles = _mapToAtlasMuscles();
     final zoomSettings = _getZoomSettings();
+    final showBackView = _shouldShowBackView();
 
     // Create color mapping by muscle ID strings
     final highlightedColors = {
       for (final muscle in atlasMuscles)
         muscle.id: AppTheme.primaryOrange.withOpacity(0.8),
     };
+
+    // Choose front or back view
+    final atlasAsset = showBackView
+        ? atlas.AtlasAsset.musclesBack
+        : atlas.AtlasAsset.musclesFront;
 
     return Container(
       width: 40,
@@ -199,7 +230,7 @@ class MiniMuscleAtlas extends StatelessWidget {
           scale: zoomSettings.scale,
           alignment: zoomSettings.alignment,
           child: SvgAsset(
-            path: atlas.AtlasAsset.musclesFront.path,
+            path: atlasAsset.path,
             highlightedColors: highlightedColors,
             defaultHoverColor: AppTheme.textSecondary.withOpacity(0.2),
           ),
