@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/workout.dart';
 import 'workout_card.dart';
 
-class WorkoutCardsScroll extends StatelessWidget {
+class WorkoutCardsScroll extends StatefulWidget {
   final List<Workout> workouts;
 
   const WorkoutCardsScroll({
@@ -11,25 +11,47 @@ class WorkoutCardsScroll extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+  State<WorkoutCardsScroll> createState() => _WorkoutCardsScrollState();
+}
 
+class _WorkoutCardsScrollState extends State<WorkoutCardsScroll> {
+  late PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // viewportFraction < 1.0 allows partial visibility of adjacent cards
+    _pageController = PageController(
+      viewportFraction: 0.85,
+      initialPage: 0,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 220,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: workouts.length,
-        physics: const BouncingScrollPhysics(),
-        itemExtent: screenWidth * 0.80,
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.workouts.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentPage = index;
+          });
+        },
         itemBuilder: (context, index) {
           return Padding(
-            padding: EdgeInsets.only(
-              right: index < workouts.length - 1 ? 16 : 0,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: WorkoutCard(
-              workout: workouts[index],
-              isActive: index == 0,
+              workout: widget.workouts[index],
+              isActive: index == _currentPage,
             ),
           );
         },
