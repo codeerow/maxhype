@@ -129,9 +129,52 @@ class MiniMuscleAtlas extends StatelessWidget {
     return muscles.toList();
   }
 
+  /// Get the appropriate body region and zoom level based on muscle groups
+  ({Alignment alignment, double scale}) _getZoomSettings() {
+    if (muscleGroups.isEmpty) {
+      return (alignment: Alignment.center, scale: 1.0);
+    }
+
+    final primaryGroup = muscleGroups.first;
+
+    switch (primaryGroup) {
+      // Upper body - zoom to chest/shoulders area
+      case app_models.MuscleGroup.chest:
+      case app_models.MuscleGroup.shoulders:
+        return (alignment: Alignment(0, -0.35), scale: 1.8);
+
+      // Arms - zoom to upper body with arms
+      case app_models.MuscleGroup.triceps:
+      case app_models.MuscleGroup.biceps:
+      case app_models.MuscleGroup.forearms:
+        return (alignment: Alignment(0, -0.2), scale: 1.6);
+
+      // Back - zoom to torso
+      case app_models.MuscleGroup.back:
+      case app_models.MuscleGroup.lowerBack:
+        return (alignment: Alignment(0, -0.15), scale: 1.5);
+
+      // Core - zoom to midsection
+      case app_models.MuscleGroup.abs:
+      case app_models.MuscleGroup.obliques:
+        return (alignment: Alignment(0, 0.1), scale: 1.7);
+
+      // Legs - zoom to lower body
+      case app_models.MuscleGroup.quads:
+      case app_models.MuscleGroup.hamstrings:
+      case app_models.MuscleGroup.glutes:
+        return (alignment: Alignment(0, 0.4), scale: 1.5);
+
+      // Calves - zoom to lower legs
+      case app_models.MuscleGroup.calves:
+        return (alignment: Alignment(0, 0.65), scale: 2.0);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final atlasMuscles = _mapToAtlasMuscles();
+    final zoomSettings = _getZoomSettings();
 
     // Create color mapping by muscle ID strings
     final highlightedColors = {
@@ -152,10 +195,14 @@ class MiniMuscleAtlas extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(7),
-        child: SvgAsset(
-          path: atlas.AtlasAsset.musclesFront.path,
-          highlightedColors: highlightedColors,
-          defaultHoverColor: AppTheme.textSecondary.withOpacity(0.2),
+        child: Transform.scale(
+          scale: zoomSettings.scale,
+          alignment: zoomSettings.alignment,
+          child: SvgAsset(
+            path: atlas.AtlasAsset.musclesFront.path,
+            highlightedColors: highlightedColors,
+            defaultHoverColor: AppTheme.textSecondary.withOpacity(0.2),
+          ),
         ),
       ),
     );
