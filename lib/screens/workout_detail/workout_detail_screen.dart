@@ -7,6 +7,7 @@ import '../../models/workout.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
 import 'bloc/workout_detail_state.dart';
+import 'widgets/exercise_card.dart';
 
 class WorkoutDetailScreen extends StatelessWidget {
   final Workout workout;
@@ -108,79 +109,11 @@ class WorkoutDetailScreen extends StatelessWidget {
                 separatorBuilder: (context, index) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final exercise = workout.exercises[index];
-                  // TODO: Replace with ExerciseCard widget
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cardBackground,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        // Placeholder for exercise image
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryOrange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              exercise.name[0],
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryOrange,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Exercise info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                exercise.name,
-                                style: Theme.of(context).textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${exercise.sets} sets',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Muscle icon placeholder
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryOrange.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.fitness_center,
-                            color: AppTheme.primaryOrange,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // 3-dots menu
-                        IconButton(
-                          icon: const Icon(
-                            Icons.more_vert,
-                            color: AppTheme.textSecondary,
-                          ),
-                          onPressed: () {
-                            // TODO: Show exercise options bottom sheet
-                          },
-                        ),
-                      ],
-                    ),
+                  return ExerciseCard(
+                    exercise: exercise,
+                    onOptionsPressed: () {
+                      // TODO: Show exercise options bottom sheet
+                    },
                   );
                 },
               ),
