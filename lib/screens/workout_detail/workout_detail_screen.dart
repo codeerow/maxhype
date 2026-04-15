@@ -1,0 +1,343 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
+import '../../theme/app_theme.dart';
+import '../../core/bloc_factory.dart';
+import '../../models/workout.dart';
+import 'bloc/workout_detail_bloc.dart';
+import 'bloc/workout_detail_event.dart';
+import 'bloc/workout_detail_state.dart';
+
+class WorkoutDetailScreen extends StatelessWidget {
+  final Workout workout;
+
+  const WorkoutDetailScreen({
+    super.key,
+    required this.workout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) {
+        final event = LoadWorkoutDetail(workout.id);
+        return context.read<BlocFactory>().create<WorkoutDetailBloc>()
+          ..add(event);
+      },
+      child: BlocBuilder<WorkoutDetailBloc, WorkoutDetailState>(
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppTheme.backgroundColor,
+            appBar: _buildAppBar(context),
+            body: switch (state) {
+              WorkoutDetailLoading() => const Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.primaryOrange,
+                  ),
+                ),
+              WorkoutDetailError(:final message) => Center(
+                  child: Text(
+                    'Error: $message',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
+              WorkoutDetailSuccess(:final workout) =>
+                _buildContent(context, workout),
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: AppTheme.backgroundColor,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      title: Text(
+        workout.title,
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh, color: AppTheme.textPrimary),
+          onPressed: () {
+            // TODO: Implement refresh/regenerate workout
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(BuildContext context, Workout workout) {
+    return Stack(
+      children: [
+        // Main content
+        SingleChildScrollView(
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: 100, // Space for sticky button
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Warm-up section
+              _buildWarmUpSection(context),
+              const SizedBox(height: 16),
+              // Add Exercise button
+              _buildAddExerciseButton(context),
+              const SizedBox(height: 16),
+              // Exercise count
+              Text(
+                '${workout.exercises.length} exercises',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 16),
+              // Exercise list
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: workout.exercises.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final exercise = workout.exercises[index];
+                  // TODO: Replace with ExerciseCard widget
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        // Placeholder for exercise image
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryOrange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              exercise.name[0],
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryOrange,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Exercise info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                exercise.name,
+                                style: Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${exercise.sets} sets',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Muscle icon placeholder
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryOrange.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.fitness_center,
+                            color: AppTheme.primaryOrange,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // 3-dots menu
+                        IconButton(
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: AppTheme.textSecondary,
+                          ),
+                          onPressed: () {
+                            // TODO: Show exercise options bottom sheet
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+        // Sticky bottom button
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: ElevatedButton(
+                onPressed: () {
+                  // TODO: Implement start workout
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Start Workout - Coming soon!'),
+                      backgroundColor: AppTheme.primaryOrange,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.recoveryGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'START WORKOUT',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWarmUpSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.recoveryGreen.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.directions_run,
+              color: AppTheme.recoveryGreen,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WARM-UP',
+                  style: Theme.of(context).textTheme.displayMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose warm-up',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Treadmill • Stationary Bike • Elliptical',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Row(
+            children: [
+              Text(
+                'Up to 6 min',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.recoveryGreen,
+                    ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddExerciseButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Implement add exercise
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: AppTheme.primaryOrange.withOpacity(0.3),
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.add_circle_outline,
+              color: AppTheme.primaryOrange,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Add Exercise',
+              style: TextStyle(
+                color: AppTheme.primaryOrange,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
