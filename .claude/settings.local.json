@@ -13,7 +13,11 @@
       "Bash(flutter --version:*)",
       "Bash(flutter upgrade:*)",
       "Bash(flutter clean:*)",
-      "Bash(flutter build:*)"
+      "Bash(flutter build:*)",
+      "Read(//Users/romanpozdnyakov/.pub-cache/hosted/pub.dev/flutter_body_atlas-0.1.4/lib/src/models/**)",
+      "Read(//Users/romanpozdnyakov/.pub-cache/hosted/pub.dev/flutter_body_atlas-0.1.4/lib/src/**)",
+      "Read(//Users/romanpozdnyakov/.pub-cache/hosted/pub.dev/flutter_body_atlas-0.1.4/lib/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
