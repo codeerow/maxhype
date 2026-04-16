@@ -23,24 +23,9 @@ class ExerciseCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Exercise image placeholder
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryOrange.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                exercise.name[0],
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryOrange,
-                ),
-              ),
-            ),
+          // Mini muscle atlas icon - moved to left
+          MiniMuscleAtlas(
+            muscleGroups: exercise.muscleGroups,
           ),
           const SizedBox(width: 12),
           // Exercise info
@@ -61,11 +46,6 @@ class ExerciseCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          // Mini muscle atlas icon
-          MiniMuscleAtlas(
-            muscleGroups: exercise.muscleGroups,
           ),
           const SizedBox(width: 8),
           // 3-dots menu
