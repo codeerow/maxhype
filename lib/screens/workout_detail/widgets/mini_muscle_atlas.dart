@@ -166,33 +166,33 @@ class MiniMuscleAtlas extends StatelessWidget {
       // Upper body - zoom to chest/shoulders area
       case app_models.MuscleGroup.chest:
       case app_models.MuscleGroup.shoulders:
-        return (alignment: Alignment(0, -0.35), scale: 1.8);
+        return (alignment: Alignment(0, -0.35), scale: 2.2);
 
       // Arms - zoom to upper body with arms
       case app_models.MuscleGroup.triceps:
       case app_models.MuscleGroup.biceps:
       case app_models.MuscleGroup.forearms:
-        return (alignment: Alignment(0, -0.2), scale: 1.6);
+        return (alignment: Alignment(0, -0.2), scale: 2.0);
 
       // Back - zoom to torso
       case app_models.MuscleGroup.back:
       case app_models.MuscleGroup.lowerBack:
-        return (alignment: Alignment(0, -0.15), scale: 1.5);
+        return (alignment: Alignment(0, -0.15), scale: 1.9);
 
       // Core - zoom to midsection
       case app_models.MuscleGroup.abs:
       case app_models.MuscleGroup.obliques:
-        return (alignment: Alignment(0, 0.1), scale: 1.7);
+        return (alignment: Alignment(0, 0.1), scale: 2.1);
 
       // Legs - zoom to lower body
       case app_models.MuscleGroup.quads:
       case app_models.MuscleGroup.hamstrings:
       case app_models.MuscleGroup.glutes:
-        return (alignment: Alignment(0, 0.4), scale: 1.5);
+        return (alignment: Alignment(0, 0.4), scale: 1.9);
 
       // Calves - zoom to lower legs
       case app_models.MuscleGroup.calves:
-        return (alignment: Alignment(0, 0.65), scale: 2.0);
+        return (alignment: Alignment(0, 0.65), scale: 2.4);
     }
   }
 
