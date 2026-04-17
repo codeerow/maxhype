@@ -62,6 +62,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Left arrow - go to past (older months)
                   IconButton(
                     onPressed: _currentPage < _monthlyData.length - 1
                         ? () => _navigateToMonth(1)
@@ -78,6 +79,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                     ),
                   ),
+                  // Right arrow - go to future (newer months)
                   IconButton(
                     onPressed: _currentPage > 0 ? () => _navigateToMonth(-1) : null,
                     icon: const Icon(Icons.chevron_right),
@@ -92,6 +94,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
+                reverse: true, // Swipe left = go to past
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
@@ -101,80 +104,82 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 itemBuilder: (context, index) {
                   final monthData = _monthlyData[index];
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Completion percentage
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardBackground,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Completion',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                              Text(
-                                '${monthData.completionPercentage.toStringAsFixed(0)}%',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryOrange,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Completion percentage
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppTheme.cardBackground,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Completion',
+                                  style: Theme.of(context).textTheme.bodyLarge,
                                 ),
-                              ),
-                            ],
+                                Text(
+                                  '${monthData.completionPercentage.toStringAsFixed(0)}%',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryOrange,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Monthly Calendar
-                        MonthlyCalendar(
-                          monthlyData: [monthData],
-                          currentDay: index == 0 ? DateTime.now().day : null,
-                        ),
-                        const SizedBox(height: 16),
-                        // Stats
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardBackground,
-                            borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 16),
+                          // Monthly Calendar
+                          MonthlyCalendar(
+                            monthlyData: [monthData],
+                            currentDay: index == 0 ? DateTime.now().day : null,
                           ),
-                          child: Column(
-                            children: [
-                              _buildStatRow(
-                                'Total KCAL',
-                                monthData.totalKcal.toStringAsFixed(0),
-                              ),
-                              const SizedBox(height: 12),
-                              _buildStatRow(
-                                'Workout Days',
-                                monthData.dailyData
-                                    .where((d) => d.isWorkoutDay)
-                                    .length
-                                    .toString(),
-                              ),
-                            ],
+                          const SizedBox(height: 16),
+                          // Stats
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppTheme.cardBackground,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildStatRow(
+                                  'Total KCAL',
+                                  monthData.totalKcal.toStringAsFixed(0),
+                                ),
+                                const SizedBox(height: 12),
+                                _buildStatRow(
+                                  'Workout Days',
+                                  monthData.dailyData
+                                      .where((d) => d.isWorkoutDay)
+                                      .length
+                                      .toString(),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Monthly Chart
-                        MonthlyChart(
-                          chartData: ChartData(
-                            monthName: monthData.monthName,
-                            year: monthData.year,
-                            values: monthData.dailyData.map((d) => d.kcal).toList(),
-                            legendText: 'KCAL burned per day',
+                          const SizedBox(height: 16),
+                          // Monthly Chart
+                          MonthlyChart(
+                            chartData: ChartData(
+                              monthName: monthData.monthName,
+                              year: monthData.year,
+                              values: monthData.dailyData.map((d) => d.kcal).toList(),
+                              legendText: 'KCAL burned per day',
+                            ),
+                            title: 'KCAL BURNED',
+                            lineColor: AppTheme.primaryOrange,
                           ),
-                          title: 'KCAL BURNED',
-                          lineColor: AppTheme.primaryOrange,
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
                   );
                 },
