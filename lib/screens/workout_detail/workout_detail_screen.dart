@@ -67,14 +67,7 @@ class WorkoutDetailScreen extends StatelessWidget {
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       centerTitle: true,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh, color: AppTheme.textPrimary),
-          onPressed: () {
-            // TODO: Implement refresh/regenerate workout
-          },
-        ),
-      ],
+      actions: const [],
     );
   }
 
@@ -92,9 +85,6 @@ class WorkoutDetailScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Warm-up section
-              _buildWarmUpSection(context),
-              const SizedBox(height: 16),
               // Add Exercise button
               _buildAddExerciseButton(context),
               const SizedBox(height: 16),
@@ -175,70 +165,6 @@ class WorkoutDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWarmUpSection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.recoveryGreen.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.directions_run,
-              color: AppTheme.recoveryGreen,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'WARM-UP',
-                  style: Theme.of(context).textTheme.displayMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Choose warm-up',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Treadmill • Stationary Bike • Elliptical',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
-            children: [
-              Text(
-                'Up to 6 min',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.recoveryGreen,
-                    ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: AppTheme.textSecondary,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAddExerciseButton(BuildContext context) {
     return GestureDetector(
       onTap: () {
@@ -280,7 +206,7 @@ class WorkoutDetailScreen extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => ExerciseOptionsSheet(
+      builder: (_) => ExerciseOptionsSheet(
         exercise: exercise,
         onReplaceExercise: () => _showReplaceExercise(context, exercise),
       ),

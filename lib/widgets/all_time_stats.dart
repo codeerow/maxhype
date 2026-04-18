@@ -92,29 +92,32 @@ class AllTimeStatsWidget extends StatelessWidget {
         color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.15),
           width: 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: 20,
-              ),
-            ],
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
             value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: color,
-                  fontSize: 18,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
           ),
