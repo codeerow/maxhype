@@ -50,6 +50,10 @@ dependencies:
   # Body atlas for muscle visualization
   flutter_body_atlas: ^0.1.0
 
+  # SVG rendering (used directly for cached muscle atlas)
+  flutter_svg: ^2.2.0
+  collection: ^1.18.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

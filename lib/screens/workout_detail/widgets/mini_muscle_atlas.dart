@@ -1,10 +1,67 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_body_atlas/flutter_body_atlas.dart' as atlas;
-import 'package:flutter_body_atlas/src/assets.dart' show SvgAsset;
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../models/muscle_group.dart' as app_models;
 import '../../../theme/app_theme.dart';
 
-class MiniMuscleAtlas extends StatelessWidget {
+/// Pre-loaded SVG strings cached statically to avoid repeated asset loading.
+class _SvgCache {
+  static String? _frontSvg;
+  static String? _backSvg;
+  static Future<void>? _loadingFuture;
+
+  static Future<void> ensureLoaded() {
+    _loadingFuture ??= _load();
+    return _loadingFuture!;
+  }
+
+  static Future<void> _load() async {
+    final results = await Future.wait([
+      rootBundle.loadString('packages/flutter_body_atlas/assets/svg/muscle_layer_front.svg'),
+      rootBundle.loadString('packages/flutter_body_atlas/assets/svg/muscle_layer_back.svg'),
+    ]);
+    _frontSvg = results[0];
+    _backSvg = results[1];
+  }
+
+  static String? get frontSvg => _frontSvg;
+  static String? get backSvg => _backSvg;
+  static bool get isLoaded => _frontSvg != null && _backSvg != null;
+}
+
+/// ColorMapper with proper equality so flutter_svg can cache parsed results.
+class _MuscleColorMapper extends ColorMapper {
+  final Map<String, Color> highlightedColors;
+  final Color defaultColor;
+
+  const _MuscleColorMapper({
+    required this.highlightedColors,
+    required this.defaultColor,
+  });
+
+  @override
+  Color substitute(String? id, String elementName, String attributeName, Color color) {
+    if (id == null) return color;
+    return highlightedColors[id] ?? color;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _MuscleColorMapper &&
+          const MapEquality<String, Color>().equals(highlightedColors, other.highlightedColors) &&
+          defaultColor == other.defaultColor;
+
+  @override
+  int get hashCode => Object.hash(
+        const MapEquality<String, Color>().hash(highlightedColors),
+        defaultColor,
+      );
+}
+
+class MiniMuscleAtlas extends StatefulWidget {
   final List<app_models.MuscleGroup> muscleGroups;
 
   const MiniMuscleAtlas({
@@ -12,11 +69,29 @@ class MiniMuscleAtlas extends StatelessWidget {
     required this.muscleGroups,
   });
 
+  @override
+  State<MiniMuscleAtlas> createState() => _MiniMuscleAtlasState();
+}
+
+class _MiniMuscleAtlasState extends State<MiniMuscleAtlas> {
+  bool _svgReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _svgReady = _SvgCache.isLoaded;
+    if (!_svgReady) {
+      _SvgCache.ensureLoaded().then((_) {
+        if (mounted) setState(() => _svgReady = true);
+      });
+    }
+  }
+
   /// Map our MuscleGroup enum to flutter_body_atlas Muscle enum
   List<atlas.Muscle> _mapToAtlasMuscles() {
     final Set<atlas.Muscle> muscles = {};
 
-    for (final group in muscleGroups) {
+    for (final group in widget.muscleGroups) {
       switch (group) {
         case app_models.MuscleGroup.chest:
           muscles.addAll([
@@ -131,9 +206,9 @@ class MiniMuscleAtlas extends StatelessWidget {
 
   /// Determine if we should show back view based on muscle group
   bool _shouldShowBackView() {
-    if (muscleGroups.isEmpty) return false;
+    if (widget.muscleGroups.isEmpty) return false;
 
-    final primaryGroup = muscleGroups.first;
+    final primaryGroup = widget.muscleGroups.first;
 
     switch (primaryGroup) {
       case app_models.MuscleGroup.back:
@@ -156,11 +231,11 @@ class MiniMuscleAtlas extends StatelessWidget {
 
   /// Get the appropriate body region and zoom level based on muscle groups
   ({Alignment alignment, double scale}) _getZoomSettings() {
-    if (muscleGroups.isEmpty) {
+    if (widget.muscleGroups.isEmpty) {
       return (alignment: Alignment.center, scale: 1.0);
     }
 
-    final primaryGroup = muscleGroups.first;
+    final primaryGroup = widget.muscleGroups.first;
 
     switch (primaryGroup) {
       // Upper body - zoom to chest/shoulders area
@@ -198,20 +273,7 @@ class MiniMuscleAtlas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final atlasMuscles = _mapToAtlasMuscles();
     final zoomSettings = _getZoomSettings();
-    final showBackView = _shouldShowBackView();
-
-    // Create color mapping by muscle ID strings
-    final highlightedColors = {
-      for (final muscle in atlasMuscles)
-        muscle.id: AppTheme.primaryOrange.withOpacity(0.8),
-    };
-
-    // Choose front or back view
-    final atlasAsset = showBackView
-        ? atlas.AtlasAsset.musclesBack
-        : atlas.AtlasAsset.musclesFront;
 
     return Container(
       width: 40,
@@ -220,20 +282,51 @@ class MiniMuscleAtlas extends StatelessWidget {
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.primaryOrange.withOpacity(0.2),
+          color: AppTheme.primaryOrange.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(7),
-        child: Transform.scale(
-          scale: zoomSettings.scale,
-          alignment: zoomSettings.alignment,
-          child: SvgAsset(
-            path: atlasAsset.path,
-            highlightedColors: highlightedColors,
-            defaultHoverColor: AppTheme.textSecondary.withOpacity(0.2),
-          ),
+        child: _svgReady
+            ? _buildSvg(zoomSettings)
+            : Container(
+                color: AppTheme.primaryOrange.withValues(alpha: 0.15),
+                child: const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: AppTheme.primaryOrange,
+                    ),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSvg(({Alignment alignment, double scale}) zoomSettings) {
+    final atlasMuscles = _mapToAtlasMuscles();
+    final showBackView = _shouldShowBackView();
+    final svgString = showBackView ? _SvgCache.backSvg! : _SvgCache.frontSvg!;
+
+    final highlightedColors = {
+      for (final muscle in atlasMuscles)
+        muscle.id: AppTheme.primaryOrange.withValues(alpha: 0.8),
+    };
+
+    return Transform.scale(
+      scale: zoomSettings.scale,
+      alignment: zoomSettings.alignment,
+      child: SvgPicture.string(
+        svgString,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        colorMapper: _MuscleColorMapper(
+          highlightedColors: highlightedColors,
+          defaultColor: AppTheme.textSecondary.withValues(alpha: 0.2),
         ),
       ),
     );
