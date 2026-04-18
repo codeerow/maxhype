@@ -5,12 +5,10 @@ import '../screens/workout_detail/workout_detail_screen.dart';
 
 class WorkoutCard extends StatefulWidget {
   final Workout workout;
-  final bool isActive;
 
   const WorkoutCard({
     super.key,
     required this.workout,
-    this.isActive = false,
   });
 
   @override
@@ -103,10 +101,9 @@ class _WorkoutCardState extends State<WorkoutCard>
         scale: _scaleAnimation,
         child: Container(
           decoration: BoxDecoration(
-            color: widget.isActive
-                ? const Color(0xFF3D2121)
-                : AppTheme.cardBackground,
+            color: AppTheme.cardBackground,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.primaryOrange, width: 2),
           ),
           padding: const EdgeInsets.all(20),
           child: Column(
