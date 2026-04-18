@@ -117,32 +117,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                         const SizedBox(height: 4),
                         // Monthly Charts (margins built into MonthlyChart)
-                        MonthlyChart(
-                          chartData: ChartData(
-                            monthName: monthData.monthName,
-                            year: monthData.year,
-                            values: monthData.dailyData
-                                .where((d) => d.isWorkoutDay)
-                                .map((d) => d.kcal)
-                                .toList(),
-                            legendText: 'Workout Progress This Month\nKCAL',
-                          ),
-                          title: 'MONTHLY KCAL BURNT',
-                          lineColor: AppTheme.chartOrange,
-                        ),
-                        MonthlyChart(
-                          chartData: ChartData(
-                            monthName: monthData.monthName,
-                            year: monthData.year,
-                            values: monthData.dailyData
-                                .where((d) => d.isWorkoutDay)
-                                .map((d) => d.volume)
-                                .toList(),
-                            legendText: 'Combined Total Weight for Push, Pull, Legs\nLBS',
-                          ),
-                          title: 'MONTHLY VOLUME',
-                          lineColor: AppTheme.chartGreen,
-                        ),
+                        Builder(builder: (context) {
+                          final workoutDays = monthData.dailyData
+                              .where((d) => d.isWorkoutDay)
+                              .toList();
+                          final days = workoutDays.map((d) => d.day).toList();
+                          return Column(
+                            children: [
+                              MonthlyChart(
+                                chartData: ChartData(
+                                  monthName: monthData.monthName,
+                                  year: monthData.year,
+                                  values: workoutDays.map((d) => d.kcal).toList(),
+                                  days: days,
+                                  legendText: 'Calories burned per workout, kcal',
+                                ),
+                                title: 'MONTHLY KCAL BURNT',
+                                lineColor: AppTheme.chartOrange,
+                              ),
+                              MonthlyChart(
+                                chartData: ChartData(
+                                  monthName: monthData.monthName,
+                                  year: monthData.year,
+                                  values: workoutDays.map((d) => d.volume).toList(),
+                                  days: days,
+                                  legendText: 'Total weight lifted per workout, lbs',
+                                ),
+                                title: 'MONTHLY VOLUME',
+                                lineColor: AppTheme.chartGreen,
+                              ),
+                            ],
+                          );
+                        }),
                         const SizedBox(height: 24),
                       ],
                     ),

@@ -6,16 +6,16 @@ class ChartData {
   final String monthName;
   final int year;
   final List<double> values;
+  final List<int>? days;
   final String legendText;
 
   ChartData({
     required this.monthName,
     required this.year,
     required this.values,
+    this.days,
     required this.legendText,
   });
-
-  String get displayName => '$monthName $year';
 }
 
 class MonthlyChart extends StatelessWidget {
@@ -37,7 +37,10 @@ class MonthlyChart extends StatelessWidget {
     }
 
     final spots = chartData.values.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value);
+      final x = chartData.days != null
+          ? chartData.days![entry.key].toDouble()
+          : entry.key.toDouble();
+      return FlSpot(x, entry.value);
     }).toList();
 
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
@@ -60,11 +63,6 @@ class MonthlyChart extends StatelessWidget {
                   letterSpacing: 1.0,
                   fontWeight: FontWeight.w600,
                 ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            chartData.displayName,
-            style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -98,9 +96,10 @@ class MonthlyChart extends StatelessWidget {
                       showTitles: true,
                       reservedSize: 30,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() % 5 == 0) {
+                        final day = value.toInt();
+                        if (day == value && day % 5 == 0 && day > 0) {
                           return Text(
-                            (value.toInt() + 1).toString(),
+                            day.toString(),
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 10,
                                 ),
@@ -173,11 +172,6 @@ class MonthlyChart extends StatelessWidget {
                   letterSpacing: 1.0,
                   fontWeight: FontWeight.w600,
                 ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            chartData.displayName,
-            style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 80),
           Center(
