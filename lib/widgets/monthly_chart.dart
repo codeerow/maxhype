@@ -44,7 +44,6 @@ class MonthlyChart extends StatelessWidget {
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
@@ -157,7 +156,6 @@ class MonthlyChart extends StatelessWidget {
 
   Widget _buildEmptyChart(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,

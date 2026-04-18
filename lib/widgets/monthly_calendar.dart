@@ -98,7 +98,6 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
     int completionPercent,
   ) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
