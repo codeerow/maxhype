@@ -22,7 +22,7 @@ class ChartData {
   });
 }
 
-class MonthlyChart extends StatelessWidget {
+class MonthlyChart extends StatefulWidget {
   final ChartData chartData;
   final String title;
   final Color lineColor;
@@ -33,6 +33,15 @@ class MonthlyChart extends StatelessWidget {
     required this.title,
     required this.lineColor,
   });
+
+  @override
+  State<MonthlyChart> createState() => _MonthlyChartState();
+}
+
+class _MonthlyChartState extends State<MonthlyChart> {
+  ChartData get chartData => widget.chartData;
+  String get title => widget.title;
+  Color get lineColor => widget.lineColor;
 
   @override
   Widget build(BuildContext context) {
@@ -96,77 +105,129 @@ class MonthlyChart extends StatelessWidget {
             child: LineChart(
               LineChartData(
                 gridData: const FlGridData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontSize: 10,
-                              ),
+                lineTouchData: LineTouchData(
+                  handleBuiltInTouches: true,
+                  touchSpotThreshold: 30,
+                  getTouchedSpotIndicator: (barData, spotIndexes) {
+                    return spotIndexes.map((index) {
+                      return TouchedSpotIndicatorData(
+                        FlLine(
+                          color: lineColor.withValues(alpha: 0.4),
+                          strokeWidth: 1,
+                          dashArray: [4, 4],
+                        ),
+                        FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, bar, idx) {
+                            return FlDotCirclePainter(
+                              radius: 6,
+                              color: lineColor,
+                              strokeWidth: 2,
+                              strokeColor: AppTheme.cardBackground,
+                            );
+                          },
+                        ),
+                      );
+                    }).toList();
+                  },
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => AppTheme.cardBackground,
+                    tooltipRoundedRadius: 8,
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        return LineTooltipItem(
+                          'Day ${spot.x.toInt()}\n${spot.y.toInt()}',
+                          TextStyle(
+                            color: lineColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
                         );
-                      },
-                    ),
+                      }).toList();
+                    },
                   ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: (value, meta) {
-                        final day = value.toInt();
-                        if (day == value && day % 5 == 0 && day > 0) {
+                ),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (value, meta) {
                           return Text(
-                            day.toString(),
+                            value.toInt().toString(),
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 10,
                                 ),
                           );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minY: minY * 0.8,
-                maxY: maxY * 1.2,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: lineColor,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          lineColor.withOpacity(0.3),
-                          lineColor.withOpacity(0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                        },
                       ),
                     ),
-                    shadow: Shadow(
-                      color: lineColor.withOpacity(0.5),
-                      blurRadius: 8,
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 30,
+                        getTitlesWidget: (value, meta) {
+                          final day = value.toInt();
+                          if (day == value && day % 5 == 0 && day > 0) {
+                            return Text(
+                              day.toString(),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 10,
+                                  ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                     ),
                   ),
-                ],
+                  borderData: FlBorderData(show: false),
+                  minY: minY * 0.8,
+                  maxY: maxY * 1.2,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      color: lineColor,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: 3,
+                            color: lineColor,
+                            strokeWidth: 1.5,
+                            strokeColor: AppTheme.cardBackground,
+                          );
+                        },
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          colors: [
+                            lineColor.withOpacity(0.3),
+                            lineColor.withOpacity(0.0),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                      shadow: Shadow(
+                        color: lineColor.withOpacity(0.5),
+                        blurRadius: 8,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 8),
           Text(
             chartData.legendText,

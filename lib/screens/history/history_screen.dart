@@ -94,7 +94,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                reverse: true, // Swipe left = go to past
+                reverse: true,
+                physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
