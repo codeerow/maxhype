@@ -3,7 +3,7 @@ import '../../theme/app_theme.dart';
 import '../../models/monthly_data.dart';
 import '../../data/mock_data.dart';
 import '../../widgets/monthly_calendar.dart';
-import '../../widgets/monthly_chart.dart' show MonthlyChart, ChartData;
+import '../../widgets/monthly_chart.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -104,82 +104,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 itemBuilder: (context, index) {
                   final monthData = _monthlyData[index];
                   return SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Completion percentage
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppTheme.cardBackground,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Completion',
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                Text(
-                                  '${monthData.completionPercentage.toStringAsFixed(0)}%',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryOrange,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Monthly Calendar
-                          MonthlyCalendar(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Monthly Calendar
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: MonthlyCalendar(
                             monthlyData: [monthData],
                             currentDay: index == 0 ? DateTime.now().day : null,
                           ),
-                          const SizedBox(height: 16),
-                          // Stats
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppTheme.cardBackground,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                _buildStatRow(
-                                  'Total KCAL',
-                                  monthData.totalKcal.toStringAsFixed(0),
-                                ),
-                                const SizedBox(height: 12),
-                                _buildStatRow(
-                                  'Workout Days',
-                                  monthData.dailyData
-                                      .where((d) => d.isWorkoutDay)
-                                      .length
-                                      .toString(),
-                                ),
-                              ],
-                            ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Monthly Charts (margins built into MonthlyChart)
+                        MonthlyChart(
+                          chartData: ChartData(
+                            monthName: monthData.monthName,
+                            year: monthData.year,
+                            values: monthData.dailyData
+                                .where((d) => d.isWorkoutDay)
+                                .map((d) => d.kcal)
+                                .toList(),
+                            legendText: 'Workout Progress This Month\nKCAL',
                           ),
-                          const SizedBox(height: 16),
-                          // Monthly Chart
-                          MonthlyChart(
-                            chartData: ChartData(
-                              monthName: monthData.monthName,
-                              year: monthData.year,
-                              values: monthData.dailyData.map((d) => d.kcal).toList(),
-                              legendText: 'KCAL burned per day',
-                            ),
-                            title: 'KCAL BURNED',
-                            lineColor: AppTheme.primaryOrange,
+                          title: 'MONTHLY KCAL BURNT',
+                          lineColor: AppTheme.chartOrange,
+                        ),
+                        MonthlyChart(
+                          chartData: ChartData(
+                            monthName: monthData.monthName,
+                            year: monthData.year,
+                            values: monthData.dailyData
+                                .where((d) => d.isWorkoutDay)
+                                .map((d) => d.volume)
+                                .toList(),
+                            legendText: 'Combined Total Weight for Push, Pull, Legs\nLBS',
                           ),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
+                          title: 'MONTHLY VOLUME',
+                          lineColor: AppTheme.chartGreen,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   );
                 },
@@ -191,23 +156,4 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildStatRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
 }

@@ -133,12 +133,7 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
                   ),
                 ],
               ),
-              Text(
-                '${monthData.monthName} ${monthData.year}',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontSize: 20,
-                    ),
-              ),
+              const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
