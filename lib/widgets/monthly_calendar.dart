@@ -138,7 +138,7 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'TOTAL KCAL BURNT',
+                    'WORKOUTS',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontSize: 10,
                           letterSpacing: 1.0,
@@ -147,9 +147,9 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${monthData.totalKcal.toInt()} kcal',
+                    '${monthData.dailyData.where((d) => d.isWorkoutDay).length}',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary,
                     ),

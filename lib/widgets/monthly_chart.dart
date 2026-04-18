@@ -8,6 +8,8 @@ class ChartData {
   final List<double> values;
   final List<int>? days;
   final String legendText;
+  final String? totalLabel;
+  final String? totalValue;
 
   ChartData({
     required this.monthName,
@@ -15,6 +17,8 @@ class ChartData {
     required this.values,
     this.days,
     required this.legendText,
+    this.totalLabel,
+    this.totalValue,
   });
 }
 
@@ -64,7 +68,29 @@ class MonthlyChart extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          const SizedBox(height: 24),
+          if (chartData.totalValue != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (chartData.totalLabel != null)
+                  Text(
+                    '${chartData.totalLabel}: ',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 13,
+                        ),
+                  ),
+                Text(
+                  chartData.totalValue!,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: lineColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
           SizedBox(
             height: 180,
             child: LineChart(
