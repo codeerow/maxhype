@@ -116,19 +116,21 @@ class MockData {
           ? now.day
           : daysInMonth;
 
-      // Calculate expected workouts (3 per week)
-      final expectedWorkouts = (maxDay / 7 * 3).round();
+      // ~40% completion: ~12 workout days per 30-day month, scaled to maxDay
+      final targetWorkoutDays = (maxDay * 0.40).round().clamp(1, maxDay);
 
-      // Generate 80-95% of expected workouts
-      final targetCompletion = 0.80 + random.nextDouble() * 0.15;
-      final totalWorkoutDays = (expectedWorkouts * targetCompletion).round();
-
-      // Generate workout days only up to maxDay
+      // Natural spacing: 1 workout day, then 1-2 rest days, repeat
+      // This gives ~33-50% completion and keeps rest days evenly spread
       final workoutDays = <int>{};
-      while (workoutDays.length < totalWorkoutDays) {
-        final day = random.nextInt(maxDay) + 1;
+      int day = 1 + random.nextInt(2); // start on day 1 or 2
+
+      while (workoutDays.length < targetWorkoutDays && day <= maxDay) {
         workoutDays.add(day);
+        // After each workout: rest 1-2 days before next
+        day += 2 + random.nextInt(2);
       }
+
+      final expectedWorkouts = targetWorkoutDays;
 
       // Base values that increase over time (older months have lower values)
       final baseKcal = 300.0 - (monthIndex * 50.0);
