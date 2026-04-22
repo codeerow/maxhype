@@ -163,6 +163,7 @@ class _WorkoutCardState extends State<WorkoutCard>
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontSize: 11,
+                                    color: recoveryColor,
                                   ),
                         ),
                       ],

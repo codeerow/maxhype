@@ -12,13 +12,22 @@ import 'widgets/exercise_card.dart';
 import 'widgets/exercise_options_sheet.dart';
 import 'widgets/replace_exercise_sheet.dart';
 
-class WorkoutDetailScreen extends StatelessWidget {
+class WorkoutDetailScreen extends StatefulWidget {
   final Workout workout;
 
   const WorkoutDetailScreen({
     super.key,
     required this.workout,
   });
+
+  @override
+  State<WorkoutDetailScreen> createState() => _WorkoutDetailScreenState();
+}
+
+class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
+  bool _isPressed = false;
+
+  Workout get workout => widget.workout;
 
   @override
   Widget build(BuildContext context) {
@@ -118,9 +127,10 @@ class WorkoutDetailScreen extends StatelessWidget {
           left: 24,
           right: 24,
           child: SafeArea(
-            child: ElevatedButton(
-              onPressed: () {
-                // TODO: Implement start workout
+            child: GestureDetector(
+              onTapDown: (_) => setState(() => _isPressed = true),
+              onTapUp: (_) {
+                setState(() => _isPressed = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Start Workout - Coming soon!'),
@@ -128,22 +138,33 @@ class WorkoutDetailScreen extends StatelessWidget {
                   ),
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.recoveryGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                elevation: 8,
-                shadowColor: AppTheme.recoveryGreen.withOpacity(0.5),
-              ),
-              child: const Text(
-                'Start Workout',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+              onTapCancel: () => setState(() => _isPressed = false),
+              child: AnimatedScale(
+                scale: _isPressed ? 0.96 : 1.0,
+                duration: Duration(milliseconds: _isPressed ? 80 : 120),
+                curve: Curves.easeOut,
+                child: ElevatedButton(
+                  onPressed: null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.recoveryGreen,
+                    disabledBackgroundColor: AppTheme.recoveryGreen,
+                    disabledForegroundColor: Colors.white,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 8,
+                    shadowColor: AppTheme.recoveryGreen.withOpacity(0.5),
+                  ),
+                  child: const Text(
+                    'Start Workout',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
             ),
