@@ -105,48 +105,7 @@ class _MonthlyChartState extends State<MonthlyChart> {
             child: LineChart(
               LineChartData(
                 gridData: const FlGridData(show: false),
-                lineTouchData: LineTouchData(
-                  handleBuiltInTouches: true,
-                  touchSpotThreshold: 30,
-                  getTouchedSpotIndicator: (barData, spotIndexes) {
-                    return spotIndexes.map((index) {
-                      return TouchedSpotIndicatorData(
-                        FlLine(
-                          color: lineColor.withValues(alpha: 0.4),
-                          strokeWidth: 1,
-                          dashArray: [4, 4],
-                        ),
-                        FlDotData(
-                          show: true,
-                          getDotPainter: (spot, percent, bar, idx) {
-                            return FlDotCirclePainter(
-                              radius: 6,
-                              color: lineColor,
-                              strokeWidth: 2,
-                              strokeColor: AppTheme.cardBackground,
-                            );
-                          },
-                        ),
-                      );
-                    }).toList();
-                  },
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (_) => AppTheme.cardBackground,
-                    tooltipRoundedRadius: 8,
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        return LineTooltipItem(
-                          'Day ${spot.x.toInt()}\n${spot.y.toInt()}',
-                          TextStyle(
-                            color: lineColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
+                lineTouchData: const LineTouchData(enabled: false),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
