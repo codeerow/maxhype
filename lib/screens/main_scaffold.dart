@@ -92,17 +92,15 @@ class _MainScaffoldState extends State<MainScaffold> {
               color: isActive ? AppTheme.primaryOrange : AppTheme.textSecondary,
               size: 24,
             ),
-            if (isActive) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: AppTheme.primaryOrange,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppTheme.primaryOrange : AppTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
           ],
         ),
       ),
