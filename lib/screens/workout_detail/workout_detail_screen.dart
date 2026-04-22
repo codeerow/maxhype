@@ -223,31 +223,27 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   }
 
   void _showReplaceExercise(BuildContext context, Exercise currentExercise) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (modalContext) => ReplaceExerciseSheet(
-        currentExercise: currentExercise,
-        onExerciseSelected: (newExercise) {
-          // Dispatch replace event to BLoC
-          context.read<WorkoutDetailBloc>().add(
-                ReplaceExercise(
-                  workoutId: workout.id,
-                  oldExerciseId: currentExercise.id,
-                  newExercise: newExercise,
-                ),
-              );
-
-          // Show success feedback
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Replaced with ${newExercise.name}'),
-              backgroundColor: AppTheme.recoveryGreen,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReplaceExerciseSheet(
+          currentExercise: currentExercise,
+          onExerciseSelected: (newExercise) {
+            context.read<WorkoutDetailBloc>().add(
+                  ReplaceExercise(
+                    workoutId: workout.id,
+                    oldExerciseId: currentExercise.id,
+                    newExercise: newExercise,
+                  ),
+                );
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Replaced with ${newExercise.name}'),
+                backgroundColor: AppTheme.recoveryGreen,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
