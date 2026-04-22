@@ -119,19 +119,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         const SizedBox(height: 4),
                         // Monthly Charts (margins built into MonthlyChart)
                         Builder(builder: (context) {
-                          final workoutDays = monthData.dailyData
-                              .where((d) => d.isWorkoutDay)
-                              .toList();
-                          final days = workoutDays.map((d) => d.day).toList();
+                          // Build cumulative values across all days
+                          double cumulativeKcal = 0;
+                          double cumulativeVolume = 0;
+                          final allDays = <int>[];
+                          final kcalValues = <double>[];
+                          final volumeValues = <double>[];
+
+                          for (final d in monthData.dailyData) {
+                            cumulativeKcal += d.kcal;
+                            cumulativeVolume += d.volume;
+                            allDays.add(d.day);
+                            kcalValues.add(cumulativeKcal);
+                            volumeValues.add(cumulativeVolume);
+                          }
+
+                          final totalVolume = cumulativeVolume;
+
                           return Column(
                             children: [
                               MonthlyChart(
                                 chartData: ChartData(
                                   monthName: monthData.monthName,
                                   year: monthData.year,
-                                  values: workoutDays.map((d) => d.kcal).toList(),
-                                  days: days,
-                                  legendText: 'Calories burned per workout, kcal',
+                                  values: kcalValues,
+                                  days: allDays,
+                                  legendText: 'Cumulative calories burned, kcal',
                                   totalValue: '${monthData.totalKcal.toInt()} kcal',
                                 ),
                                 title: 'MONTHLY KCAL BURNT',
@@ -141,10 +154,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 chartData: ChartData(
                                   monthName: monthData.monthName,
                                   year: monthData.year,
-                                  values: workoutDays.map((d) => d.volume).toList(),
-                                  days: days,
-                                  legendText: 'Total weight lifted per workout, lbs',
-                                  totalValue: '${workoutDays.fold<double>(0, (s, d) => s + d.volume).toInt()} lbs',
+                                  values: volumeValues,
+                                  days: allDays,
+                                  legendText: 'Cumulative volume lifted, lbs',
+                                  totalValue: '${totalVolume.toInt()} lbs',
                                 ),
                                 title: 'MONTHLY VOLUME',
                                 lineColor: AppTheme.chartGreen,

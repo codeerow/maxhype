@@ -57,7 +57,6 @@ class _MonthlyChartState extends State<MonthlyChart> {
     }).toList();
 
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -147,26 +146,16 @@ class _MonthlyChartState extends State<MonthlyChart> {
                     ),
                   ),
                   borderData: FlBorderData(show: false),
-                  minY: minY * 0.8,
+                  minY: 0,
                   maxY: maxY * 1.2,
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,
-                      isCurved: true,
+                      isCurved: false,
                       color: lineColor,
                       barWidth: 3,
                       isStrokeCapRound: true,
-                      dotData: FlDotData(
-                        show: true,
-                        getDotPainter: (spot, percent, barData, index) {
-                          return FlDotCirclePainter(
-                            radius: 3,
-                            color: lineColor,
-                            strokeWidth: 1.5,
-                            strokeColor: AppTheme.cardBackground,
-                          );
-                        },
-                      ),
+                      dotData: const FlDotData(show: false),
                       belowBarData: BarAreaData(
                         show: true,
                         gradient: LinearGradient(
