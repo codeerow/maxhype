@@ -98,7 +98,19 @@ class AllTimeCharts extends StatelessWidget {
             height: 180,
             child: LineChart(
               LineChartData(
-                gridData: const FlGridData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  getDrawingVerticalLine: (_) => FlLine(
+                    color: Colors.white.withOpacity(0.06),
+                    strokeWidth: 1,
+                  ),
+                  horizontalInterval: null,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: Colors.white.withOpacity(0.06),
+                    strokeWidth: 1,
+                  ),
+                ),
                 lineTouchData: const LineTouchData(enabled: false),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
