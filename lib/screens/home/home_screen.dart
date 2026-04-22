@@ -40,8 +40,8 @@ class HomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 24),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
+                        const SizedBox(
+                          width: double.infinity,
                           child: AppHeader(),
                         ),
                         const SizedBox(height: 32),
