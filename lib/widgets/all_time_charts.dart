@@ -123,19 +123,23 @@ class AllTimeCharts extends StatelessWidget {
                     spots: spots,
                     isCurved: false,
                     color: lineColor,
-                    barWidth: 2,
+                    barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          lineColor.withOpacity(0.15),
+                          lineColor.withOpacity(0.3),
                           lineColor.withOpacity(0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
+                    ),
+                    shadow: Shadow(
+                      color: lineColor.withOpacity(0.5),
+                      blurRadius: 8,
                     ),
                   ),
                 ],

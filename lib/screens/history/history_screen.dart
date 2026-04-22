@@ -95,7 +95,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: PageView.builder(
                 controller: _pageController,
                 reverse: true,
-                physics: const NeverScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(),
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
