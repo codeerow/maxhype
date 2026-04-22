@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/monthly_data.dart';
 import '../theme/app_theme.dart';
 
-class MonthlyCalendar extends StatefulWidget {
+class MonthlyCalendar extends StatelessWidget {
   final List<MonthlyData> monthlyData;
   final int? currentDay;
 
@@ -12,244 +12,9 @@ class MonthlyCalendar extends StatefulWidget {
     this.currentDay,
   });
 
-  @override
-  State<MonthlyCalendar> createState() => _MonthlyCalendarState();
-}
-
-class _MonthlyCalendarState extends State<MonthlyCalendar> {
-  final PageController _pageController = PageController();
-  late int _currentPage;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentPage = widget.monthlyData.length - 1;
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
   int _getFirstWeekday(int year, int month) {
     final firstDay = DateTime(year, month, 1);
-    return firstDay.weekday % 7; // Convert to 0 = Sunday
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 400,
-          child: PageView.builder(
-            controller: _pageController,
-            reverse: true,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = widget.monthlyData.length - 1 - index;
-              });
-            },
-            itemCount: widget.monthlyData.length,
-            itemBuilder: (context, index) {
-              final monthData = widget.monthlyData[index];
-              final daysInMonth = monthData.dailyData.length;
-              final firstWeekday = _getFirstWeekday(monthData.year, _getMonthNumber(monthData.monthName));
-              final completionPercent = (monthData.completionPercentage).toInt();
-
-              return _buildCalendarCard(
-                context,
-                monthData,
-                daysInMonth,
-                firstWeekday,
-                completionPercent,
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCalendarCard(
-    BuildContext context,
-    MonthlyData monthData,
-    int daysInMonth,
-    int firstWeekday,
-    int completionPercent,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          // Header with stats
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'COMPLETION',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 10,
-                          letterSpacing: 1.0,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$completionPercent%',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: completionPercent > 0
-                          ? AppTheme.recoveryRed
-                          : AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'WORKOUTS',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 10,
-                          letterSpacing: 1.0,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${monthData.dailyData.where((d) => d.isWorkoutDay).length}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Weekday headers
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) {
-              return SizedBox(
-                width: 40,
-                child: Center(
-                  child: Text(
-                    day,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 12),
-
-          // Calendar grid
-          _buildCalendarGrid(monthData, firstWeekday, daysInMonth),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalendarGrid(MonthlyData monthData, int firstWeekday, int daysInMonth) {
-    final List<Widget> rows = [];
-    int currentDay = 1;
-
-    // Calculate total weeks needed
-    final totalCells = firstWeekday + daysInMonth;
-    final totalWeeks = (totalCells / 7).ceil();
-
-    // Check if this month is the current month
-    final now = DateTime.now();
-    final isCurrentMonth = monthData.year == now.year &&
-                          _getMonthNumber(monthData.monthName) == now.month;
-
-    for (int week = 0; week < totalWeeks; week++) {
-      final List<Widget> dayCells = [];
-
-      for (int weekday = 0; weekday < 7; weekday++) {
-        final cellIndex = week * 7 + weekday;
-
-        if (cellIndex < firstWeekday || currentDay > daysInMonth) {
-          // Empty cell
-          dayCells.add(const SizedBox(width: 40, height: 40));
-        } else {
-          // Day cell
-          final dayData = monthData.dailyData[currentDay - 1];
-          final isToday = isCurrentMonth && currentDay == widget.currentDay;
-
-          dayCells.add(_buildDayCell(currentDay, dayData.isWorkoutDay, isToday));
-          currentDay++;
-        }
-      }
-
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: dayCells,
-          ),
-        ),
-      );
-    }
-
-    return Column(children: rows);
-  }
-
-  Widget _buildDayCell(int day, bool hasWorkout, bool isToday) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: isToday
-            ? AppTheme.textPrimary.withOpacity(0.1)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            '$day',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          if (hasWorkout) ...[
-            const SizedBox(height: 2),
-            Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.recoveryGreen,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
+    return firstDay.weekday % 7; // 0 = Sunday
   }
 
   int _getMonthNumber(String monthName) {
@@ -259,5 +24,126 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
       'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
     };
     return months[monthName] ?? 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final monthData = monthlyData.first;
+    final daysInMonth = monthData.dailyData.length;
+    final monthNum = _getMonthNumber(monthData.monthName);
+    final firstWeekday = _getFirstWeekday(monthData.year, monthNum);
+    final now = DateTime.now();
+    final isCurrentMonth =
+        monthData.year == now.year && monthNum == now.month;
+
+    return Column(
+      children: [
+        // Weekday headers
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) {
+            return SizedBox(
+              width: 40,
+              child: Center(
+                child: Text(
+                  d,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textSecondary,
+                      ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 4),
+        // Calendar grid
+        _buildGrid(context, monthData, firstWeekday, daysInMonth, isCurrentMonth),
+      ],
+    );
+  }
+
+  Widget _buildGrid(
+    BuildContext context,
+    MonthlyData monthData,
+    int firstWeekday,
+    int daysInMonth,
+    bool isCurrentMonth,
+  ) {
+    final totalCells = firstWeekday + daysInMonth;
+    final totalWeeks = (totalCells / 7).ceil();
+    final List<Widget> rows = [];
+    int day = 1;
+
+    for (int week = 0; week < totalWeeks; week++) {
+      final List<Widget> cells = [];
+
+      for (int weekday = 0; weekday < 7; weekday++) {
+        final cellIndex = week * 7 + weekday;
+
+        if (cellIndex < firstWeekday || day > daysInMonth) {
+          cells.add(const SizedBox(width: 40, height: 48));
+        } else {
+          final dayData = monthData.dailyData[day - 1];
+          final isToday = isCurrentMonth && day == currentDay;
+          cells.add(_buildDayCell(context, day, dayData.isWorkoutDay, isToday));
+          day++;
+        }
+      }
+
+      rows.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: cells,
+        ),
+      );
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _buildDayCell(BuildContext context, int day, bool hasWorkout, bool isToday) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: isToday
+                ? BoxDecoration(
+                    color: AppTheme.textPrimary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  )
+                : null,
+            child: Center(
+              child: Text(
+                '$day',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isToday ? FontWeight.bold : FontWeight.w400,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ),
+          if (hasWorkout)
+            Positioned(
+              bottom: 1,
+              child: Container(
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(
+                  color: AppTheme.recoveryGreen,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
