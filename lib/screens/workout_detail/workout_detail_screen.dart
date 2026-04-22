@@ -112,50 +112,38 @@ class WorkoutDetailScreen extends StatelessWidget {
             ],
           ),
         ),
-        // Sticky bottom button
+        // Floating bottom button
         Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement start workout
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Start Workout - Coming soon!'),
-                      backgroundColor: AppTheme.primaryOrange,
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.recoveryGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          bottom: 24,
+          left: 24,
+          right: 24,
+          child: SafeArea(
+            child: ElevatedButton(
+              onPressed: () {
+                // TODO: Implement start workout
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Start Workout - Coming soon!'),
+                    backgroundColor: AppTheme.primaryOrange,
                   ),
-                  elevation: 0,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.recoveryGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
-                child: const Text(
-                  'START WORKOUT',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
+                elevation: 8,
+                shadowColor: AppTheme.recoveryGreen.withOpacity(0.5),
+              ),
+              child: const Text(
+                'Start Workout',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
