@@ -225,17 +225,29 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Center(
-        child: Text(
-          '$day',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-            color: hasWorkout
-                ? AppTheme.recoveryGreen
-                : AppTheme.textSecondary,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '$day',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+              color: AppTheme.textSecondary,
+            ),
           ),
-        ),
+          if (hasWorkout) ...[
+            const SizedBox(height: 2),
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.recoveryGreen,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
