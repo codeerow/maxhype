@@ -107,87 +107,87 @@ class _MonthlyChartState extends State<MonthlyChart> {
                   show: true,
                   drawVerticalLine: true,
                   getDrawingVerticalLine: (_) => FlLine(
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                     strokeWidth: 1,
                   ),
                   horizontalInterval: null,
                   getDrawingHorizontalLine: (_) => FlLine(
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                     strokeWidth: 1,
                   ),
                 ),
                 lineTouchData: const LineTouchData(enabled: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontSize: 10,
+                              ),
+                        );
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) {
+                        final day = value.toInt();
+                        if (day == value && day % 5 == 0 && day > 0) {
                           return Text(
-                            value.toInt().toString(),
+                            day.toString(),
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 10,
                                 ),
                           );
-                        },
-                      ),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 30,
-                        getTitlesWidget: (value, meta) {
-                          final day = value.toInt();
-                          if (day == value && day % 5 == 0 && day > 0) {
-                            return Text(
-                              day.toString(),
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontSize: 10,
-                                  ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
+                        }
+                        return const SizedBox.shrink();
+                      },
                     ),
                   ),
-                  borderData: FlBorderData(show: false),
-                  minY: 0,
-                  maxY: maxY * 1.2,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: false,
-                      color: lineColor,
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: false),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        gradient: LinearGradient(
-                          colors: [
-                            lineColor.withOpacity(0.3),
-                            lineColor.withOpacity(0.0),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                      shadow: Shadow(
-                        color: lineColor.withOpacity(0.5),
-                        blurRadius: 8,
+                ),
+                borderData: FlBorderData(show: false),
+                minY: 0,
+                maxY: maxY * 1.2,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: false,
+                    color: lineColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          lineColor.withValues(alpha: 0.3),
+                          lineColor.withValues(alpha: 0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                       ),
                     ),
-                  ],
-                ),
+                    shadow: Shadow(
+                      color: lineColor.withValues(alpha: 0.5),
+                      blurRadius: 8,
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
           const SizedBox(height: 8),
           Text(
             chartData.legendText,

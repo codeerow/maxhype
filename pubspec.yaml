@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Charts for displaying workout data
-  fl_chart: ^0.69.0
+  fl_chart: ^1.2.0
 
   # State management
   flutter_bloc: ^8.1.6

@@ -102,12 +102,12 @@ class AllTimeCharts extends StatelessWidget {
                   show: true,
                   drawVerticalLine: true,
                   getDrawingVerticalLine: (_) => FlLine(
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                     strokeWidth: 1,
                   ),
                   horizontalInterval: null,
                   getDrawingHorizontalLine: (_) => FlLine(
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                     strokeWidth: 1,
                   ),
                 ),
@@ -142,15 +142,15 @@ class AllTimeCharts extends StatelessWidget {
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          lineColor.withOpacity(0.3),
-                          lineColor.withOpacity(0.0),
+                          lineColor.withValues(alpha: 0.3),
+                          lineColor.withValues(alpha: 0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                     ),
                     shadow: Shadow(
-                      color: lineColor.withOpacity(0.5),
+                      color: lineColor.withValues(alpha: 0.5),
                       blurRadius: 8,
                     ),
                   ),
@@ -174,4 +174,3 @@ class AllTimeCharts extends StatelessWidget {
     return value.toStringAsFixed(0);
   }
 }
-
