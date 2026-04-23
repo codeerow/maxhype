@@ -15,8 +15,7 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final weightLb = (exercise.weight * 2.20462).round();
-    final subtitle = '${exercise.sets} sets · ${exercise.reps} reps · $weightLb lb';
+    final subtitle = '${exercise.sets} sets';
 
     return Row(
       children: [
@@ -75,20 +74,21 @@ class ExerciseCard extends StatelessWidget {
             ],
           ),
         ),
-        // 3-dots in dark rounded container
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppTheme.cardBackground,
-            borderRadius: BorderRadius.circular(10),
+        // 3-dots in dark rounded container (hidden when no callback)
+        if (onOptionsPressed != null)
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppTheme.cardBackground,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.more_horiz, color: AppTheme.textSecondary, size: 18),
+              onPressed: onOptionsPressed,
+              padding: EdgeInsets.zero,
+            ),
           ),
-          child: IconButton(
-            icon: const Icon(Icons.more_horiz, color: AppTheme.textSecondary, size: 18),
-            onPressed: onOptionsPressed,
-            padding: EdgeInsets.zero,
-          ),
-        ),
       ],
     );
   }
