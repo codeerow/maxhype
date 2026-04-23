@@ -241,33 +241,33 @@ class _MiniMuscleAtlasState extends State<MiniMuscleAtlas> {
       // Upper body - zoom to chest/shoulders area
       case app_models.MuscleGroup.chest:
       case app_models.MuscleGroup.shoulders:
-        return (alignment: Alignment(0, -0.35), scale: 2.2);
+        return (alignment: Alignment(0, -0.7), scale: 2.9);
 
       // Arms - zoom to upper body with arms
       case app_models.MuscleGroup.triceps:
       case app_models.MuscleGroup.biceps:
       case app_models.MuscleGroup.forearms:
-        return (alignment: Alignment(0, -0.2), scale: 2.0);
+        return (alignment: Alignment(0, -0.6), scale: 3.0);
 
       // Back - zoom to torso
       case app_models.MuscleGroup.back:
       case app_models.MuscleGroup.lowerBack:
-        return (alignment: Alignment(0, -0.15), scale: 1.9);
+        return (alignment: Alignment(0, -0.75), scale: 3.0);
 
       // Core - zoom to midsection
       case app_models.MuscleGroup.abs:
       case app_models.MuscleGroup.obliques:
-        return (alignment: Alignment(0, 0.1), scale: 2.1);
+        return (alignment: Alignment(0, -0.3), scale: 3.6);
 
       // Legs - zoom to lower body
       case app_models.MuscleGroup.quads:
       case app_models.MuscleGroup.hamstrings:
       case app_models.MuscleGroup.glutes:
-        return (alignment: Alignment(0, 0.4), scale: 1.9);
+        return (alignment: Alignment(0, 0.3), scale: 3.0);
 
       // Calves - zoom to lower legs
       case app_models.MuscleGroup.calves:
-        return (alignment: Alignment(0, 0.65), scale: 2.4);
+        return (alignment: Alignment(0, 0.8), scale: 3.0);
     }
   }
 
