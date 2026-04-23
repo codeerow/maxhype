@@ -79,6 +79,7 @@ class ReplaceExerciseSheet extends StatelessWidget {
               itemBuilder: (context, index) {
                 final exercise = topExercises[index];
                 return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);
@@ -103,6 +104,7 @@ class ReplaceExerciseSheet extends StatelessWidget {
               itemBuilder: (context, index) {
                 final exercise = remainingExercises[index];
                 return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);
