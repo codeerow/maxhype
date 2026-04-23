@@ -119,7 +119,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         const SizedBox(height: 4),
                         // Monthly Charts (margins built into MonthlyChart)
                         Builder(builder: (context) {
-                          // Build cumulative values across all days
+                          // Build cumulative values up to today for current month
+                          final isCurrentMonth = index == 0;
+                          final maxDay = isCurrentMonth
+                              ? DateTime.now().day
+                              : monthData.dailyData.length;
+
                           double cumulativeKcal = 0;
                           double cumulativeVolume = 0;
                           final allDays = <int>[];
@@ -127,6 +132,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           final volumeValues = <double>[];
 
                           for (final d in monthData.dailyData) {
+                            if (d.day > maxDay) break;
                             cumulativeKcal += d.kcal;
                             cumulativeVolume += d.volume;
                             allDays.add(d.day);
