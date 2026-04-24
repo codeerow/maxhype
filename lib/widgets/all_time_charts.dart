@@ -102,12 +102,12 @@ class AllTimeCharts extends StatelessWidget {
                   show: true,
                   drawVerticalLine: true,
                   getDrawingVerticalLine: (_) => FlLine(
-                    color: Colors.white.withValues(alpha: 0.06),
+                    color: Colors.white.withValues(alpha: 0.015),
                     strokeWidth: 1,
                   ),
                   horizontalInterval: null,
                   getDrawingHorizontalLine: (_) => FlLine(
-                    color: Colors.white.withValues(alpha: 0.06),
+                    color: Colors.white.withValues(alpha: 0.015),
                     strokeWidth: 1,
                   ),
                 ),
