@@ -21,15 +21,15 @@ class ExerciseCard extends StatelessWidget {
       children: [
         // Exercise image with muscle atlas overlay (bottom-left)
         SizedBox(
-          width: 90,
-          height: 116,
+          width: 70,
+          height: 90,
           child: Stack(
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: 90,
-                  height: 116,
+                  width: 70,
+                  height: 90,
                   color: AppTheme.cardBackground,
                   child: Center(
                     child: Text(
@@ -44,8 +44,8 @@ class ExerciseCard extends StatelessWidget {
                 ),
               ),
               Positioned(
-                bottom: 4,
-                right: 4,
+                bottom: 0,
+                right: 0,
                 child: MiniMuscleAtlas(muscleGroups: exercise.muscleGroups),
               ),
             ],
