@@ -29,7 +29,6 @@ class WorkoutCardsScroll extends StatelessWidget {
             ),
             child: WorkoutCard(
               workout: workouts[index],
-              isActive: index == 0,
             ),
           );
         },

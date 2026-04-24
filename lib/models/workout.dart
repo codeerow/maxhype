@@ -1,3 +1,6 @@
+import 'exercise.dart';
+import 'muscle_group.dart';
+
 enum RecoveryStatus {
   ready,
   almostReady,
@@ -28,17 +31,23 @@ class RecoveryInfo {
 }
 
 class Workout {
+  final String id;
   final String title;
   final String subtitle;
   final String duration;
   final int exerciseCount;
   final RecoveryInfo recoveryInfo;
+  final List<Exercise> exercises;
+  final List<MuscleGroup> targetMuscles;
 
   Workout({
+    required this.id,
     required this.title,
     required this.subtitle,
     required this.duration,
     required this.exerciseCount,
     required this.recoveryInfo,
+    required this.exercises,
+    required this.targetMuscles,
   });
 }

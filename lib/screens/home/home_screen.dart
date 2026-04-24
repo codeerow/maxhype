@@ -3,8 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/workout_cards_scroll.dart';
-import '../../widgets/monthly_calendar.dart';
-import '../../widgets/monthly_history_scroll.dart';
+import '../../widgets/all_time_charts.dart';
 import '../../core/bloc_factory.dart';
 import 'bloc/home_bloc.dart';
 import 'bloc/home_event.dart';
@@ -34,25 +33,21 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             HomeSuccess(:final workouts, :final monthlyData) => Scaffold(
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 body: SafeArea(
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 24),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
+                        const SizedBox(
+                          width: double.infinity,
                           child: AppHeader(),
                         ),
                         const SizedBox(height: 32),
                         WorkoutCardsScroll(workouts: workouts),
-                        const SizedBox(height: 16),
-                        MonthlyCalendar(
-                          monthlyData: monthlyData,
-                          currentDay: DateTime.now().day,
-                        ),
-                        const SizedBox(height: 16),
-                        MonthlyHistoryScroll(monthlyData: monthlyData),
+                        const SizedBox(height: 8),
+                        AllTimeCharts(monthlyData: monthlyData),
                         const SizedBox(height: 24),
                       ],
                     ),

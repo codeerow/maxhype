@@ -37,7 +37,8 @@ class _MonthlyHistoryScrollState extends State<MonthlyHistoryScroll> {
       monthName: monthData.monthName,
       year: monthData.year,
       values: workoutDays.map((d) => d.kcal).toList(),
-      legendText: 'Workout Progress This Month\nKCAL',
+      days: workoutDays.map((d) => d.day).toList(),
+      legendText: 'Calories burned per workout, kcal',
     );
   }
 
@@ -47,7 +48,8 @@ class _MonthlyHistoryScrollState extends State<MonthlyHistoryScroll> {
       monthName: monthData.monthName,
       year: monthData.year,
       values: workoutDays.map((d) => d.volume).toList(),
-      legendText: 'Combined Total Weight for Push, Pull, Legs\nLBS',
+      days: workoutDays.map((d) => d.day).toList(),
+      legendText: 'Total weight lifted per workout, lbs',
     );
   }
 

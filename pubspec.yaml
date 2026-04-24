@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Charts for displaying workout data
-  fl_chart: ^0.69.0
+  fl_chart: ^1.2.0
 
   # State management
   flutter_bloc: ^8.1.6
@@ -46,6 +46,13 @@ dependencies:
 
   # Utilities
   intl: ^0.19.0
+
+  # Body atlas for muscle visualization
+  flutter_body_atlas: ^0.1.0
+
+  # SVG rendering (used directly for cached muscle atlas)
+  flutter_svg: ^2.2.0
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

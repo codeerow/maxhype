@@ -6,19 +6,23 @@ class ChartData {
   final String monthName;
   final int year;
   final List<double> values;
+  final List<int>? days;
   final String legendText;
+  final String? totalLabel;
+  final String? totalValue;
 
   ChartData({
     required this.monthName,
     required this.year,
     required this.values,
+    this.days,
     required this.legendText,
+    this.totalLabel,
+    this.totalValue,
   });
-
-  String get displayName => '$monthName $year';
 }
 
-class MonthlyChart extends StatelessWidget {
+class MonthlyChart extends StatefulWidget {
   final ChartData chartData;
   final String title;
   final Color lineColor;
@@ -31,17 +35,28 @@ class MonthlyChart extends StatelessWidget {
   });
 
   @override
+  State<MonthlyChart> createState() => _MonthlyChartState();
+}
+
+class _MonthlyChartState extends State<MonthlyChart> {
+  ChartData get chartData => widget.chartData;
+  String get title => widget.title;
+  Color get lineColor => widget.lineColor;
+
+  @override
   Widget build(BuildContext context) {
     if (chartData.values.isEmpty) {
       return _buildEmptyChart(context);
     }
 
     final spots = chartData.values.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value);
+      final x = chartData.days != null
+          ? chartData.days![entry.key].toDouble()
+          : entry.key.toDouble();
+      return FlSpot(x, entry.value);
     }).toList();
 
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -61,17 +76,47 @@ class MonthlyChart extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            chartData.displayName,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 24),
+          if (chartData.totalValue != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (chartData.totalLabel != null)
+                  Text(
+                    '${chartData.totalLabel}: ',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 13,
+                        ),
+                  ),
+                Text(
+                  chartData.totalValue!,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: lineColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
           SizedBox(
             height: 180,
             child: LineChart(
               LineChartData(
-                gridData: const FlGridData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  getDrawingVerticalLine: (_) => FlLine(
+                    color: Colors.white.withValues(alpha: 0.015),
+                    strokeWidth: 1,
+                  ),
+                  horizontalInterval: null,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: Colors.white.withValues(alpha: 0.015),
+                    strokeWidth: 1,
+                  ),
+                ),
+                lineTouchData: const LineTouchData(enabled: false),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
@@ -98,9 +143,10 @@ class MonthlyChart extends StatelessWidget {
                       showTitles: true,
                       reservedSize: 30,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() % 5 == 0) {
+                        final day = value.toInt();
+                        if (day == value && day % 5 == 0 && day > 0) {
                           return Text(
-                            (value.toInt() + 1).toString(),
+                            day.toString(),
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 10,
                                 ),
@@ -112,12 +158,12 @@ class MonthlyChart extends StatelessWidget {
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                minY: minY * 0.8,
+                minY: 0,
                 maxY: maxY * 1.2,
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
-                    isCurved: true,
+                    isCurved: false,
                     color: lineColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
@@ -126,15 +172,15 @@ class MonthlyChart extends StatelessWidget {
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          lineColor.withOpacity(0.3),
-                          lineColor.withOpacity(0.0),
+                          lineColor.withValues(alpha: 0.3),
+                          lineColor.withValues(alpha: 0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                     ),
                     shadow: Shadow(
-                      color: lineColor.withOpacity(0.5),
+                      color: lineColor.withValues(alpha: 0.5),
                       blurRadius: 8,
                     ),
                   ),
@@ -173,11 +219,6 @@ class MonthlyChart extends StatelessWidget {
                   letterSpacing: 1.0,
                   fontWeight: FontWeight.w600,
                 ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            chartData.displayName,
-            style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 80),
           Center(

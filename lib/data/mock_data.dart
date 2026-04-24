@@ -1,15 +1,63 @@
 import 'dart:math';
 import '../models/workout.dart';
 import '../models/monthly_data.dart';
+import '../models/muscle_group.dart';
+import '../models/all_time_stats.dart';
+import '../repositories/mock_exercise_repository.dart';
 
 class MockData {
+  static final _exerciseRepo = MockExerciseRepository();
+
   static List<Workout> getWorkouts() {
+    // Get exercises for each workout
+    final pushExercises = [
+      _exerciseRepo.getExerciseById('ex_002')!, // Dumbbell Bench Press
+      _exerciseRepo.getExerciseById('ex_004')!, // Decline Barbell Bench Press
+      _exerciseRepo.getExerciseById('ex_009')!, // Standing Dumbbell Shoulder Press
+      _exerciseRepo.getExerciseById('ex_011')!, // Lateral Dumbbell Raise
+      _exerciseRepo.getExerciseById('ex_015')!, // Tricep Pushdown
+      _exerciseRepo.getExerciseById('ex_016')!, // Dips
+      _exerciseRepo.getExerciseById('ex_005')!, // Cable Chest Fly
+      _exerciseRepo.getExerciseById('ex_017')!, // Overhead Dumbbell Tricep Extension
+    ];
+
+    final pullExercises = [
+      _exerciseRepo.getExerciseById('ex_020')!, // Pull-ups
+      _exerciseRepo.getExerciseById('ex_021')!, // Barbell Row
+      _exerciseRepo.getExerciseById('ex_022')!, // Lat Pulldown
+      _exerciseRepo.getExerciseById('ex_023')!, // Dumbbell Row
+      _exerciseRepo.getExerciseById('ex_024')!, // Seated Cable Row
+      _exerciseRepo.getExerciseById('ex_027')!, // Barbell Curl
+      _exerciseRepo.getExerciseById('ex_028')!, // Dumbbell Curl
+      _exerciseRepo.getExerciseById('ex_025')!, // Face Pulls
+    ];
+
+    final legsExercises = [
+      _exerciseRepo.getExerciseById('ex_032')!, // Barbell Squat
+      _exerciseRepo.getExerciseById('ex_033')!, // Leg Press
+      _exerciseRepo.getExerciseById('ex_037')!, // Romanian Deadlift
+      _exerciseRepo.getExerciseById('ex_038')!, // Leg Curl
+      _exerciseRepo.getExerciseById('ex_040')!, // Hip Thrust
+      _exerciseRepo.getExerciseById('ex_034')!, // Bulgarian Split Squat
+      _exerciseRepo.getExerciseById('ex_042')!, // Standing Calf Raise
+      _exerciseRepo.getExerciseById('ex_044')!, // Cable Crunch
+      _exerciseRepo.getExerciseById('ex_045')!, // Hanging Leg Raise
+      _exerciseRepo.getExerciseById('ex_046')!, // Plank
+    ];
+
     return [
       Workout(
+        id: 'workout_001',
         title: 'Push',
         subtitle: 'Chest, Shoulders, Triceps',
         duration: '2 hrs',
-        exerciseCount: 8,
+        exerciseCount: pushExercises.length,
+        exercises: pushExercises,
+        targetMuscles: [
+          MuscleGroup.chest,
+          MuscleGroup.shoulders,
+          MuscleGroup.triceps,
+        ],
         recoveryInfo: RecoveryInfo(
           status: RecoveryStatus.ready,
           percentage: 100,
@@ -17,10 +65,16 @@ class MockData {
         ),
       ),
       Workout(
+        id: 'workout_002',
         title: 'Pull',
         subtitle: 'Back, Biceps',
         duration: '2 hrs',
-        exerciseCount: 8,
+        exerciseCount: pullExercises.length,
+        exercises: pullExercises,
+        targetMuscles: [
+          MuscleGroup.back,
+          MuscleGroup.biceps,
+        ],
         recoveryInfo: RecoveryInfo(
           status: RecoveryStatus.almostReady,
           percentage: 83,
@@ -28,10 +82,18 @@ class MockData {
         ),
       ),
       Workout(
+        id: 'workout_003',
         title: 'Legs + Core',
         subtitle: 'Quads, Hamstrings, Glutes, Abs',
         duration: '2.5 hrs',
-        exerciseCount: 10,
+        exerciseCount: legsExercises.length,
+        exercises: legsExercises,
+        targetMuscles: [
+          MuscleGroup.quads,
+          MuscleGroup.hamstrings,
+          MuscleGroup.glutes,
+          MuscleGroup.abs,
+        ],
         recoveryInfo: RecoveryInfo(
           status: RecoveryStatus.notReady,
           percentage: 45,
@@ -54,19 +116,21 @@ class MockData {
           ? now.day
           : daysInMonth;
 
-      // Calculate expected workouts (3 per week)
-      final expectedWorkouts = (maxDay / 7 * 3).round();
+      // ~40% completion: ~12 workout days per 30-day month, scaled to maxDay
+      final targetWorkoutDays = (maxDay * 0.40).round().clamp(1, maxDay);
 
-      // Generate 80-95% of expected workouts
-      final targetCompletion = 0.80 + random.nextDouble() * 0.15;
-      final totalWorkoutDays = (expectedWorkouts * targetCompletion).round();
-
-      // Generate workout days only up to maxDay
+      // Natural spacing: 1 workout day, then 1-2 rest days, repeat
+      // This gives ~33-50% completion and keeps rest days evenly spread
       final workoutDays = <int>{};
-      while (workoutDays.length < totalWorkoutDays) {
-        final day = random.nextInt(maxDay) + 1;
+      int day = 1 + random.nextInt(2); // start on day 1 or 2
+
+      while (workoutDays.length < targetWorkoutDays && day <= maxDay) {
         workoutDays.add(day);
+        // After each workout: rest 1-2 days before next
+        day += 2 + random.nextInt(2);
       }
+
+      final expectedWorkouts = targetWorkoutDays;
 
       // Base values that increase over time (older months have lower values)
       final baseKcal = 300.0 - (monthIndex * 50.0);
@@ -122,5 +186,52 @@ class MockData {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return months[month - 1];
+  }
+
+  static AllTimeStats getAllTimeStats() {
+    final monthlyData = getMonthlyData();
+
+    // Calculate totals from monthly data
+    final totalWorkouts = monthlyData.fold<int>(
+      0,
+      (sum, month) => sum + month.dailyData.where((d) => d.isWorkoutDay).length,
+    );
+
+    final totalKcal = monthlyData.fold<double>(
+      0,
+      (sum, month) => sum + month.totalKcal,
+    );
+
+    final totalVolume = monthlyData.fold<double>(
+      0,
+      (sum, month) => sum + month.dailyData
+          .where((d) => d.isWorkoutDay)
+          .fold<double>(0, (s, d) => s + d.volume),
+    );
+
+    // Calculate current streak (simplified - count consecutive workout days from today)
+    final now = DateTime.now();
+    int currentStreak = 0;
+    final latestMonth = monthlyData.first;
+
+    for (int day = now.day; day >= 1; day--) {
+      final dayData = latestMonth.dailyData[day - 1];
+      if (dayData.isWorkoutDay) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    // Mock longest streak
+    final longestStreak = currentStreak + 3;
+
+    return AllTimeStats(
+      totalWorkouts: totalWorkouts,
+      totalKcal: totalKcal,
+      totalVolume: totalVolume,
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+    );
   }
 }
