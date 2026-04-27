@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../models/exercise.dart';
+import '../../../widgets/tap_scale.dart';
 
 class ExerciseOptionsSheet extends StatelessWidget {
   final Exercise exercise;
@@ -40,12 +41,13 @@ class ExerciseOptionsSheet extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(
+                  TapScale(
+                    scaleDown: 0.90,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(
                       Icons.close,
                       color: AppTheme.textSecondary,
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
@@ -71,7 +73,6 @@ class ExerciseOptionsSheet extends StatelessWidget {
               title: 'Favorite for this routine',
               onTap: () {
                 Navigator.of(context).pop();
-                // TODO: Implement favorite
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Favorite - Coming soon!'),
@@ -87,7 +88,6 @@ class ExerciseOptionsSheet extends StatelessWidget {
               textColor: AppTheme.recoveryRed,
               onTap: () {
                 Navigator.of(context).pop();
-                // TODO: Implement exclude
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Exclude - Coming soon!'),
@@ -110,7 +110,8 @@ class ExerciseOptionsSheet extends StatelessWidget {
     required VoidCallback onTap,
     Color? textColor,
   }) {
-    return InkWell(
+    return TapScale(
+      scaleDown: 0.98,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

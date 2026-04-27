@@ -4,6 +4,7 @@ import '../../../models/exercise.dart';
 import '../../../models/muscle_group.dart';
 import '../../../repositories/exercise_repository.dart';
 import '../../../core/service_locator.dart';
+import '../../../widgets/tap_scale.dart';
 import 'exercise_card.dart';
 
 class ReplaceExerciseSheet extends StatelessWidget {
@@ -37,9 +38,12 @@ class ReplaceExerciseSheet extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textSecondary),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: TapScale(
+          scaleDown: 0.90,
+          onTap: () => Navigator.of(context).pop(),
+          child: const Center(
+            child: Icon(Icons.close, color: AppTheme.textSecondary),
+          ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +73,8 @@ class ReplaceExerciseSheet extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           if (topExercises.isNotEmpty) ...[
-            Text('TOP 8 POPULAR', style: Theme.of(context).textTheme.displayMedium),
+            Text('TOP 8 POPULAR',
+                style: Theme.of(context).textTheme.displayMedium),
             const SizedBox(height: 12),
             ListView.separated(
               shrinkWrap: true,
@@ -78,13 +83,12 @@ class ReplaceExerciseSheet extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final exercise = topExercises[index];
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                return ExerciseCard(
+                  exercise: exercise,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);
                   },
-                  child: ExerciseCard(exercise: exercise, onOptionsPressed: null),
                 );
               },
             ),
@@ -103,13 +107,12 @@ class ReplaceExerciseSheet extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final exercise = remainingExercises[index];
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                return ExerciseCard(
+                  exercise: exercise,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);
                   },
-                  child: ExerciseCard(exercise: exercise, onOptionsPressed: null),
                 );
               },
             ),

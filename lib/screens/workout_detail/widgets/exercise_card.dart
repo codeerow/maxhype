@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../models/exercise.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/tap_scale.dart';
 import 'mini_muscle_atlas.dart';
 
 class ExerciseCard extends StatelessWidget {
   final Exercise exercise;
+  final VoidCallback? onTap;
   final VoidCallback? onOptionsPressed;
 
   const ExerciseCard({
     super.key,
     required this.exercise,
+    this.onTap,
     this.onOptionsPressed,
   });
 
@@ -17,9 +20,9 @@ class ExerciseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final subtitle = '${exercise.sets} sets';
 
-    return Row(
+    final content = Row(
       children: [
-        // Exercise image with muscle atlas overlay (bottom-left)
+        // Exercise image with muscle atlas overlay
         SizedBox(
           width: 70,
           height: 90,
@@ -74,22 +77,35 @@ class ExerciseCard extends StatelessWidget {
             ],
           ),
         ),
-        // 3-dots in dark rounded container (hidden when no callback)
+        // 3-dots button
         if (onOptionsPressed != null)
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.cardBackground,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.more_horiz, color: AppTheme.textSecondary, size: 18),
-              onPressed: onOptionsPressed,
-              padding: EdgeInsets.zero,
+          TapScale(
+            scaleDown: 0.90,
+            onTap: onOptionsPressed,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppTheme.cardBackground,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(
+                child: Icon(Icons.more_horiz,
+                    color: AppTheme.textSecondary, size: 18),
+              ),
             ),
           ),
       ],
     );
+
+    if (onTap != null) {
+      return TapScale(
+        scaleDown: 0.97,
+        onTap: onTap,
+        child: content,
+      );
+    }
+
+    return content;
   }
 }

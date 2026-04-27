@@ -5,6 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
+import '../../widgets/tap_scale.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
 import 'bloc/workout_detail_state.dart';
@@ -12,22 +13,13 @@ import 'widgets/exercise_card.dart';
 import 'widgets/exercise_options_sheet.dart';
 import 'widgets/replace_exercise_sheet.dart';
 
-class WorkoutDetailScreen extends StatefulWidget {
+class WorkoutDetailScreen extends StatelessWidget {
   final Workout workout;
 
   const WorkoutDetailScreen({
     super.key,
     required this.workout,
   });
-
-  @override
-  State<WorkoutDetailScreen> createState() => _WorkoutDetailScreenState();
-}
-
-class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
-  bool _isPressed = false;
-
-  Workout get workout => widget.workout;
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +59,12 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     return AppBar(
       backgroundColor: AppTheme.backgroundColor,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
-        onPressed: () => Navigator.of(context).pop(),
+      leading: TapScale(
+        scaleDown: 0.90,
+        onTap: () => Navigator.of(context).pop(),
+        child: const Center(
+          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+        ),
       ),
       title: Text(
         workout.title,
@@ -89,7 +84,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             left: 20,
             right: 20,
             top: 16,
-            bottom: 100, // Space for sticky button
+            bottom: 100,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,12 +103,14 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: workout.exercises.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final exercise = workout.exercises[index];
                   return ExerciseCard(
                     exercise: exercise,
-                    onOptionsPressed: () => _showExerciseOptions(context, exercise),
+                    onOptionsPressed: () =>
+                        _showExerciseOptions(context, exercise),
                   );
                 },
               ),
@@ -127,10 +124,10 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
           left: 24,
           right: 24,
           child: SafeArea(
-            child: GestureDetector(
-              onTapDown: (_) => setState(() => _isPressed = true),
-              onTapUp: (_) {
-                setState(() => _isPressed = false);
+            child: TapScale(
+              scaleDown: 0.96,
+              enableHaptic: true,
+              onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Start Workout - Coming soon!'),
@@ -138,31 +135,27 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                   ),
                 );
               },
-              onTapCancel: () => setState(() => _isPressed = false),
-              child: AnimatedScale(
-                scale: _isPressed ? 0.96 : 1.0,
-                duration: Duration(milliseconds: _isPressed ? 80 : 120),
-                curve: Curves.easeOut,
-                child: ElevatedButton(
-                  onPressed: null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.recoveryGreen,
-                    disabledBackgroundColor: AppTheme.recoveryGreen,
-                    disabledForegroundColor: Colors.white,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.recoveryGreen,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.recoveryGreen.withOpacity(0.5),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                    elevation: 8,
-                    shadowColor: AppTheme.recoveryGreen.withOpacity(0.5),
-                  ),
-                  child: const Text(
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
                     'Start Workout',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -175,7 +168,8 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   }
 
   Widget _buildAddExerciseButton(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
+      scaleDown: 0.97,
       onTap: () {
         // TODO: Implement add exercise
       },
@@ -224,8 +218,9 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
 
   void _showReplaceExercise(BuildContext context, Exercise currentExercise) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ReplaceExerciseSheet(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ReplaceExerciseSheet(
           currentExercise: currentExercise,
           onExerciseSelected: (newExercise) {
             context.read<WorkoutDetailBloc>().add(
@@ -244,6 +239,23 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             );
           },
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final slideAnimation = Tween(
+            begin: const Offset(0, 0.05),
+            end: Offset.zero,
+          )
+              .chain(CurveTween(curve: Curves.easeOutCubic))
+              .animate(animation);
+
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: slideAnimation,
+              child: child,
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 220),
       ),
     );
   }
