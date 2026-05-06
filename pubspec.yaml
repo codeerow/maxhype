@@ -54,6 +54,13 @@ dependencies:
   flutter_svg: ^2.2.0
   collection: ^1.18.0
 
+  # Local persistence for active workout session + history
+  shared_preferences: ^2.3.0
+  path_provider: ^2.1.0
+
+  # Audio for rest-timer boxing bell (foreground only in Part 1)
+  audioplayers: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -76,10 +83,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
+  # Assets — audio asset listed even though the file isn't bundled yet;
+  # SessionAudio degrades silently if the asset is missing. Drop a real
+  # `boxing_bell.mp3` in `assets/audio/` and uncomment to enable.
   # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  #   - assets/audio/boxing_bell.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

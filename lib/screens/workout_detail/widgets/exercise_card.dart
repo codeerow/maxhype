@@ -9,36 +9,47 @@ class ExerciseCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onOptionsPressed;
 
+  /// Compact density used by the Replace sheet so ~10 items fit on screen
+  /// instead of ~6. Shrinks the thumbnail and tightens the typography while
+  /// keeping the layout otherwise identical.
+  final bool compact;
+
   const ExerciseCard({
     super.key,
     required this.exercise,
     this.onTap,
     this.onOptionsPressed,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final subtitle = '${exercise.sets} sets';
 
+    final thumbWidth = compact ? 44.0 : 70.0;
+    final thumbHeight = compact ? 56.0 : 90.0;
+    final initialFontSize = compact ? 22.0 : 36.0;
+    final atlasShown = !compact;
+
     final content = Row(
       children: [
         // Exercise image with muscle atlas overlay
         SizedBox(
-          width: 70,
-          height: 90,
+          width: thumbWidth,
+          height: thumbHeight,
           child: Stack(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(compact ? 8 : 12),
                 child: Container(
-                  width: 70,
-                  height: 90,
+                  width: thumbWidth,
+                  height: thumbHeight,
                   color: AppTheme.cardBackground,
                   child: Center(
                     child: Text(
                       exercise.name[0],
-                      style: const TextStyle(
-                        fontSize: 36,
+                      style: TextStyle(
+                        fontSize: initialFontSize,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryOrange,
                       ),
@@ -46,15 +57,16 @@ class ExerciseCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: MiniMuscleAtlas(muscleGroups: exercise.muscleGroups),
-              ),
+              if (atlasShown)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: MiniMuscleAtlas(muscleGroups: exercise.muscleGroups),
+                ),
             ],
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: compact ? 10 : 12),
         // Text
         Expanded(
           child: Column(
@@ -63,14 +75,25 @@ class ExerciseCard extends StatelessWidget {
             children: [
               Text(
                 exercise.name,
-                style: Theme.of(context).textTheme.headlineSmall,
+                style: compact
+                    ? const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      )
+                    : Theme.of(context).textTheme.headlineSmall,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: compact ? 1 : 2),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: compact
+                    ? const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      )
+                    : Theme.of(context).textTheme.bodyMedium,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

@@ -17,6 +17,23 @@ class AppTheme {
   static const Color chartOrange = Color(0xFFFF8A3D);
   static const Color chartGreen = Color(0xFF22C55E);
 
+  // Workout session palette
+  /// Brighter premium-orange variant used for the active-exercise accent bar.
+  static const Color activeOrange = Color(0xFFFFB066);
+
+  /// Maroon used for the destructive "Finish" sticky button on the session
+  /// main screen. Distinct from `recoveryRed` (bright alert red).
+  static const Color finishMaroon = Color(0xFF7E1D1D);
+
+  /// Dark-green tinted card used for the rest-timer surface.
+  static const Color restCardTint = Color(0xFF0F2A20);
+
+  /// Brighter card tone used to "lift" an active-exercise card.
+  static const Color cardBackgroundLifted = Color(0xFF222845);
+
+  /// Subtle red tint for exercise card thumbnails.
+  static const Color thumbnailRedTint = Color(0xFF3A1A1F);
+
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,

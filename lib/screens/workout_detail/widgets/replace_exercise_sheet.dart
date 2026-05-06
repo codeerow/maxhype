@@ -70,21 +70,22 @@ class ReplaceExerciseSheet extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         children: [
           if (topExercises.isNotEmpty) ...[
             Text('TOP 8 POPULAR',
                 style: Theme.of(context).textTheme.displayMedium),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: topExercises.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final exercise = topExercises[index];
                 return ExerciseCard(
                   exercise: exercise,
+                  compact: true,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);
@@ -92,23 +93,24 @@ class ReplaceExerciseSheet extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
           if (remainingExercises.isNotEmpty) ...[
             Text(
               'ALL ${primaryMuscleGroup.displayName.toUpperCase()} EXERCISES',
               style: Theme.of(context).textTheme.displayMedium,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: remainingExercises.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final exercise = remainingExercises[index];
                 return ExerciseCard(
                   exercise: exercise,
+                  compact: true,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);

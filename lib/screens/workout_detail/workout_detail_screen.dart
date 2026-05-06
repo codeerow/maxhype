@@ -12,6 +12,7 @@ import 'bloc/workout_detail_state.dart';
 import 'widgets/exercise_card.dart';
 import 'widgets/exercise_options_sheet.dart';
 import 'widgets/replace_exercise_sheet.dart';
+import '../workout_session/workout_session_screen.dart';
 
 class WorkoutDetailScreen extends StatelessWidget {
   final Workout workout;
@@ -128,10 +129,28 @@ class WorkoutDetailScreen extends StatelessWidget {
               scaleDown: 0.96,
               enableHaptic: true,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Start Workout - Coming soon!'),
-                    backgroundColor: AppTheme.primaryOrange,
+                Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (_, anim, __) =>
+                        WorkoutSessionScreen.start(workout: workout),
+                    transitionsBuilder: (_, anim, __, child) {
+                      return FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.05),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: anim,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          ),
+                          child: child,
+                        ),
+                      );
+                    },
+                    transitionDuration: const Duration(milliseconds: 220),
                   ),
                 );
               },
