@@ -33,6 +33,13 @@ void main() async {
 class MyApp extends StatelessWidget {
   final bool restoreActiveSession;
 
+  /// Global key for the MaterialApp's root Navigator so we can push the
+  /// restored session screen onto it after first frame. Pushing onto the
+  /// **root** Navigator (not a nested one) is what lets the system back
+  /// gesture pop the session screen instead of exiting the app.
+  static final GlobalKey<NavigatorState> rootNavKey =
+      GlobalKey<NavigatorState>();
+
   const MyApp({super.key, this.restoreActiveSession = false});
 
   @override
@@ -45,32 +52,34 @@ class MyApp extends StatelessWidget {
           title: 'MaxHype',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.darkTheme,
-          home: _RootShell(restoreActiveSession: restoreActiveSession),
+          navigatorKey: rootNavKey,
+          home: _LaunchShell(restoreActiveSession: restoreActiveSession),
         ),
       ),
     );
   }
 }
 
-class _RootShell extends StatefulWidget {
+/// Stateful wrapper that mounts MainScaffold and, on first frame, optionally
+/// pushes the restored session screen onto the root Navigator. This keeps the
+/// session route on the same Navigator stack as the rest of the app, so
+/// system-back / Android predictive back works correctly.
+class _LaunchShell extends StatefulWidget {
   final bool restoreActiveSession;
-  const _RootShell({required this.restoreActiveSession});
+  const _LaunchShell({required this.restoreActiveSession});
 
   @override
-  State<_RootShell> createState() => _RootShellState();
+  State<_LaunchShell> createState() => _LaunchShellState();
 }
 
-class _RootShellState extends State<_RootShell> {
-  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
-
+class _LaunchShellState extends State<_LaunchShell> {
   @override
   void initState() {
     super.initState();
     if (widget.restoreActiveSession) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Tell the bloc to load the persisted session, then push the screen.
         getIt<WorkoutSessionBloc>().add(const RestoreSession());
-        _navKey.currentState?.push(
+        MyApp.rootNavKey.currentState?.push(
           MaterialPageRoute(
             builder: (_) => WorkoutSessionScreen.restored(),
           ),
@@ -80,12 +89,5 @@ class _RootShellState extends State<_RootShell> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Navigator(
-      key: _navKey,
-      onGenerateRoute: (settings) {
-        return MaterialPageRoute(builder: (_) => const MainScaffold());
-      },
-    );
-  }
+  Widget build(BuildContext context) => const MainScaffold();
 }
