@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_scaffold.dart';
@@ -38,11 +39,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Provider<BlocFactory>(
       create: (_) => BlocFactory(getIt: getIt),
-      child: MaterialApp(
-        title: 'MaxHype',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-        home: _RootShell(restoreActiveSession: restoreActiveSession),
+      child: BlocProvider<WorkoutSessionBloc>.value(
+        value: getIt<WorkoutSessionBloc>(),
+        child: MaterialApp(
+          title: 'MaxHype',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.darkTheme,
+          home: _RootShell(restoreActiveSession: restoreActiveSession),
+        ),
       ),
     );
   }

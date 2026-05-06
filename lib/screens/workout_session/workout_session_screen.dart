@@ -50,7 +50,16 @@ class WorkoutSessionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = getIt<WorkoutSessionBloc>();
     if (startWorkout != null) {
-      bloc.add(StartSession(startWorkout!));
+      final current = bloc.state;
+      // Resume the existing session if it matches the workout we were asked
+      // to start. Only dispatch StartSession when there's no active session,
+      // or it belongs to a different workout — in which case the bloc replaces
+      // the session.
+      final shouldStart = current is! SessionActive ||
+          current.session.workoutId != startWorkout!.id;
+      if (shouldStart) {
+        bloc.add(StartSession(startWorkout!));
+      }
     }
     return BlocProvider<WorkoutSessionBloc>.value(
       value: bloc,

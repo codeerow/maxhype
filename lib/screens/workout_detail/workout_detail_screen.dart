@@ -13,6 +13,8 @@ import 'widgets/exercise_card.dart';
 import 'widgets/exercise_options_sheet.dart';
 import 'widgets/replace_exercise_sheet.dart';
 import '../workout_session/workout_session_screen.dart';
+import '../workout_session/bloc/workout_session_bloc.dart';
+import '../workout_session/bloc/workout_session_state.dart';
 
 class WorkoutDetailScreen extends StatelessWidget {
   final Workout workout;
@@ -125,60 +127,72 @@ class WorkoutDetailScreen extends StatelessWidget {
           left: 24,
           right: 24,
           child: SafeArea(
-            child: TapScale(
-              scaleDown: 0.96,
-              enableHaptic: true,
-              onTap: () {
-                Navigator.of(context).push(
-                  PageRouteBuilder(
-                    pageBuilder: (_, anim, __) =>
-                        WorkoutSessionScreen.start(workout: workout),
-                    transitionsBuilder: (_, anim, __, child) {
-                      return FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.05),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: anim,
-                              curve: Curves.easeOutCubic,
+            child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
+              buildWhen: (prev, next) {
+                bool isMine(WorkoutSessionState s) =>
+                    s is SessionActive && s.session.workoutId == workout.id;
+                return isMine(prev) != isMine(next);
+              },
+              builder: (context, sessionState) {
+                final inProgress = sessionState is SessionActive &&
+                    sessionState.session.workoutId == workout.id;
+                return TapScale(
+                  scaleDown: 0.96,
+                  enableHaptic: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        pageBuilder: (_, anim, __) => inProgress
+                            ? WorkoutSessionScreen.restored()
+                            : WorkoutSessionScreen.start(workout: workout),
+                        transitionsBuilder: (_, anim, __, child) {
+                          return FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.05),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: anim,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                              ),
+                              child: child,
                             ),
-                          ),
-                          child: child,
+                          );
+                        },
+                        transitionDuration: const Duration(milliseconds: 220),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.recoveryGreen,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.recoveryGreen.withValues(alpha: 0.5),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                      );
-                    },
-                    transitionDuration: const Duration(milliseconds: 220),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        inProgress ? 'Resume Workout' : 'Start Workout',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 );
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppTheme.recoveryGreen,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.recoveryGreen.withOpacity(0.5),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    'Start Workout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
