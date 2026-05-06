@@ -14,17 +14,29 @@ class ExerciseCard extends StatelessWidget {
   /// keeping the layout otherwise identical.
   final bool compact;
 
+  /// Optional subtitle override. If null, falls back to "{N} sets" derived
+  /// from the exercise's planned sets count. The session screen passes a
+  /// session-aware string here ("{N} sets · {M} done · {Equipment}").
+  final String? subtitleOverride;
+
+  /// Optional widget to render in the bottom-left of the card, between the
+  /// thumbnail and content. Used by the session card to show a vertical
+  /// active-accent bar / completion checkmark without duplicating layout.
+  final Widget? leadingAccent;
+
   const ExerciseCard({
     super.key,
     required this.exercise,
     this.onTap,
     this.onOptionsPressed,
     this.compact = false,
+    this.subtitleOverride,
+    this.leadingAccent,
   });
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = '${exercise.sets} sets';
+    final subtitle = subtitleOverride ?? '${exercise.sets} sets';
 
     final thumbWidth = compact ? 44.0 : 70.0;
     final thumbHeight = compact ? 56.0 : 90.0;
@@ -33,6 +45,10 @@ class ExerciseCard extends StatelessWidget {
 
     final content = Row(
       children: [
+        if (leadingAccent != null) ...[
+          leadingAccent!,
+          const SizedBox(width: 8),
+        ],
         // Exercise image with muscle atlas overlay
         SizedBox(
           width: thumbWidth,

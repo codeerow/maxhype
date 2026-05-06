@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/service_locator.dart';
 import '../../../models/equipment_type.dart';
+import '../../../models/exercise.dart';
+import '../../../models/muscle_group.dart';
 import '../../../models/session/session_exercise.dart';
+import '../../../repositories/exercise_repository.dart';
 import '../../../theme/app_theme.dart';
-import '../../../widgets/tap_scale.dart';
+import '../../workout_detail/widgets/exercise_card.dart';
 
-/// Exercise card on the workout session main screen. Distinct from the
-/// workout-detail ExerciseCard because the visual states (active accent / done
-/// checkmark) and the subtitle format differ.
+/// Wraps the workout-detail [ExerciseCard] to add session-only visuals:
+///
+///  - left accent bar when the exercise is the active one,
+///  - left green checkmark when the exercise is completed (with scale-in),
+///  - subtle glow pulse on return from logging (one-shot).
+///
+/// The card layout itself (thumbnail, MiniMuscleAtlas, name, ···) stays
+/// identical to the workout detail screen — we just inject a `leadingAccent`
+/// and override the subtitle.
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final bool isActive;
@@ -82,13 +92,31 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
     super.dispose();
   }
 
+  Exercise _resolveCatalogExercise(SessionExercise s) {
+    final repo = getIt<ExerciseRepository>();
+    final found = repo.getExerciseById(s.exerciseId);
+    if (found != null) return found;
+    // Fallback for an exercise not in the catalog (e.g., recently replaced).
+    // The card needs `name` and `muscleGroups` for the MiniMuscleAtlas; sets
+    // count comes from session, equipment is preserved from session snapshot.
+    return Exercise(
+      id: s.exerciseId,
+      name: s.name,
+      sets: s.targetSets,
+      reps: 10,
+      weight: 0,
+      muscleGroups: const [MuscleGroup.chest],
+      equipmentType: s.equipment,
+      rating: 0,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ex = widget.exercise;
-    final completed = ex.completed;
-    final cardColor = widget.isActive
-        ? AppTheme.cardBackgroundLifted
-        : AppTheme.cardBackground;
+    final catalogExercise = _resolveCatalogExercise(ex);
+    final subtitle =
+        '${ex.targetSets} sets · ${ex.loggedSetsCount} done · ${ex.equipment.displayName}';
 
     return AnimatedBuilder(
       animation: _glowController,
@@ -111,126 +139,53 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
           child: child,
         );
       },
-      child: TapScale(
-        scaleDown: 0.98,
-        onTap: widget.onTap,
-        child: Container(
-          height: 84,
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              _buildLeftAccent(completed),
-              const SizedBox(width: 10),
-              _buildThumb(ex),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      ex.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _subtitle(ex),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              TapScale(
-                scaleDown: 0.85,
-                onTap: widget.onOptions,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  child: Icon(
-                    Icons.more_horiz,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: widget.isActive
+              ? AppTheme.cardBackgroundLifted
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: ExerciseCard(
+          exercise: catalogExercise,
+          subtitleOverride: subtitle,
+          leadingAccent: _buildLeadingAccent(),
+          onTap: widget.onTap,
+          onOptionsPressed: widget.onOptions,
         ),
       ),
     );
   }
 
-  Widget _buildLeftAccent(bool completed) {
-    if (completed) {
+  Widget? _buildLeadingAccent() {
+    if (widget.exercise.completed) {
       return ScaleTransition(
         scale: CurvedAnimation(
           parent: _checkmarkController,
           curve: Curves.easeOutBack,
         ),
         child: Container(
-          width: 24,
-          height: 24,
-          margin: const EdgeInsets.only(left: 8),
+          width: 22,
+          height: 22,
           decoration: const BoxDecoration(
             color: AppTheme.recoveryGreen,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check, color: Colors.white, size: 16),
+          child: const Icon(Icons.check, color: Colors.white, size: 14),
         ),
       );
     }
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      width: widget.isActive ? 3 : 0,
-      height: 56,
-      margin: EdgeInsets.only(left: widget.isActive ? 6 : 0),
-      decoration: BoxDecoration(
-        color: AppTheme.activeOrange,
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
-  }
-
-  Widget _buildThumb(SessionExercise ex) {
-    final letter = ex.name.isNotEmpty ? ex.name[0].toUpperCase() : '?';
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: AppTheme.thumbnailRedTint,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: AppTheme.recoveryRed,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
+    if (widget.isActive) {
+      return Container(
+        width: 3,
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppTheme.activeOrange,
+          borderRadius: BorderRadius.circular(2),
         ),
-      ),
-    );
-  }
-
-  String _subtitle(SessionExercise ex) {
-    final equipment = _equipmentLabel(ex.equipment);
-    return '${ex.targetSets} sets · ${ex.loggedSetsCount} done · $equipment';
-  }
-
-  String _equipmentLabel(EquipmentType type) {
-    return type.displayName;
+      );
+    }
+    return null;
   }
 }
