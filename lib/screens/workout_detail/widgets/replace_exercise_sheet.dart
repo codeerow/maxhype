@@ -5,7 +5,7 @@ import '../../../models/muscle_group.dart';
 import '../../../repositories/exercise_repository.dart';
 import '../../../core/service_locator.dart';
 import '../../../widgets/tap_scale.dart';
-import 'exercise_card.dart';
+import 'replace_exercise_tile.dart';
 
 class ReplaceExerciseSheet extends StatelessWidget {
   final Exercise currentExercise;
@@ -83,9 +83,8 @@ class ReplaceExerciseSheet extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final exercise = topExercises[index];
-                return ExerciseCard(
+                return ReplaceExerciseTile(
                   exercise: exercise,
-                  compact: true,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);
@@ -108,9 +107,8 @@ class ReplaceExerciseSheet extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final exercise = remainingExercises[index];
-                return ExerciseCard(
+                return ReplaceExerciseTile(
                   exercise: exercise,
-                  compact: true,
                   onTap: () {
                     Navigator.of(context).pop();
                     onExerciseSelected(exercise);

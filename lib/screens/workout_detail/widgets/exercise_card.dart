@@ -4,23 +4,21 @@ import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 import 'mini_muscle_atlas.dart';
 
+/// Exercise card used by the Workout Detail screen and (wrapped) by the
+/// Session main screen. Compact variants for other surfaces (e.g., the
+/// Replace sheet) live in their own widgets — see [ReplaceExerciseTile].
 class ExerciseCard extends StatelessWidget {
   final Exercise exercise;
   final VoidCallback? onTap;
   final VoidCallback? onOptionsPressed;
 
-  /// Compact density used by the Replace sheet so ~10 items fit on screen
-  /// instead of ~6. Shrinks the thumbnail and tightens the typography while
-  /// keeping the layout otherwise identical.
-  final bool compact;
-
-  /// Optional subtitle override. If null, falls back to "{N} sets" derived
-  /// from the exercise's planned sets count. The session screen passes a
-  /// session-aware string here ("{N} sets · {M} done · {Equipment}").
+  /// Subtitle override. If null, falls back to "{N} sets". The session
+  /// screen passes its own session-aware string here ("{N} sets · {M} done
+  /// · {Equipment}").
   final String? subtitleOverride;
 
-  /// Optional widget to render in the bottom-left of the card, between the
-  /// thumbnail and content. Used by the session card to show a vertical
+  /// Optional widget rendered in the bottom-left of the card, before the
+  /// thumbnail. The session card uses this slot for a vertical
   /// active-accent bar / completion checkmark without duplicating layout.
   final Widget? leadingAccent;
 
@@ -29,7 +27,6 @@ class ExerciseCard extends StatelessWidget {
     required this.exercise,
     this.onTap,
     this.onOptionsPressed,
-    this.compact = false,
     this.subtitleOverride,
     this.leadingAccent,
   });
@@ -37,11 +34,6 @@ class ExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subtitle = subtitleOverride ?? '${exercise.sets} sets';
-
-    final thumbWidth = compact ? 44.0 : 70.0;
-    final thumbHeight = compact ? 56.0 : 90.0;
-    final initialFontSize = compact ? 22.0 : 36.0;
-    final atlasShown = !compact;
 
     final content = Row(
       children: [
@@ -51,21 +43,21 @@ class ExerciseCard extends StatelessWidget {
         ],
         // Exercise image with muscle atlas overlay
         SizedBox(
-          width: thumbWidth,
-          height: thumbHeight,
+          width: 70,
+          height: 90,
           child: Stack(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(compact ? 8 : 12),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: thumbWidth,
-                  height: thumbHeight,
+                  width: 70,
+                  height: 90,
                   color: AppTheme.cardBackground,
                   child: Center(
                     child: Text(
                       exercise.name[0],
-                      style: TextStyle(
-                        fontSize: initialFontSize,
+                      style: const TextStyle(
+                        fontSize: 36,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryOrange,
                       ),
@@ -73,16 +65,15 @@ class ExerciseCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (atlasShown)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: MiniMuscleAtlas(muscleGroups: exercise.muscleGroups),
-                ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: MiniMuscleAtlas(muscleGroups: exercise.muscleGroups),
+              ),
             ],
           ),
         ),
-        SizedBox(width: compact ? 10 : 12),
+        const SizedBox(width: 12),
         // Text
         Expanded(
           child: Column(
@@ -91,25 +82,14 @@ class ExerciseCard extends StatelessWidget {
             children: [
               Text(
                 exercise.name,
-                style: compact
-                    ? const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      )
-                    : Theme.of(context).textTheme.headlineSmall,
+                style: Theme.of(context).textTheme.headlineSmall,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: compact ? 1 : 2),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: compact
-                    ? const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                      )
-                    : Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodyMedium,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
