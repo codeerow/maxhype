@@ -126,39 +126,55 @@ class _ActiveSessionScaffold extends StatelessWidget {
         onBack: () => Navigator.of(context).maybePop(),
         onCancel: () => _confirmCancel(context),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 4),
-          PersistentWorkoutTimer(startedAt: session.startedAt),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                const _SectionLabel(text: 'WARM-UP'),
-                const SizedBox(height: 8),
-                WarmupChoiceTile(
-                  current: session.warmup,
-                  onSelected: (t) =>
-                      context.read<WorkoutSessionBloc>().add(SetWarmup(t)),
+          // Main content — bottom padding leaves room for the floating button.
+          Column(
+            children: [
+              const SizedBox(height: 4),
+              PersistentWorkoutTimer(startedAt: session.startedAt),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  children: [
+                    const _SectionLabel(text: 'WARM-UP'),
+                    const SizedBox(height: 8),
+                    WarmupChoiceTile(
+                      current: session.warmup,
+                      onSelected: (t) => context
+                          .read<WorkoutSessionBloc>()
+                          .add(SetWarmup(t)),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '${session.exercises.length} exercises',
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._buildExerciseList(context, session),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  '${session.exercises.length} exercises',
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ..._buildExerciseList(context, session),
-              ],
-            ),
+              ),
+            ],
           ),
-          SessionFinishButton(
-            onTap: () =>
-                context.read<WorkoutSessionBloc>().add(const FinishWorkout()),
+          // Floating Finish button — same shape/shadow as Start Workout on
+          // the Workout Detail screen.
+          Positioned(
+            bottom: 24,
+            left: 24,
+            right: 24,
+            child: SafeArea(
+              child: SessionFinishButton(
+                onTap: () => context
+                    .read<WorkoutSessionBloc>()
+                    .add(const FinishWorkout()),
+              ),
+            ),
           ),
         ],
       ),

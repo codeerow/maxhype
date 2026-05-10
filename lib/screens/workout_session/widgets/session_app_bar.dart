@@ -24,51 +24,29 @@ class SessionAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppTheme.backgroundColor,
       elevation: 0,
       centerTitle: true,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 12),
-        child: TapScale(
-          scaleDown: 0.90,
-          onTap: onBack,
-          child: const _RoundIcon(icon: Icons.arrow_back, color: AppTheme.recoveryGreen),
+      leading: TapScale(
+        scaleDown: 0.90,
+        onTap: onBack,
+        child: const Center(
+          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
         ),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
+        style: Theme.of(context).textTheme.headlineSmall,
       ),
       actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
+        SizedBox(
+          width: 56,
           child: TapScale(
             scaleDown: 0.90,
             onTap: onCancel,
-            child: const _RoundIcon(icon: Icons.close, color: AppTheme.recoveryRed),
+            child: const Center(
+              child: Icon(Icons.close, color: AppTheme.recoveryRed),
+            ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _RoundIcon extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  const _RoundIcon({required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: color, size: 20),
     );
   }
 }
