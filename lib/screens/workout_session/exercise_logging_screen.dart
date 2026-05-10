@@ -21,9 +21,12 @@ import 'widgets/add_set_button.dart';
 import 'widgets/effective_set_row.dart';
 import 'widgets/log_set_button.dart';
 import 'widgets/notes_card.dart';
-import 'widgets/pr_placeholder_header.dart';
 import 'widgets/rest_timer_card.dart';
 import 'widgets/swipe_to_delete.dart';
+
+/// (weight, reps) pre-fill values shown in pill placeholders before the user
+/// types anything. Resolved via session → history → catalog plan.
+typedef _Prefill = ({double? weight, int? reps});
 
 /// Logging screen for a single exercise. Mounts the shared
 /// `WorkoutSessionBloc` so any state mutations stay in sync with the main
@@ -156,17 +159,8 @@ class _LoggingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // "Final" = the next tap on Log Set will mark the whole exercise done.
-    // That's the case when there's exactly one non-logged effective set left
-    // AND the warmup is either absent or already logged (warmup never
-    // completes the exercise on its own).
-    final pendingEffective =
-        exercise.sets.where((s) => !s.isLogged).length;
-    final warmupPending =
-        exercise.warmupSet != null && !exercise.warmupSet!.isLogged;
-    final isFinalSet = !warmupPending && pendingEffective == 1;
-
     final prefill = _resolvePrefill(exercise);
+    final firstUnlogged = exercise.firstUnloggedSet;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -182,15 +176,14 @@ class _LoggingScaffold extends StatelessWidget {
               // items wear their own horizontal padding via _Hp.
               padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
               children: [
-                const _Hp(child: PrPlaceholderHeader()),
                 ActionChipRow(
-                  restSeconds: 120,
+                  restSeconds: session.restDurationSeconds,
                   onRestTap: () =>
-                      _toast(context, 'Rest timer comes online with logging'),
+                      AppToast.show(context, 'Rest timer adjusts in card'),
                   onInstructionTap: () =>
-                      _toast(context, 'Instructions — coming in Part 2'),
+                      AppToast.show(context, 'Instructions — coming in Part 2'),
                   onAnalyticsTap: () =>
-                      _toast(context, 'Analytics — coming in Part 2'),
+                      AppToast.show(context, 'Analytics — coming in Part 2'),
                 ),
                 const SizedBox(height: 18),
                 const _Hp(child: _SectionTitle(text: 'Warmup')),
@@ -209,7 +202,7 @@ class _LoggingScaffold extends StatelessWidget {
                 ),
                 const _Hp(child: _Headers()),
                 const SizedBox(height: 4),
-                ..._buildSetRows(context, prefill),
+                ..._buildSetRows(context, prefill, firstUnlogged?.id),
                 const SizedBox(height: 8),
                 _Hp(
                   child: AddSetButton(
@@ -251,8 +244,8 @@ class _LoggingScaffold extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           LogSetButton(
-            enabled: _firstUnloggedFilled(exercise),
-            isFinalSet: isFinalSet,
+            enabled: exercise.currentTarget?.isFilled ?? false,
+            isFinalSet: exercise.isOnFinalEffectiveSet,
             onTap: () => _onLogSetTap(context),
           ),
         ],
@@ -289,46 +282,88 @@ class _LoggingScaffold extends StatelessWidget {
     if (warmup == null) {
       return const SizedBox.shrink();
     }
+    return _swipeableRow(
+      context: context,
+      set: warmup,
+      marker: 'W',
+      isWarmup: true,
+      isCurrent: !warmup.isLogged,
+      prefill: prefill,
+    );
+  }
+
+  List<Widget> _buildSetRows(
+    BuildContext context,
+    _Prefill prefill,
+    String? currentSetId,
+  ) {
+    return [
+      for (var i = 0; i < exercise.sets.length; i++)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: _swipeableRow(
+            context: context,
+            set: exercise.sets[i],
+            marker: '${i + 1}',
+            // Warmup pending → no effective row is "current" yet.
+            isCurrent: !exercise.hasWarmupPending &&
+                exercise.sets[i].id == currentSetId,
+            prefill: prefill,
+          ),
+        ),
+    ];
+  }
+
+  /// Single source of truth for building a swipeable [EffectiveSetRow].
+  /// Used by both warmup row and effective set rows so wiring stays consistent.
+  Widget _swipeableRow({
+    required BuildContext context,
+    required SessionSet set,
+    required String marker,
+    required bool isCurrent,
+    required _Prefill prefill,
+    bool isWarmup = false,
+  }) {
     return SwipeToDelete(
-      dismissKey: ValueKey('warmup_dismiss_${warmup.id}'),
+      dismissKey: ValueKey(
+        isWarmup ? 'warmup_dismiss_${set.id}' : 'set_dismiss_${set.id}',
+      ),
       borderRadius: BorderRadius.zero,
       onDismissed: () => context.read<WorkoutSessionBloc>().add(
             DeleteSet(
               exerciseId: exercise.exerciseId,
-              setId: warmup.id,
-              isWarmup: true,
+              setId: set.id,
+              isWarmup: isWarmup,
             ),
           ),
-      // Dismissible itself spans edge-to-edge so the red background and the
-      // delete icon swipe in from the screen edge; pills sit at 16px inset.
       child: _Hp(
         child: EffectiveSetRow(
-          key: ValueKey('warmup_${warmup.id}'),
-          marker: 'W',
-          isWarmup: true,
-          weight: warmup.weight,
-          reps: warmup.reps,
-          isLogged: warmup.isLogged,
-          isCurrent: !warmup.isLogged,
+          key: ValueKey(isWarmup ? 'warmup_${set.id}' : 'set_${set.id}'),
+          marker: marker,
+          isWarmup: isWarmup,
+          weight: set.weight,
+          reps: set.reps,
+          isLogged: set.isLogged,
+          isCurrent: isCurrent,
           prefillWeight: prefill.weight,
           prefillReps: prefill.reps,
-          repsFocusNode: repsFocusFor('warmup'),
+          repsFocusNode: repsFocusFor(isWarmup ? 'warmup' : set.id),
           onSubmitted: () => _onLogSetTap(context),
           onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
                 UpdateSetDraft(
                   exerciseId: exercise.exerciseId,
-                  setId: warmup.id,
+                  setId: set.id,
                   weight: v,
-                  isWarmup: true,
+                  isWarmup: isWarmup,
                   clearWeight: v == null,
                 ),
               ),
           onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
                 UpdateSetDraft(
                   exerciseId: exercise.exerciseId,
-                  setId: warmup.id,
+                  setId: set.id,
                   reps: v,
-                  isWarmup: true,
+                  isWarmup: isWarmup,
                   clearReps: v == null,
                 ),
               ),
@@ -337,98 +372,12 @@ class _LoggingScaffold extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildSetRows(BuildContext context, _Prefill prefill) {
-    // The "current" effective set is the first non-logged one — but only if
-    // warmup is already done. While warmup is pending, it owns the current
-    // state and effective sets stay dark.
-    final warmupPending =
-        exercise.warmupSet != null && !exercise.warmupSet!.isLogged;
-    int? currentIndex;
-    if (!warmupPending) {
-      for (var i = 0; i < exercise.sets.length; i++) {
-        if (!exercise.sets[i].isLogged) {
-          currentIndex = i;
-          break;
-        }
-      }
-    }
-    return [
-      for (var i = 0; i < exercise.sets.length; i++)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: SwipeToDelete(
-            dismissKey: ValueKey('set_dismiss_${exercise.sets[i].id}'),
-            borderRadius: BorderRadius.zero,
-            onDismissed: () => context.read<WorkoutSessionBloc>().add(
-                  DeleteSet(
-                    exerciseId: exercise.exerciseId,
-                    setId: exercise.sets[i].id,
-                  ),
-                ),
-            child: _Hp(
-              child: EffectiveSetRow(
-                key: ValueKey('set_${exercise.sets[i].id}'),
-                marker: '${i + 1}',
-                weight: exercise.sets[i].weight,
-                reps: exercise.sets[i].reps,
-                isLogged: exercise.sets[i].isLogged,
-                isCurrent: currentIndex == i,
-                prefillWeight: prefill.weight,
-                prefillReps: prefill.reps,
-                repsFocusNode: repsFocusFor(exercise.sets[i].id),
-                onSubmitted: () => _onLogSetTap(context),
-                onWeightChanged: (v) =>
-                    context.read<WorkoutSessionBloc>().add(
-                          UpdateSetDraft(
-                            exerciseId: exercise.exerciseId,
-                            setId: exercise.sets[i].id,
-                            weight: v,
-                            clearWeight: v == null,
-                          ),
-                        ),
-                onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                      UpdateSetDraft(
-                        exerciseId: exercise.exerciseId,
-                        setId: exercise.sets[i].id,
-                        reps: v,
-                        clearReps: v == null,
-                      ),
-                    ),
-              ),
-            ),
-          ),
-        ),
-    ];
-  }
-
-  /// The set that the Log Set / Done button currently targets — warmup if
-  /// it's still pending, otherwise the first non-logged effective set.
-  SessionSet? _currentTarget(SessionExercise ex) {
-    final w = ex.warmupSet;
-    if (w != null && !w.isLogged) return w;
-    for (final s in ex.sets) {
-      if (!s.isLogged) return s;
-    }
-    return null;
-  }
-
-  bool _isWarmupTarget(SessionExercise ex) {
-    final w = ex.warmupSet;
-    return w != null && !w.isLogged;
-  }
-
-  bool _firstUnloggedFilled(SessionExercise ex) {
-    final t = _currentTarget(ex);
-    return t?.isFilled ?? false;
-  }
-
   void _onLogSetTap(BuildContext context) {
     final bloc = context.read<WorkoutSessionBloc>();
-    final target = _currentTarget(exercise);
-    if (target == null) return;
-    if (!target.isFilled) return;
+    final target = exercise.currentTarget;
+    if (target == null || !target.isFilled) return;
 
-    final isWarmup = _isWarmupTarget(exercise);
+    final isWarmup = exercise.isCurrentTargetWarmup;
     bloc.add(LogSet(
       exerciseId: exercise.exerciseId,
       setId: target.id,
@@ -444,10 +393,9 @@ class _LoggingScaffold extends StatelessWidget {
         exercise.sets.where((s) => !s.isLogged && s.id != target.id).toList();
 
     if (isWarmup) {
-      bloc.add(const StartRestTimer(duration: Duration(seconds: 120)));
-      // Warmup just logged → focus first effective set's REPS.
+      bloc.add(const StartRestTimer());
       if (remainingEffective.isNotEmpty) {
-        _focusReps(context, remainingEffective.first.id);
+        _focusReps(remainingEffective.first.id);
       }
       return;
     }
@@ -455,14 +403,14 @@ class _LoggingScaffold extends StatelessWidget {
     if (remainingEffective.isEmpty) {
       bloc.add(MarkExerciseDone(exercise.exerciseId));
     } else {
-      bloc.add(const StartRestTimer(duration: Duration(seconds: 120)));
-      _focusReps(context, remainingEffective.first.id);
+      bloc.add(const StartRestTimer());
+      _focusReps(remainingEffective.first.id);
     }
   }
 
   /// Move focus to the REPS field of [setId] on the next frame so the
   /// system keyboard stays visible and the user can immediately type.
-  void _focusReps(BuildContext context, String setId) {
+  void _focusReps(String setId) {
     final node = repsFocusFor(setId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!node.canRequestFocus) return;
@@ -475,36 +423,15 @@ class _LoggingScaffold extends StatelessWidget {
   ///   2. Last logged set from history (previous finished session).
   ///   3. Catalog plan (Exercise.weight / Exercise.reps).
   _Prefill _resolvePrefill(SessionExercise ex) {
-    SessionSet? lastInSession;
-    for (final s in ex.sets) {
-      if (s.isLogged) lastInSession = s;
-    }
-    if (lastInSession != null) {
-      return _Prefill(
-        weight: lastInSession.weight,
-        reps: lastInSession.reps,
-      );
-    }
+    final last = ex.lastLoggedSet;
+    if (last != null) return (weight: last.weight, reps: last.reps);
     if (historyLastLog != null) {
-      return _Prefill(
-        weight: historyLastLog!.weight,
-        reps: historyLastLog!.reps,
-      );
+      return (weight: historyLastLog!.weight, reps: historyLastLog!.reps);
     }
     final repo = getIt<ExerciseRepository>();
     final Exercise? plan = repo.getExerciseById(ex.exerciseId);
-    return _Prefill(weight: plan?.weight, reps: plan?.reps);
+    return (weight: plan?.weight, reps: plan?.reps);
   }
-
-  void _toast(BuildContext context, String msg) {
-    AppToast.show(context, msg);
-  }
-}
-
-class _Prefill {
-  final double? weight;
-  final int? reps;
-  const _Prefill({this.weight, this.reps});
 }
 
 /// Horizontal padding wrapper for non-Dismissible items in the logging

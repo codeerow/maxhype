@@ -96,8 +96,10 @@ class SetWarmup extends WorkoutSessionEvent {
 }
 
 class StartRestTimer extends WorkoutSessionEvent {
-  final Duration duration;
-  const StartRestTimer({this.duration = const Duration(seconds: 120)});
+  /// Optional override. When null the bloc uses the session-configured
+  /// `restDurationSeconds`, which is the single source of truth.
+  final Duration? duration;
+  const StartRestTimer({this.duration});
 }
 
 class CancelRestTimer extends WorkoutSessionEvent {

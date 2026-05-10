@@ -3,15 +3,43 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 
-/// One cell in the SET / REPS / WEIGHT row.
-///
-/// Tristate visual:
-///  * [PillState.logged] — solid green fill, dark bold value
-///  * [PillState.draft]  — light fill, dark bold value (the "currently
-///    editable" feel from the design ref)
-///  * [PillState.empty]  — dark fill, muted value (placeholder pre-fill)
+/// Visual state of an effective-set pill.
+///  * [logged] — solid green fill, dark bold value (a finished set).
+///  * [draft]  — light fill, dark bold value (the row currently being typed).
+///  * [empty]  — dark card fill, muted value (placeholder pre-fill).
 enum PillState { empty, draft, logged }
 
+/// Background + foreground pair for a [PillState]. Shared between the
+/// static [EffectiveSetPill] and the editable text-field pill in
+/// `effective_set_row.dart` so they stay visually in sync.
+class PillColors {
+  final Color background;
+  final Color foreground;
+  const PillColors({required this.background, required this.foreground});
+}
+
+PillColors pillColorsFor(PillState state) {
+  switch (state) {
+    case PillState.logged:
+      return const PillColors(
+        background: AppTheme.recoveryGreen,
+        foreground: Color(0xFF062716),
+      );
+    case PillState.draft:
+      return const PillColors(
+        background: Color(0xFFE6E8EE),
+        foreground: Color(0xFF0A0E27),
+      );
+    case PillState.empty:
+      return const PillColors(
+        background: AppTheme.cardBackground,
+        foreground: AppTheme.textSecondary,
+      );
+  }
+}
+
+/// One cell in the SET / REPS / WEIGHT row. Static — no input. The editable
+/// pill lives in `effective_set_row.dart` and uses the same [pillColorsFor].
 class EffectiveSetPill extends StatelessWidget {
   final String text;
   final PillState state;
@@ -37,7 +65,7 @@ class EffectiveSetPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _colorsFor(state);
+    final colors = pillColorsFor(state);
     final pill = Container(
       width: width,
       height: height,
@@ -60,30 +88,4 @@ class EffectiveSetPill extends StatelessWidget {
     if (onTap == null) return pill;
     return TapScale(scaleDown: 0.96, onTap: onTap, child: pill);
   }
-
-  _PillColors _colorsFor(PillState s) {
-    switch (s) {
-      case PillState.logged:
-        return _PillColors(
-          background: AppTheme.recoveryGreen,
-          foreground: const Color(0xFF062716),
-        );
-      case PillState.draft:
-        return _PillColors(
-          background: const Color(0xFFE6E8EE),
-          foreground: const Color(0xFF0A0E27),
-        );
-      case PillState.empty:
-        return _PillColors(
-          background: AppTheme.cardBackground,
-          foreground: AppTheme.textSecondary,
-        );
-    }
-  }
-}
-
-class _PillColors {
-  final Color background;
-  final Color foreground;
-  const _PillColors({required this.background, required this.foreground});
 }

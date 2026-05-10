@@ -4,14 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/service_locator.dart';
 import '../../models/exercise.dart';
-import '../../models/muscle_group.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/workout_session.dart';
 import '../../models/workout.dart';
 import '../../repositories/exercise_repository.dart';
 import '../../theme/app_theme.dart';
-import '../workout_detail/widgets/exercise_options_sheet.dart';
-import '../workout_detail/widgets/replace_exercise_sheet.dart';
+import '../workout_detail/widgets/exercise_navigation.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
@@ -313,40 +311,27 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   Future<void> _showOptionsMenu(
     BuildContext context,
     SessionExercise ex,
-  ) async {
+  ) {
     final bloc = context.read<WorkoutSessionBloc>();
-    final fullExercise = _resolveExerciseForReplace(ex);
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => ExerciseOptionsSheet(
-        exercise: fullExercise,
-        onReplaceExercise: () async {
-          await Navigator.of(context).push(
-            CupertinoPageRoute(
-              builder: (_) => ReplaceExerciseSheet(
-                currentExercise: fullExercise,
-                onExerciseSelected: (newExercise) {
-                  bloc.add(
-                    ReplaceExercise(
-                      oldExerciseId: ex.exerciseId,
-                      newExercise: newExercise,
-                    ),
-                  );
-                },
-              ),
-            ),
-          );
-        },
-      ),
+    return showExerciseOptionsSheet(
+      context,
+      exercise: _exerciseFromSession(ex),
+      onReplace: (newExercise) {
+        bloc.add(
+          ReplaceExercise(
+            oldExerciseId: ex.exerciseId,
+            newExercise: newExercise,
+          ),
+        );
+      },
     );
   }
 
-  /// The Replace sheet expects a full Exercise. Look it up in the catalog;
-  /// if missing (e.g., it was already replaced), synthesize a stand-in with
-  /// `chest` as a safe muscle filter so the sheet still shows alternatives.
-  Exercise _resolveExerciseForReplace(SessionExercise ex) {
+  /// The Replace sheet expects a full Exercise. Prefer the catalog entry —
+  /// it carries rating, image, etc. — but fall back to the SessionExercise
+  /// snapshot (name + equipment + muscleGroups) for items that have already
+  /// been replaced once and are no longer in the catalog under this id.
+  Exercise _exerciseFromSession(SessionExercise ex) {
     final repo = getIt<ExerciseRepository>();
     final found = repo.getExerciseById(ex.exerciseId);
     if (found != null) return found;
@@ -356,7 +341,7 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
       sets: ex.targetSets,
       reps: 10,
       weight: 0,
-      muscleGroups: const [MuscleGroup.chest],
+      muscleGroups: ex.muscleGroups,
       equipmentType: ex.equipment,
       rating: 0,
     );

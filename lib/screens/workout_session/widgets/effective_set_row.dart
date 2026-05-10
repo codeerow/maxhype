@@ -137,7 +137,7 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: _markerColor(state),
+                      color: pillColorsFor(state).foreground,
                     ),
                   ),
           ),
@@ -208,16 +208,6 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
     );
   }
 
-  Color _markerColor(PillState s) {
-    switch (s) {
-      case PillState.logged:
-        return const Color(0xFF062716);
-      case PillState.draft:
-        return const Color(0xFF0A0E27);
-      case PillState.empty:
-        return AppTheme.textSecondary;
-    }
-  }
 }
 
 /// Real TextField styled to look like an [EffectiveSetPill]. Using a real
@@ -248,32 +238,17 @@ class _PillTextField extends StatelessWidget {
     this.onSubmitted,
   });
 
-  Color _backgroundFor(PillState s) {
-    switch (s) {
-      case PillState.logged:
-        return AppTheme.recoveryGreen;
-      case PillState.draft:
-        return const Color(0xFFE6E8EE);
-      case PillState.empty:
-        return AppTheme.cardBackground;
-    }
-  }
-
-  Color _foregroundFor(PillState s) {
-    switch (s) {
-      case PillState.logged:
-        return const Color(0xFF062716);
-      case PillState.draft:
-        return const Color(0xFF0A0E27);
-      case PillState.empty:
-        return AppTheme.textPrimary;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bg = _backgroundFor(state);
-    final fg = _foregroundFor(state);
+    final colors = pillColorsFor(state);
+    // For empty pills the static EffectiveSetPill uses a muted foreground
+    // (textSecondary). In the editable variant we want the typed value to
+    // pop, so override empty to textPrimary while keeping the shared
+    // background.
+    final fg = state == PillState.empty
+        ? AppTheme.textPrimary
+        : colors.foreground;
+    final bg = colors.background;
     return Container(
       height: 50,
       decoration: BoxDecoration(

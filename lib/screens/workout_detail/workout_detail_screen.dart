@@ -13,8 +13,7 @@ import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
 import 'bloc/workout_detail_state.dart';
 import 'widgets/exercise_card.dart';
-import 'widgets/exercise_options_sheet.dart';
-import 'widgets/replace_exercise_sheet.dart';
+import 'widgets/exercise_navigation.dart';
 import '../workout_session/workout_session_screen.dart';
 import '../workout_session/bloc/workout_session_bloc.dart';
 import '../workout_session/bloc/workout_session_state.dart';
@@ -220,37 +219,19 @@ class WorkoutDetailScreen extends StatelessWidget {
   }
 
   void _showExerciseOptions(BuildContext context, Exercise exercise) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => ExerciseOptionsSheet(
-        exercise: exercise,
-        onReplaceExercise: () => _showReplaceExercise(context, exercise),
-      ),
-    );
-  }
-
-  void _showReplaceExercise(BuildContext context, Exercise currentExercise) {
-    Navigator.of(context).push(
-      CupertinoPageRoute(
-        builder: (_) => ReplaceExerciseSheet(
-          currentExercise: currentExercise,
-          onExerciseSelected: (newExercise) {
-            context.read<WorkoutDetailBloc>().add(
-                  ReplaceExercise(
-                    workoutId: workout.id,
-                    oldExerciseId: currentExercise.id,
-                    newExercise: newExercise,
-                  ),
-                );
-            AppToast.show(
-              context,
-              'Replaced with ${newExercise.name}',
+    showExerciseOptionsSheet(
+      context,
+      exercise: exercise,
+      onReplace: (newExercise) {
+        context.read<WorkoutDetailBloc>().add(
+              ReplaceExercise(
+                workoutId: workout.id,
+                oldExerciseId: exercise.id,
+                newExercise: newExercise,
+              ),
             );
-          },
-        ),
-      ),
+        AppToast.show(context, 'Replaced with ${newExercise.name}');
+      },
     );
   }
 }

@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../models/exercise.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
 import '../../../models/session/workout_session.dart';
@@ -69,6 +68,26 @@ class WorkoutSessionBloc
     return s is SessionActive ? s.session : null;
   }
 
+  /// Common shape of mutating handlers: read current session, build the next
+  /// one, emit, persist (debounced or immediate). Returns the updated
+  /// session for handlers that need to chain follow-up logic.
+  Future<WorkoutSession?> _mutate(
+    Emitter<WorkoutSessionState> emit,
+    WorkoutSession Function(WorkoutSession) update, {
+    bool flush = false,
+  }) async {
+    final cur = _current;
+    if (cur == null) return null;
+    final next = update(cur);
+    emit(SessionActive(next));
+    if (flush) {
+      await _flushPersist(next);
+    } else {
+      _schedulePersist(next);
+    }
+    return next;
+  }
+
   // ----- Handlers -----
 
   Future<void> _onStartSession(
@@ -82,6 +101,7 @@ class WorkoutSessionBloc
             exerciseId: ex.id,
             name: ex.name,
             equipment: ex.equipmentType,
+            muscleGroups: ex.muscleGroups,
             targetSets: ex.sets,
             sets: List.generate(
               ex.sets,
@@ -123,247 +143,208 @@ class WorkoutSessionBloc
     emit(SessionActive(cleaned));
   }
 
-  Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) async {
-    final cur = _current;
-    if (cur == null) return;
-
-    final updated = _mutateExercise(cur, event.exerciseId, (ex) {
-      if (event.isWarmup) {
-        return ex.copyWith(
-          warmupSet: (ex.warmupSet ?? SessionSet(id: _newId('wset'))).copyWith(
-            weight: event.weight,
-            reps: event.reps,
-            loggedAt: DateTime.now(),
-          ),
-        );
-      }
-      final newSets = ex.sets
-          .map((s) => s.id == event.setId
-              ? s.copyWith(
-                  weight: event.weight,
-                  reps: event.reps,
-                  loggedAt: DateTime.now(),
-                )
-              : s)
-          .toList();
-      return ex.copyWith(sets: newSets);
-    });
-
-    // Active state transfer.
-    final next = updated.copyWith(activeExerciseId: event.exerciseId);
-
-    emit(SessionActive(next));
-    await _flushPersist(next);
+  Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) {
+    return _mutate(emit, (cur) {
+      final next = _mutateExercise(cur, event.exerciseId, (ex) {
+        if (event.isWarmup) {
+          return ex.copyWith(
+            warmupSet:
+                (ex.warmupSet ?? SessionSet(id: _newId('wset'))).copyWith(
+              weight: event.weight,
+              reps: event.reps,
+              loggedAt: DateTime.now(),
+            ),
+          );
+        }
+        final newSets = ex.sets
+            .map((s) => s.id == event.setId
+                ? s.copyWith(
+                    weight: event.weight,
+                    reps: event.reps,
+                    loggedAt: DateTime.now(),
+                  )
+                : s)
+            .toList();
+        return ex.copyWith(sets: newSets);
+      });
+      return next.copyWith(activeExerciseId: event.exerciseId);
+    }, flush: true);
   }
 
   Future<void> _onUpdateSetDraft(
     UpdateSetDraft event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
+  ) {
+    return _mutate(emit, (cur) {
+      return _mutateExercise(cur, event.exerciseId, (ex) {
+        SessionSet apply(SessionSet s) {
+          return s.copyWith(
+            weight: event.clearWeight ? null : (event.weight ?? s.weight),
+            reps: event.clearReps ? null : (event.reps ?? s.reps),
+          );
+        }
 
-    final updated = _mutateExercise(cur, event.exerciseId, (ex) {
-      SessionSet apply(SessionSet s) {
-        return s.copyWith(
-          weight: event.clearWeight ? null : (event.weight ?? s.weight),
-          reps: event.clearReps ? null : (event.reps ?? s.reps),
-        );
-      }
-
-      if (event.isWarmup) {
-        final w = ex.warmupSet ?? SessionSet(id: _newId('wset'));
-        return ex.copyWith(warmupSet: apply(w));
-      }
-      final newSets = ex.sets
-          .map((s) => s.id == event.setId ? apply(s) : s)
-          .toList();
-      return ex.copyWith(sets: newSets);
+        if (event.isWarmup) {
+          final w = ex.warmupSet ?? SessionSet(id: _newId('wset'));
+          return ex.copyWith(warmupSet: apply(w));
+        }
+        final newSets = ex.sets
+            .map((s) => s.id == event.setId ? apply(s) : s)
+            .toList();
+        return ex.copyWith(sets: newSets);
+      });
     });
-
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
   }
 
   Future<void> _onMarkExerciseDone(
     MarkExerciseDone event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-
-    final updated = _mutateExercise(cur, event.exerciseId, (ex) {
-      return ex.copyWith(completed: true);
-    }).copyWith(
-      activeExerciseId: cur.activeExerciseId == event.exerciseId
-          ? null
-          : cur.activeExerciseId,
-      activeRestEndsAt: null,
-    );
-
-    emit(SessionActive(updated));
-    await _flushPersist(updated);
+  ) {
+    return _mutate(emit, (cur) {
+      return _mutateExercise(cur, event.exerciseId, (ex) {
+        return ex.copyWith(completed: true);
+      }).copyWith(
+        activeExerciseId: cur.activeExerciseId == event.exerciseId
+            ? null
+            : cur.activeExerciseId,
+        activeRestEndsAt: null,
+      );
+    }, flush: true);
   }
 
-  Future<void> _onAddSet(AddSet event, Emitter<WorkoutSessionState> emit) async {
-    final cur = _current;
-    if (cur == null) return;
-
-    final updated = _mutateExercise(cur, event.exerciseId, (ex) {
-      return ex.copyWith(
-        sets: [...ex.sets, SessionSet(id: _newId('set'))],
-        targetSets: ex.targetSets + 1,
-      );
+  Future<void> _onAddSet(AddSet event, Emitter<WorkoutSessionState> emit) {
+    return _mutate(emit, (cur) {
+      return _mutateExercise(cur, event.exerciseId, (ex) {
+        return ex.copyWith(
+          sets: [...ex.sets, SessionSet(id: _newId('set'))],
+          targetSets: ex.targetSets + 1,
+        );
+      });
     });
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
   }
 
   Future<void> _onDeleteSet(
     DeleteSet event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-
-    final updated = _mutateExercise(cur, event.exerciseId, (ex) {
-      if (event.isWarmup) {
-        return ex.copyWith(warmupSet: null);
-      }
-      final newSets =
-          ex.sets.where((s) => s.id != event.setId).toList();
-      return ex.copyWith(
-        sets: newSets,
-        targetSets: max(0, ex.targetSets - 1),
-      );
+  ) {
+    return _mutate(emit, (cur) {
+      return _mutateExercise(cur, event.exerciseId, (ex) {
+        if (event.isWarmup) {
+          return ex.copyWith(warmupSet: null);
+        }
+        final newSets = ex.sets.where((s) => s.id != event.setId).toList();
+        return ex.copyWith(
+          sets: newSets,
+          targetSets: max(0, ex.targetSets - 1),
+        );
+      });
     });
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
   }
 
   Future<void> _onDeleteExercise(
     DeleteExercise event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-    final newExercises =
-        cur.exercises.where((e) => e.exerciseId != event.exerciseId).toList();
-    final updated = cur.copyWith(
-      exercises: newExercises,
-      activeExerciseId: cur.activeExerciseId == event.exerciseId
-          ? null
-          : cur.activeExerciseId,
-    );
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
+  ) {
+    return _mutate(emit, (cur) {
+      return cur.copyWith(
+        exercises: cur.exercises
+            .where((e) => e.exerciseId != event.exerciseId)
+            .toList(),
+        activeExerciseId: cur.activeExerciseId == event.exerciseId
+            ? null
+            : cur.activeExerciseId,
+      );
+    });
   }
 
   Future<void> _onReplaceExercise(
     ReplaceExercise event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
+  ) {
+    return _mutate(emit, (cur) {
+      final newEx = event.newExercise;
+      final newList = cur.exercises.map((ex) {
+        if (ex.exerciseId != event.oldExerciseId) return ex;
+        // Carry sets, warmupSet, notes; bump targetSets to new exercise's
+        // plan but keep extra logged sets so user doesn't lose work.
+        final keptSets = ex.sets;
+        final targetSets = max(newEx.sets, keptSets.length);
+        return SessionExercise(
+          exerciseId: newEx.id,
+          name: newEx.name,
+          equipment: newEx.equipmentType,
+          muscleGroups: newEx.muscleGroups,
+          targetSets: targetSets,
+          sets: keptSets,
+          warmupSet: ex.warmupSet,
+          notes: ex.notes,
+          completed: ex.completed,
+        );
+      }).toList();
 
-    final newEx = event.newExercise;
-    final newList = cur.exercises.map((ex) {
-      if (ex.exerciseId != event.oldExerciseId) return ex;
-      // Carry sets, warmupSet, notes; bump targetSets to new exercise's plan
-      // but keep extra logged sets so user doesn't lose work.
-      final keptSets = ex.sets;
-      final targetSets = max(newEx.sets, keptSets.length);
-      return SessionExercise(
-        exerciseId: newEx.id,
-        name: newEx.name,
-        equipment: newEx.equipmentType,
-        targetSets: targetSets,
-        sets: keptSets,
-        warmupSet: ex.warmupSet,
-        notes: ex.notes,
-        completed: ex.completed,
+      return cur.copyWith(
+        exercises: newList,
+        activeExerciseId: cur.activeExerciseId == event.oldExerciseId
+            ? newEx.id
+            : cur.activeExerciseId,
       );
-    }).toList();
-
-    final updated = cur.copyWith(
-      exercises: newList,
-      activeExerciseId: cur.activeExerciseId == event.oldExerciseId
-          ? newEx.id
-          : cur.activeExerciseId,
-    );
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
+    });
   }
 
   Future<void> _onUpdateNotes(
     UpdateNotes event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-    final updated = _mutateExercise(cur, event.exerciseId, (ex) {
-      return ex.copyWith(notes: event.notes);
+  ) {
+    return _mutate(emit, (cur) {
+      return _mutateExercise(cur, event.exerciseId, (ex) {
+        return ex.copyWith(notes: event.notes);
+      });
     });
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
   }
 
   Future<void> _onSetWarmup(
     SetWarmup event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-    final updated = cur.copyWith(warmup: event.warmup);
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
+  ) {
+    return _mutate(emit, (cur) => cur.copyWith(warmup: event.warmup));
   }
 
   Future<void> _onStartRestTimer(
     StartRestTimer event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-    final ends = DateTime.now().add(event.duration);
-    final updated = cur.copyWith(
-      activeRestEndsAt: ends,
-      restDurationSeconds: event.duration.inSeconds,
-    );
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
+  ) {
+    return _mutate(emit, (cur) {
+      // If event omits a duration, fall back to the session-configured one
+      // (default 120s). Single source of truth lives on the session model.
+      final dur = event.duration ?? Duration(seconds: cur.restDurationSeconds);
+      return cur.copyWith(
+        activeRestEndsAt: DateTime.now().add(dur),
+        restDurationSeconds: dur.inSeconds,
+      );
+    });
   }
 
   Future<void> _onCancelRestTimer(
     CancelRestTimer event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-    final updated = cur.copyWith(activeRestEndsAt: null);
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
+  ) {
+    return _mutate(emit, (cur) => cur.copyWith(activeRestEndsAt: null));
   }
 
   Future<void> _onAdjustRestTimer(
     AdjustRestTimer event,
     Emitter<WorkoutSessionState> emit,
-  ) async {
-    final cur = _current;
-    if (cur == null) return;
-    final ends = cur.activeRestEndsAt;
-    if (ends == null) return; // no active timer to adjust
-    final shifted = ends.add(event.delta);
-    // If the user trimmed the timer past zero, cancel cleanly.
-    if (shifted.isBefore(DateTime.now())) {
-      final updated = cur.copyWith(activeRestEndsAt: null);
-      emit(SessionActive(updated));
-      _schedulePersist(updated);
-      return;
-    }
-    final updated = cur.copyWith(activeRestEndsAt: shifted);
-    emit(SessionActive(updated));
-    _schedulePersist(updated);
+  ) {
+    return _mutate(emit, (cur) {
+      final ends = cur.activeRestEndsAt;
+      if (ends == null) return cur; // no active timer to adjust
+      final shifted = ends.add(event.delta);
+      // If the user trimmed the timer past zero, cancel cleanly.
+      if (shifted.isBefore(DateTime.now())) {
+        return cur.copyWith(activeRestEndsAt: null);
+      }
+      return cur.copyWith(activeRestEndsAt: shifted);
+    });
   }
 
   Future<void> _onCancelWorkout(
@@ -417,8 +398,4 @@ class WorkoutSessionBloc
     _persistDebounce?.cancel();
     return super.close();
   }
-}
-
-extension _ExposedExerciseId on Exercise {
-  // Kept for clarity in case future serialization relies on it; no-op import shield.
 }
