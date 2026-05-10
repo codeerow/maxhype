@@ -113,13 +113,85 @@ class _WorkoutSessionView extends StatelessWidget {
   }
 }
 
-class _ActiveSessionScaffold extends StatelessWidget {
+class _ActiveSessionScaffold extends StatefulWidget {
   final SessionActive state;
   const _ActiveSessionScaffold({required this.state});
 
   @override
+  State<_ActiveSessionScaffold> createState() => _ActiveSessionScaffoldState();
+}
+
+class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
+    with RouteAware {
+  /// Stable per-exercise GlobalKeys. Used for two things:
+  ///  1. Keeping the same widget identity across active ↔ completed
+  ///     transitions so the SessionExerciseCard's State is not rebuilt
+  ///     (which would swallow the completion scale-in animation).
+  ///  2. Scrolling a specific card into view via Scrollable.ensureVisible.
+  final Map<String, GlobalKey> _cardKeys = {};
+
+  GlobalKey _cardKeyFor(String exerciseId) =>
+      _cardKeys.putIfAbsent(exerciseId, () => GlobalKey());
+
+  GlobalKey? get _activeCardKey {
+    final id = widget.state.session.activeExerciseId;
+    return id == null ? null : _cardKeys[id];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleScrollToActive();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      getIt<RouteObserver<PageRoute<dynamic>>>().subscribe(this, route);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ActiveSessionScaffold old) {
+    super.didUpdateWidget(old);
+    final oldId = old.state.session.activeExerciseId;
+    final newId = widget.state.session.activeExerciseId;
+    if (oldId != newId && newId != null) {
+      _scheduleScrollToActive();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Returning from logging screen — re-anchor on the active card.
+    _scheduleScrollToActive();
+  }
+
+  @override
+  void dispose() {
+    getIt<RouteObserver<PageRoute<dynamic>>>().unsubscribe(this);
+    super.dispose();
+  }
+
+  void _scheduleScrollToActive() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _activeCardKey?.currentContext;
+      if (ctx == null || !mounted) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        alignment: 0.3,
+      );
+    });
+  }
+
+
+  @override
   Widget build(BuildContext context) {
-    final session = state.session;
+    final session = widget.state.session;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: SessionAppBar(
@@ -197,12 +269,13 @@ class _ActiveSessionScaffold extends StatelessWidget {
               .read<WorkoutSessionBloc>()
               .add(DeleteExercise(ex.exerciseId)),
           child: SessionExerciseCard(
-            key: ValueKey('exercise_card_${ex.exerciseId}'),
+            // Stable GlobalKey per exerciseId — survives active/completed
+            // transitions so the card's State (and its animation
+            // controllers) is preserved across rebuilds.
+            key: _cardKeyFor(ex.exerciseId),
             exercise: ex,
             isActive:
                 session.activeExerciseId == ex.exerciseId && !ex.completed,
-            justCompleted: state.justCompletedExerciseId == ex.exerciseId,
-            justLogged: state.justLoggedExerciseId == ex.exerciseId,
             onTap: () => _openLogging(context, ex),
             onOptions: () => _showOptionsMenu(context, ex),
           ),

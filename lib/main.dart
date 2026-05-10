@@ -53,6 +53,9 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.darkTheme,
           navigatorKey: rootNavKey,
+          navigatorObservers: [
+            getIt<RouteObserver<PageRoute<dynamic>>>(),
+          ],
           home: _LaunchShell(restoreActiveSession: restoreActiveSession),
         ),
       ),

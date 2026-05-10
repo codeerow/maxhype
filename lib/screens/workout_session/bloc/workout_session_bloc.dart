@@ -37,7 +37,6 @@ class WorkoutSessionBloc
     on<CancelRestTimer>(_onCancelRestTimer);
     on<CancelWorkout>(_onCancelWorkout);
     on<FinishWorkout>(_onFinishWorkout);
-    on<ClearTransientFlags>(_onClearTransientFlags);
   }
 
   final WorkoutSessionRepository repository;
@@ -152,7 +151,7 @@ class WorkoutSessionBloc
     // Active state transfer.
     final next = updated.copyWith(activeExerciseId: event.exerciseId);
 
-    emit(SessionActive(next, justLoggedExerciseId: event.exerciseId));
+    emit(SessionActive(next));
     await _flushPersist(next);
   }
 
@@ -181,12 +180,7 @@ class WorkoutSessionBloc
       return ex.copyWith(sets: newSets);
     });
 
-    final s = state;
-    if (s is SessionActive) {
-      emit(s.copyWith(session: updated));
-    } else {
-      emit(SessionActive(updated));
-    }
+    emit(SessionActive(updated));
     _schedulePersist(updated);
   }
 
@@ -206,11 +200,7 @@ class WorkoutSessionBloc
       activeRestEndsAt: null,
     );
 
-    emit(SessionActive(
-      updated,
-      justCompletedExerciseId: event.exerciseId,
-      exerciseJustClosed: true,
-    ));
+    emit(SessionActive(updated));
     await _flushPersist(updated);
   }
 
@@ -313,12 +303,7 @@ class WorkoutSessionBloc
     final updated = _mutateExercise(cur, event.exerciseId, (ex) {
       return ex.copyWith(notes: event.notes);
     });
-    final s = state;
-    if (s is SessionActive) {
-      emit(s.copyWith(session: updated));
-    } else {
-      emit(SessionActive(updated));
-    }
+    emit(SessionActive(updated));
     _schedulePersist(updated);
   }
 
@@ -390,16 +375,6 @@ class WorkoutSessionBloc
     await repository.clearActive();
     emit(const SessionFinished());
     emit(const SessionIdle());
-  }
-
-  void _onClearTransientFlags(
-    ClearTransientFlags event,
-    Emitter<WorkoutSessionState> emit,
-  ) {
-    final s = state;
-    if (s is SessionActive) {
-      emit(SessionActive(s.session));
-    }
   }
 
   // ----- Helpers -----

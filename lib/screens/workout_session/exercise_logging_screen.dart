@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -47,18 +48,25 @@ class _LoggingView extends StatelessWidget {
   final String exerciseId;
   const _LoggingView({required this.exerciseId});
 
+  bool _completedFor(WorkoutSessionState s) {
+    if (s is! SessionActive) return false;
+    final ex = s.session.exercises.firstWhereOrNull(
+      (e) => e.exerciseId == exerciseId,
+    );
+    return ex?.completed ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<WorkoutSessionBloc, WorkoutSessionState>(
+      // Listen for the exercise's `completed` flag flipping false → true.
+      // That's the single source of truth: when the exercise is done, we
+      // pop the logging screen. No transient state involved.
       listenWhen: (prev, next) =>
-          next is SessionActive &&
-          (next).exerciseJustClosed &&
-          (prev is! SessionActive || !prev.exerciseJustClosed),
+          !_completedFor(prev) && _completedFor(next),
       listener: (context, state) {
-        if (state is SessionActive && state.exerciseJustClosed) {
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
-          }
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
         }
       },
       builder: (context, state) {
@@ -68,10 +76,20 @@ class _LoggingView extends StatelessWidget {
             body: SizedBox.shrink(),
           );
         }
-        final ex = state.session.exercises.firstWhere(
+        final ex = state.session.exercises.firstWhereOrNull(
           (e) => e.exerciseId == exerciseId,
-          orElse: () => throw StateError('Exercise $exerciseId not in session'),
         );
+        if (ex == null) {
+          // Exercise was removed (e.g., deleted while screen was open) —
+          // close ourselves on the next frame.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+          });
+          return const Scaffold(
+            backgroundColor: AppTheme.backgroundColor,
+            body: SizedBox.shrink(),
+          );
+        }
         return _LoggingScaffold(exercise: ex, session: state.session);
       },
     );

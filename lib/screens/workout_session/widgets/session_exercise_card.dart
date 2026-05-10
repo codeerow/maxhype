@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../../core/haptic_manager.dart';
 import '../../../core/service_locator.dart';
 import '../../../models/equipment_type.dart';
 import '../../../models/exercise.dart';
@@ -10,6 +10,7 @@ import '../../../models/muscle_group.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../repositories/exercise_repository.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/animations/animations.dart';
 import '../../workout_detail/widgets/exercise_card.dart';
 
 /// Wraps the workout-detail [ExerciseCard] to add session-only visuals:
@@ -24,15 +25,6 @@ import '../../workout_detail/widgets/exercise_card.dart';
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final bool isActive;
-
-  /// True when this card just transitioned to completed; drives a one-shot
-  /// scale-in checkmark animation.
-  final bool justCompleted;
-
-  /// True when this card just had a set logged; drives a one-shot subtle
-  /// glow pulse on return from the logging screen.
-  final bool justLogged;
-
   final VoidCallback onTap;
   final VoidCallback onOptions;
 
@@ -40,8 +32,6 @@ class SessionExerciseCard extends StatefulWidget {
     super.key,
     required this.exercise,
     required this.isActive,
-    required this.justCompleted,
-    required this.justLogged,
     required this.onTap,
     required this.onOptions,
   });
@@ -51,7 +41,7 @@ class SessionExerciseCard extends StatefulWidget {
 }
 
 class _SessionExerciseCardState extends State<SessionExerciseCard>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RouteAware {
   late final AnimationController _checkmarkController;
   late final AnimationController _glowController;
 
@@ -60,61 +50,77 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
   /// rather than just confirmation.
   late final AnimationController _completionGlowController;
 
-  /// Delay before the completion animation starts — gives the iOS-style
-  /// Cupertino pop-transition (~350ms) time to finish, so the user actually
-  /// sees the scale-in instead of it firing under the still-incoming screen.
-  static const _completionDelay = Duration(milliseconds: 420);
-
   Timer? _completionTimer;
+  Timer? _activePulseTimer;
 
   @override
   void initState() {
     super.initState();
     _checkmarkController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
-      // If this card mounts already-completed (e.g., session restore), show
-      // the checkmark in its final state without re-animating.
-      value: widget.exercise.completed && !widget.justCompleted ? 1.0 : 0.0,
+      duration: AppDurations.scaleInPop,
+      // Card mounts already-completed (e.g., session restore, re-entering
+      // session screen): show the checkmark in its final state without
+      // re-animating. Fresh completions are caught in `didUpdateWidget`.
+      value: widget.exercise.completed ? 1.0 : 0.0,
     );
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
+      duration: AppDurations.pulseSoft,
     );
     _completionGlowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 520),
+      duration: AppDurations.pulseCelebratory,
     );
 
-    if (widget.justCompleted) _scheduleCompletion();
-    if (widget.justLogged) _glowController.forward(from: 0.0);
+    // Soft glow pulse on the active indicator whenever we appear on screen.
+    if (widget.isActive && !widget.exercise.completed) {
+      _scheduleActivePulse();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      getIt<RouteObserver<PageRoute<dynamic>>>().subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // The logging screen was popped → session screen is visible again.
+    // Re-fire the soft glow pulse on the active indicator per spec, but
+    // wait for the Cupertino pop transition to settle.
+    if (mounted &&
+        widget.isActive &&
+        !widget.exercise.completed) {
+      _scheduleActivePulse();
+    }
   }
 
   @override
   void didUpdateWidget(covariant SessionExerciseCard old) {
     super.didUpdateWidget(old);
 
-    // Catch the actual completed-flag flip first so a one-time animation +
-    // medium haptic fires exactly once per transition.
-    final justFlippedCompleted =
-        !old.exercise.completed && widget.exercise.completed;
-
-    if (justFlippedCompleted) {
+    // The completed flag is the single source of truth. A fresh transition
+    // false → true plays the scale-in pop, completion-glow pulse and a
+    // medium haptic exactly once. The reverse (Undo / re-replace) resets.
+    if (!old.exercise.completed && widget.exercise.completed) {
       _scheduleCompletion();
     } else if (old.exercise.completed && !widget.exercise.completed) {
       _completionTimer?.cancel();
       _checkmarkController.value = 0.0;
       _completionGlowController.value = 0.0;
     }
-    // Late state arrival edge case (justCompletedExerciseId arriving in a
-    // separate state emit). Re-trigger to keep visuals snappy.
-    if (widget.justCompleted &&
-        !old.justCompleted &&
-        !justFlippedCompleted) {
-      _scheduleCompletion();
-    }
-    if (widget.justLogged && !old.justLogged) {
-      _glowController.forward(from: 0.0);
+    // Pulse the active indicator when a card transitions into active state
+    // (e.g., logging the first set on a new exercise). Same delay as the
+    // on-appear pulse so it lands after the Cupertino transition settles.
+    if (widget.isActive &&
+        !widget.exercise.completed &&
+        (!old.isActive || old.exercise.completed)) {
+      _scheduleActivePulse();
     }
   }
 
@@ -123,17 +129,29 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
   /// incoming session screen and is barely visible.
   void _scheduleCompletion() {
     _completionTimer?.cancel();
-    _completionTimer = Timer(_completionDelay, () {
+    _completionTimer = Timer(AppDurations.screenSettle, () {
       if (!mounted) return;
-      HapticFeedback.mediumImpact();
+      getIt<HapticManager>().medium();
       _checkmarkController.forward(from: 0.0);
       _completionGlowController.forward(from: 0.0);
     });
   }
 
+  /// Schedule the soft glow pulse on the active accent bar, delayed until
+  /// after the Cupertino transition has settled.
+  void _scheduleActivePulse() {
+    _activePulseTimer?.cancel();
+    _activePulseTimer = Timer(AppDurations.screenSettle, () {
+      if (!mounted) return;
+      _glowController.forward(from: 0.0);
+    });
+  }
+
   @override
   void dispose() {
+    getIt<RouteObserver<PageRoute<dynamic>>>().unsubscribe(this);
     _completionTimer?.cancel();
+    _activePulseTimer?.cancel();
     _checkmarkController.dispose();
     _glowController.dispose();
     _completionGlowController.dispose();
@@ -166,92 +184,73 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
     final subtitle =
         '${ex.targetSets} sets · ${ex.loggedSetsCount} done · ${ex.equipment.displayName}';
 
-    return AnimatedBuilder(
-      animation: _glowController,
-      builder: (context, child) {
-        final orangeGlow = _glowController.value;
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: orangeGlow > 0
-                ? [
-                    BoxShadow(
-                      color: AppTheme.activeOrange
-                          .withValues(alpha: 0.25 * (1.0 - orangeGlow)),
-                      blurRadius: 16,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
-          ),
-          child: child,
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.isActive
-              ? AppTheme.cardBackgroundLifted
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: ExerciseCard(
-          exercise: catalogExercise,
-          subtitleOverride: subtitle,
-          leadingAccent: _buildLeadingAccent(),
-          onTap: widget.onTap,
-          onOptionsPressed: widget.onOptions,
-        ),
+    // The active-state pulse lives on the leading accent bar only — the
+    // card itself just gets a subtle background lift while active.
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isActive
+            ? AppTheme.cardBackgroundLifted
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: ExerciseCard(
+        exercise: catalogExercise,
+        subtitleOverride: subtitle,
+        leadingAccent: _buildLeadingAccent(),
+        onTap: widget.onTap,
+        onOptionsPressed: widget.onOptions,
       ),
     );
   }
 
   Widget? _buildLeadingAccent() {
     if (widget.exercise.completed) {
-      return ScaleTransition(
-        scale: CurvedAnimation(
-          parent: _checkmarkController,
-          curve: Curves.easeOutBack,
-        ),
-        child: AnimatedBuilder(
-          animation: _completionGlowController,
-          builder: (context, child) {
-            // Triangular envelope (0 → 1 → 0): the pulse rises and decays
-            // in one pass, contained to the checkmark badge itself.
-            final t = _completionGlowController.value;
-            final pulse =
-                (t == 0.0) ? 0.0 : (1.0 - (t - 0.5).abs() * 2).clamp(0.0, 1.0);
-            return Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: AppTheme.recoveryGreen,
-                shape: BoxShape.circle,
-                boxShadow: pulse > 0
-                    ? [
-                        BoxShadow(
-                          color: AppTheme.recoveryGreen
-                              .withValues(alpha: 0.55 * pulse),
-                          blurRadius: 12 + 6 * pulse,
-                          spreadRadius: 1 + 2 * pulse,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: child,
-            );
-          },
-          child: const Icon(Icons.check, color: Colors.white, size: 14),
+      // Scale-in pop + contained pulse-glow on the badge itself (no shadow
+      // bleeding onto the rest of the card).
+      return ScaleInPop(
+        controller: _checkmarkController,
+        child: PulseGlow(
+          pulseController: _completionGlowController,
+          color: AppTheme.recoveryGreen,
+          baseAlpha: 0.0,
+          pulseAlpha: 0.55,
+          baseBlur: 0,
+          pulseExtraBlur: 18,
+          baseSpread: 0,
+          pulseExtraSpread: 3,
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+              color: AppTheme.recoveryGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check, color: Colors.white, size: 14),
+          ),
         ),
       );
     }
     if (widget.isActive) {
-      return Container(
-        width: 3,
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppTheme.activeOrange,
-          borderRadius: BorderRadius.circular(2),
+      // Vertical accent bar with constant "very light" glow + soft pulse
+      // when the session screen becomes visible.
+      return PulseGlow(
+        pulseController: _glowController,
+        color: AppTheme.activeOrange,
+        baseAlpha: 0.35,
+        pulseAlpha: 0.45,
+        baseBlur: 6,
+        pulseExtraBlur: 8,
+        baseSpread: 0.5,
+        pulseExtraSpread: 1.2,
+        borderRadius: BorderRadius.circular(2),
+        child: Container(
+          width: 3,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppTheme.activeOrange,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
       );
     }

@@ -1,4 +1,6 @@
+import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
+import 'haptic_manager.dart';
 import '../repositories/workout_repository.dart';
 import '../repositories/mock_workout_repository.dart';
 import '../repositories/exercise_repository.dart';
@@ -28,6 +30,21 @@ Future<void> setupDependencies() async {
 
   getIt.registerLazySingleton<WorkoutSessionRepository>(
     () => LocalWorkoutSessionRepository(),
+  );
+
+  // Shared RouteObserver — wired into MaterialApp.navigatorObservers and
+  // subscribed by RouteAware widgets that need to react to becoming-visible
+  // again after a child route is popped (e.g., the session screen pulses
+  // the active exercise card on pop-back from the logging screen).
+  getIt.registerLazySingleton<RouteObserver<PageRoute<dynamic>>>(
+    () => RouteObserver<PageRoute<dynamic>>(),
+  );
+
+  // Centralized haptic feedback. UI code calls `getIt<HapticManager>().*`
+  // instead of HapticFeedback directly so intensity tiers are consistent
+  // and easy to mute / swap.
+  getIt.registerLazySingleton<HapticManager>(
+    () => DefaultHapticManager(),
   );
 
   // Register BLoCs

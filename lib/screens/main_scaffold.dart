@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../core/haptic_manager.dart';
+import '../core/service_locator.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tap_scale.dart';
 import 'home/home_screen.dart';
@@ -74,7 +75,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       scaleDown: 0.95,
       onTap: () {
         if (_currentIndex != index) {
-          HapticFeedback.selectionClick();
+          getIt<HapticManager>().selection();
           setState(() {
             _currentIndex = index;
           });

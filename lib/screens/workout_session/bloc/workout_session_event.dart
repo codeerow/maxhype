@@ -112,6 +112,3 @@ class FinishWorkout extends WorkoutSessionEvent {
   const FinishWorkout();
 }
 
-class ClearTransientFlags extends WorkoutSessionEvent {
-  const ClearTransientFlags();
-}
