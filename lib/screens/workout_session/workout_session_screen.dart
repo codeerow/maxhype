@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +11,7 @@ import '../../models/session/workout_session.dart';
 import '../../models/workout.dart';
 import '../../repositories/exercise_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/animations/animations.dart';
 import '../workout_detail/widgets/exercise_navigation.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
@@ -128,6 +131,12 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   ///  2. Scrolling a specific card into view via Scrollable.ensureVisible.
   final Map<String, GlobalKey> _cardKeys = {};
 
+  /// Pending scroll request — held while the route's push transition
+  /// finishes. Calling Scrollable.ensureVisible while the screen is still
+  /// transitioning interleaves with ListView's first-frame layout pass and
+  /// can leave intermediate items un-painted until the user scrolls.
+  Timer? _scrollTimer;
+
   GlobalKey _cardKeyFor(String exerciseId) =>
       _cardKeys.putIfAbsent(exerciseId, GlobalKey.new);
 
@@ -169,14 +178,22 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
 
   @override
   void dispose() {
+    _scrollTimer?.cancel();
     getIt<RouteObserver<PageRoute<dynamic>>>().unsubscribe(this);
     super.dispose();
   }
 
+  /// Defer scroll-to-active until after the Cupertino transition has
+  /// settled. Triggering `Scrollable.ensureVisible` during the inbound
+  /// transition causes the ListView's children to enter a half-laid-out
+  /// state where some exercise cards stay invisible until the user scrolls
+  /// manually.
   void _scheduleScrollToActive() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _scrollTimer?.cancel();
+    _scrollTimer = Timer(AppDurations.screenSettle, () {
+      if (!mounted) return;
       final ctx = _activeCardKey?.currentContext;
-      if (ctx == null || !mounted) return;
+      if (ctx == null) return;
       Scrollable.ensureVisible(
         ctx,
         duration: const Duration(milliseconds: 320),
