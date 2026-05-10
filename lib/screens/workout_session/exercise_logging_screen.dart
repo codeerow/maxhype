@@ -263,24 +263,11 @@ class _LoggingScaffold extends StatelessWidget {
       backgroundColor: AppTheme.backgroundColor,
       elevation: 0,
       centerTitle: true,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 12),
-        child: TapScale(
-          scaleDown: 0.90,
-          onTap: () => Navigator.of(context).maybePop(),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: AppTheme.cardBackground,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.arrow_back,
-              color: AppTheme.recoveryGreen,
-              size: 20,
-            ),
-          ),
+      leading: TapScale(
+        scaleDown: 0.90,
+        onTap: () => Navigator.of(context).maybePop(),
+        child: const Center(
+          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
         ),
       ),
       title: Text(
@@ -291,19 +278,6 @@ class _LoggingScaffold extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: TapScale(
-            scaleDown: 0.85,
-            onTap: () => _toast(context, 'Options — coming in Part 2'),
-            child: const Icon(
-              Icons.more_horiz,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
