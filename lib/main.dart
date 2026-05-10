@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -83,7 +84,7 @@ class _LaunchShellState extends State<_LaunchShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         getIt<WorkoutSessionBloc>().add(const RestoreSession());
         MyApp.rootNavKey.currentState?.push(
-          MaterialPageRoute(
+          CupertinoPageRoute(
             builder: (_) => WorkoutSessionScreen.restored(),
           ),
         );

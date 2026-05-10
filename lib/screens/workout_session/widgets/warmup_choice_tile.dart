@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/session/session_warmup_type.dart';
@@ -74,38 +75,25 @@ class WarmupChoiceTile extends StatelessWidget {
   }
 
   void _showPicker(BuildContext context) {
-    showModalBottomSheet<void>(
+    showCupertinoModalPopup<void>(
       context: context,
-      backgroundColor: AppTheme.cardBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final t in WarmupType.values)
-              ListTile(
-                title: Text(
-                  t.displayName,
-                  style: TextStyle(
-                    color: t == current
-                        ? AppTheme.recoveryGreen
-                        : AppTheme.textPrimary,
-                    fontWeight:
-                        t == current ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-                trailing: t == current
-                    ? const Icon(Icons.check, color: AppTheme.recoveryGreen)
-                    : null,
-                onTap: () {
-                  onSelected(t);
-                  Navigator.of(ctx).pop();
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Choose warm-up'),
+        actions: [
+          for (final t in WarmupType.values)
+            CupertinoActionSheetAction(
+              isDefaultAction: t == current,
+              onPressed: () {
+                onSelected(t);
+                Navigator.of(ctx).pop();
+              },
+              child: Text(t.displayName),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDestructiveAction: false,
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Close'),
         ),
       ),
     );

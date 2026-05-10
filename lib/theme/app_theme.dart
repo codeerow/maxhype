@@ -41,6 +41,20 @@ class AppTheme {
       primaryColor: primaryOrange,
       fontFamily: 'SF Pro Display',
 
+      // Force Cupertino-style horizontal slide on every platform so any
+      // MaterialPageRoute (e.g., framework dialogs, third-party plugins)
+      // matches the iOS feel of the rest of the app.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: CupertinoPageTransitionsBuilder(),
+        },
+      ),
+
       textTheme: const TextTheme(
         displayLarge: TextStyle(
           fontSize: 32,

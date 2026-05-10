@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
@@ -141,28 +142,10 @@ class WorkoutDetailScreen extends StatelessWidget {
                   enableHaptic: true,
                   onTap: () {
                     Navigator.of(context).push(
-                      PageRouteBuilder(
-                        pageBuilder: (_, anim, __) => inProgress
+                      CupertinoPageRoute(
+                        builder: (_) => inProgress
                             ? WorkoutSessionScreen.restored()
                             : WorkoutSessionScreen.start(workout: workout),
-                        transitionsBuilder: (_, anim, __, child) {
-                          return FadeTransition(
-                            opacity: anim,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.05),
-                                end: Offset.zero,
-                              ).animate(
-                                CurvedAnimation(
-                                  parent: anim,
-                                  curve: Curves.easeOutCubic,
-                                ),
-                              ),
-                              child: child,
-                            ),
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 220),
                       ),
                     );
                   },
@@ -251,9 +234,8 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   void _showReplaceExercise(BuildContext context, Exercise currentExercise) {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ReplaceExerciseSheet(
+      CupertinoPageRoute(
+        builder: (_) => ReplaceExerciseSheet(
           currentExercise: currentExercise,
           onExerciseSelected: (newExercise) {
             context.read<WorkoutDetailBloc>().add(
@@ -272,23 +254,6 @@ class WorkoutDetailScreen extends StatelessWidget {
             );
           },
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final slideAnimation = Tween(
-            begin: const Offset(0, 0.05),
-            end: Offset.zero,
-          )
-              .chain(CurveTween(curve: Curves.easeOutCubic))
-              .animate(animation);
-
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: slideAnimation,
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 220),
       ),
     );
   }

@@ -324,8 +324,8 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
         exercise: fullExercise,
         onReplaceExercise: () async {
           await Navigator.of(context).push(
-            PageRouteBuilder(
-              pageBuilder: (_, anim, __) => ReplaceExerciseSheet(
+            CupertinoPageRoute(
+              builder: (_) => ReplaceExerciseSheet(
                 currentExercise: fullExercise,
                 onExerciseSelected: (newExercise) {
                   bloc.add(
@@ -336,19 +336,6 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
                   );
                 },
               ),
-              transitionsBuilder: (_, anim, __, child) => FadeTransition(
-                opacity: anim,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.05),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
-                  ),
-                  child: child,
-                ),
-              ),
-              transitionDuration: const Duration(milliseconds: 220),
             ),
           );
         },

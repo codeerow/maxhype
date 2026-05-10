@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/workout.dart';
@@ -153,46 +154,11 @@ class WorkoutCard extends StatelessWidget {
   }
 
   void _handleTap(BuildContext context, bool inProgress) {
-    if (inProgress) {
-      // Resume the running session directly. The session is already in
-      // memory + on disk, so we just push the session screen.
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (_, anim, __) => WorkoutSessionScreen.restored(),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
-              ),
-              child: child,
-            ),
-          ),
-          transitionDuration: const Duration(milliseconds: 220),
-        ),
-      );
-      return;
-    }
-
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (_, anim, __) => WorkoutDetailScreen(workout: workout),
-        transitionsBuilder: (_, anim, __, child) {
-          final offset = Tween(
-            begin: const Offset(0.03, 0),
-            end: Offset.zero,
-          )
-              .chain(CurveTween(curve: Curves.easeOutCubic))
-              .animate(anim);
-          return FadeTransition(
-            opacity: anim,
-            child: SlideTransition(position: offset, child: child),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 220),
+      CupertinoPageRoute(
+        builder: (_) => inProgress
+            ? WorkoutSessionScreen.restored()
+            : WorkoutDetailScreen(workout: workout),
       ),
     );
   }
