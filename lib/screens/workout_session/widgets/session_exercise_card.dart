@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/service_locator.dart';
 import '../../../models/equipment_type.dart';
@@ -52,43 +55,88 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
   late final AnimationController _checkmarkController;
   late final AnimationController _glowController;
 
+  /// Subtle glow pulse fired when an exercise transitions to completed.
+  /// Slightly longer than the active-card glow so it reads as "celebratory"
+  /// rather than just confirmation.
+  late final AnimationController _completionGlowController;
+
+  /// Delay before the completion animation starts — gives the iOS-style
+  /// Cupertino pop-transition (~350ms) time to finish, so the user actually
+  /// sees the scale-in instead of it firing under the still-incoming screen.
+  static const _completionDelay = Duration(milliseconds: 420);
+
+  Timer? _completionTimer;
+
   @override
   void initState() {
     super.initState();
     _checkmarkController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 220),
-      value: widget.exercise.completed ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 260),
+      // If this card mounts already-completed (e.g., session restore), show
+      // the checkmark in its final state without re-animating.
+      value: widget.exercise.completed && !widget.justCompleted ? 1.0 : 0.0,
     );
     _glowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
+    _completionGlowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
 
-    if (widget.justCompleted) _checkmarkController.forward(from: 0.0);
+    if (widget.justCompleted) _scheduleCompletion();
     if (widget.justLogged) _glowController.forward(from: 0.0);
   }
 
   @override
   void didUpdateWidget(covariant SessionExerciseCard old) {
     super.didUpdateWidget(old);
-    if (!old.exercise.completed && widget.exercise.completed) {
-      _checkmarkController.forward(from: 0.0);
+
+    // Catch the actual completed-flag flip first so a one-time animation +
+    // medium haptic fires exactly once per transition.
+    final justFlippedCompleted =
+        !old.exercise.completed && widget.exercise.completed;
+
+    if (justFlippedCompleted) {
+      _scheduleCompletion();
     } else if (old.exercise.completed && !widget.exercise.completed) {
+      _completionTimer?.cancel();
       _checkmarkController.value = 0.0;
+      _completionGlowController.value = 0.0;
     }
-    if (widget.justCompleted && !old.justCompleted) {
-      _checkmarkController.forward(from: 0.0);
+    // Late state arrival edge case (justCompletedExerciseId arriving in a
+    // separate state emit). Re-trigger to keep visuals snappy.
+    if (widget.justCompleted &&
+        !old.justCompleted &&
+        !justFlippedCompleted) {
+      _scheduleCompletion();
     }
     if (widget.justLogged && !old.justLogged) {
       _glowController.forward(from: 0.0);
     }
   }
 
+  /// Defer the visual + haptic feedback until after the Cupertino pop
+  /// transition has settled — otherwise the animation plays beneath the
+  /// incoming session screen and is barely visible.
+  void _scheduleCompletion() {
+    _completionTimer?.cancel();
+    _completionTimer = Timer(_completionDelay, () {
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      _checkmarkController.forward(from: 0.0);
+      _completionGlowController.forward(from: 0.0);
+    });
+  }
+
   @override
   void dispose() {
+    _completionTimer?.cancel();
     _checkmarkController.dispose();
     _glowController.dispose();
+    _completionGlowController.dispose();
     super.dispose();
   }
 
@@ -121,15 +169,15 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
     return AnimatedBuilder(
       animation: _glowController,
       builder: (context, child) {
-        final glowStrength = _glowController.value;
+        final orangeGlow = _glowController.value;
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            boxShadow: glowStrength > 0
+            boxShadow: orangeGlow > 0
                 ? [
                     BoxShadow(
                       color: AppTheme.activeOrange
-                          .withValues(alpha: 0.25 * (1.0 - glowStrength)),
+                          .withValues(alpha: 0.25 * (1.0 - orangeGlow)),
                       blurRadius: 16,
                       spreadRadius: 1,
                     ),
@@ -165,13 +213,34 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
           parent: _checkmarkController,
           curve: Curves.easeOutBack,
         ),
-        child: Container(
-          width: 22,
-          height: 22,
-          decoration: const BoxDecoration(
-            color: AppTheme.recoveryGreen,
-            shape: BoxShape.circle,
-          ),
+        child: AnimatedBuilder(
+          animation: _completionGlowController,
+          builder: (context, child) {
+            // Triangular envelope (0 → 1 → 0): the pulse rises and decays
+            // in one pass, contained to the checkmark badge itself.
+            final t = _completionGlowController.value;
+            final pulse =
+                (t == 0.0) ? 0.0 : (1.0 - (t - 0.5).abs() * 2).clamp(0.0, 1.0);
+            return Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: AppTheme.recoveryGreen,
+                shape: BoxShape.circle,
+                boxShadow: pulse > 0
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.recoveryGreen
+                              .withValues(alpha: 0.55 * pulse),
+                          blurRadius: 12 + 6 * pulse,
+                          spreadRadius: 1 + 2 * pulse,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: child,
+            );
+          },
           child: const Icon(Icons.check, color: Colors.white, size: 14),
         ),
       );

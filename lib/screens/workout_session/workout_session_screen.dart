@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -216,27 +217,15 @@ class _ActiveSessionScaffold extends StatelessWidget {
 
   Future<void> _openLogging(BuildContext context, SessionExercise ex) async {
     final bloc = context.read<WorkoutSessionBloc>();
+    // iOS-style horizontal slide: enters from the right, exits to the right
+    // on pop. CupertinoPageRoute also enables interactive swipe-back from
+    // the left edge for free.
     await Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (_, anim, __) => ExerciseLoggingScreen(
+      CupertinoPageRoute(
+        builder: (_) => ExerciseLoggingScreen(
           exerciseId: ex.exerciseId,
           bloc: bloc,
         ),
-        transitionsBuilder: (_, anim, __, child) {
-          return FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
-              ),
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 220),
       ),
     );
   }
