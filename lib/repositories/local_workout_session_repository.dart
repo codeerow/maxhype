@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/session/session_set.dart';
 import '../models/session/workout_session.dart';
 import 'workout_session_repository.dart';
 
@@ -75,5 +76,38 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
     final file = await _historyFile();
     final line = '${jsonEncode(session.toJson())}\n';
     await file.writeAsString(line, mode: FileMode.append, flush: true);
+  }
+
+  @override
+  Future<SessionSet?> lastLogFor(String exerciseId) async {
+    final file = await _historyFile();
+    if (!await file.exists()) return null;
+
+    // History is append-only JSONL; iterate from newest entry by reading the
+    // whole file and walking backwards. For Part 1 (low session count) this
+    // is fine; if history grows large we can switch to a tail-read or an
+    // index file later.
+    final raw = await file.readAsString();
+    if (raw.trim().isEmpty) return null;
+    final lines = raw.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    for (var i = lines.length - 1; i >= 0; i--) {
+      try {
+        final session = WorkoutSession.fromJson(
+          jsonDecode(lines[i]) as Map<String, dynamic>,
+        );
+        for (final ex in session.exercises) {
+          if (ex.exerciseId != exerciseId) continue;
+          // Walk this exercise's sets from the last logged one.
+          for (var j = ex.sets.length - 1; j >= 0; j--) {
+            final s = ex.sets[j];
+            if (s.isLogged) return s;
+          }
+          if (ex.warmupSet?.isLogged ?? false) return ex.warmupSet;
+        }
+      } catch (_) {
+        continue; // skip corrupt line
+      }
+    }
+    return null;
   }
 }

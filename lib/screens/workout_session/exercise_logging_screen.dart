@@ -2,12 +2,13 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/service_locator.dart';
 import '../../models/exercise.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
 import '../../models/session/workout_session.dart';
 import '../../repositories/exercise_repository.dart';
-import '../../core/service_locator.dart';
+import '../../repositories/workout_session_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/workout_session_bloc.dart';
@@ -15,11 +16,11 @@ import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
 import 'widgets/action_chip_row.dart';
 import 'widgets/add_set_button.dart';
+import 'widgets/effective_set_row.dart';
 import 'widgets/log_set_button.dart';
-import 'widgets/notes_field.dart';
+import 'widgets/notes_card.dart';
 import 'widgets/pr_placeholder_header.dart';
 import 'widgets/rest_timer_card.dart';
-import 'widgets/set_row.dart';
 import 'widgets/swipe_to_delete.dart';
 
 /// Logging screen for a single exercise. Mounts the shared
@@ -44,14 +45,44 @@ class ExerciseLoggingScreen extends StatelessWidget {
   }
 }
 
-class _LoggingView extends StatelessWidget {
+class _LoggingView extends StatefulWidget {
   final String exerciseId;
   const _LoggingView({required this.exerciseId});
+
+  @override
+  State<_LoggingView> createState() => _LoggingViewState();
+}
+
+class _LoggingViewState extends State<_LoggingView> {
+  late final Future<SessionSet?> _historyFuture;
+
+  /// Stable FocusNodes for REPS fields keyed by set id (or 'warmup'). Lets
+  /// the Log Set / Done IME action programmatically jump focus to the next
+  /// set's REPS field after the previous one is logged.
+  final Map<String, FocusNode> _repsFocusNodes = {};
+
+  FocusNode _repsFocusFor(String key) =>
+      _repsFocusNodes.putIfAbsent(key, () => FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _historyFuture =
+        getIt<WorkoutSessionRepository>().lastLogFor(widget.exerciseId);
+  }
+
+  @override
+  void dispose() {
+    for (final n in _repsFocusNodes.values) {
+      n.dispose();
+    }
+    super.dispose();
+  }
 
   bool _completedFor(WorkoutSessionState s) {
     if (s is! SessionActive) return false;
     final ex = s.session.exercises.firstWhereOrNull(
-      (e) => e.exerciseId == exerciseId,
+      (e) => e.exerciseId == widget.exerciseId,
     );
     return ex?.completed ?? false;
   }
@@ -61,7 +92,7 @@ class _LoggingView extends StatelessWidget {
     return BlocConsumer<WorkoutSessionBloc, WorkoutSessionState>(
       // Listen for the exercise's `completed` flag flipping false → true.
       // That's the single source of truth: when the exercise is done, we
-      // pop the logging screen. No transient state involved.
+      // pop the logging screen.
       listenWhen: (prev, next) =>
           !_completedFor(prev) && _completedFor(next),
       listener: (context, state) {
@@ -77,7 +108,7 @@ class _LoggingView extends StatelessWidget {
           );
         }
         final ex = state.session.exercises.firstWhereOrNull(
-          (e) => e.exerciseId == exerciseId,
+          (e) => e.exerciseId == widget.exerciseId,
         );
         if (ex == null) {
           // Exercise was removed (e.g., deleted while screen was open) —
@@ -90,7 +121,19 @@ class _LoggingView extends StatelessWidget {
             body: SizedBox.shrink(),
           );
         }
-        return _LoggingScaffold(exercise: ex, session: state.session);
+        return FutureBuilder<SessionSet?>(
+          future: _historyFuture,
+          builder: (context, snapshot) {
+            // History is best-effort pre-fill — show the screen immediately
+            // and fill in once the future resolves.
+            return _LoggingScaffold(
+              exercise: ex,
+              session: state.session,
+              historyLastLog: snapshot.data,
+              repsFocusFor: _repsFocusFor,
+            );
+          },
+        );
       },
     );
   }
@@ -99,20 +142,29 @@ class _LoggingView extends StatelessWidget {
 class _LoggingScaffold extends StatelessWidget {
   final SessionExercise exercise;
   final WorkoutSession session;
-  const _LoggingScaffold({required this.exercise, required this.session});
+  final SessionSet? historyLastLog;
+  final FocusNode Function(String key) repsFocusFor;
+
+  const _LoggingScaffold({
+    required this.exercise,
+    required this.session,
+    required this.historyLastLog,
+    required this.repsFocusFor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final allLogged = exercise.sets.isNotEmpty &&
-        exercise.sets.every((s) => s.isLogged);
-    final hasPendingSet = exercise.sets.any((s) => !s.isLogged);
-    final isFinalSet = !allLogged && exercise.sets.length == 1
-        ? false // single set: still 'Log Set' until logged
-        : !hasPendingSet
-            ? true
-            : exercise.sets.where((s) => !s.isLogged).length == 1;
+    // "Final" = the next tap on Log Set will mark the whole exercise done.
+    // That's the case when there's exactly one non-logged effective set left
+    // AND the warmup is either absent or already logged (warmup never
+    // completes the exercise on its own).
+    final pendingEffective =
+        exercise.sets.where((s) => !s.isLogged).length;
+    final warmupPending =
+        exercise.warmupSet != null && !exercise.warmupSet!.isLogged;
+    final isFinalSet = !warmupPending && pendingEffective == 1;
 
-    final ghostReps = _resolveGhostReps(exercise);
+    final prefill = _resolvePrefill(exercise);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -127,40 +179,37 @@ class _LoggingScaffold extends StatelessWidget {
                 const PrPlaceholderHeader(),
                 ActionChipRow(
                   restSeconds: 120,
-                  onRestTap: () => _toast(context, 'Rest timer comes online with logging'),
+                  onRestTap: () =>
+                      _toast(context, 'Rest timer comes online with logging'),
                   onInstructionTap: () =>
                       _toast(context, 'Instructions — coming in Part 2'),
                   onAnalyticsTap: () =>
                       _toast(context, 'Analytics — coming in Part 2'),
                 ),
-                const SizedBox(height: 16),
-                _SectionLabel(text: 'WARMUP'),
-                const SizedBox(height: 6),
-                _Headers(),
+                const SizedBox(height: 18),
+                const _SectionTitle(text: 'Warmup'),
+                const SizedBox(height: 8),
+                const _Headers(),
                 const SizedBox(height: 4),
-                _buildWarmupRow(context, ghostReps),
-                const SizedBox(height: 14),
+                _buildWarmupRow(context, prefill),
+                const SizedBox(height: 18),
+                const _SectionTitle(text: 'Effective sets'),
                 const Divider(
                   color: AppTheme.textSecondary,
-                  height: 1,
+                  height: 18,
                   thickness: 0.4,
                 ),
-                const SizedBox(height: 14),
-                _SectionLabel(text: 'SET'),
-                const SizedBox(height: 6),
-                _Headers(),
+                const _Headers(),
                 const SizedBox(height: 4),
-                ..._buildSetRows(context, ghostReps),
-                const SizedBox(height: 12),
+                ..._buildSetRows(context, prefill),
+                const SizedBox(height: 8),
                 AddSetButton(
                   onTap: () => context
                       .read<WorkoutSessionBloc>()
                       .add(AddSet(exercise.exerciseId)),
                 ),
                 const SizedBox(height: 22),
-                _SectionLabel(text: 'NOTES'),
-                const SizedBox(height: 6),
-                NotesField(
+                NotesCard(
                   initialValue: exercise.notes,
                   onChanged: (s) => context.read<WorkoutSessionBloc>().add(
                         UpdateNotes(
@@ -183,12 +232,14 @@ class _LoggingScaffold extends StatelessWidget {
               onCancel: () => context
                   .read<WorkoutSessionBloc>()
                   .add(const CancelRestTimer()),
+              onAdjust: (delta) => context
+                  .read<WorkoutSessionBloc>()
+                  .add(AdjustRestTimer(delta)),
             ),
             const SizedBox(height: 8),
           ],
           LogSetButton(
-            enabled: _firstUnloggedFilled(exercise) ||
-                (allLogged ? false : false),
+            enabled: _firstUnloggedFilled(exercise),
             isFinalSet: isFinalSet,
             onTap: () => _onLogSetTap(context),
           ),
@@ -246,7 +297,7 @@ class _LoggingScaffold extends StatelessWidget {
     );
   }
 
-  Widget _buildWarmupRow(BuildContext context, int? ghostReps) {
+  Widget _buildWarmupRow(BuildContext context, _Prefill prefill) {
     final warmup = exercise.warmupSet;
     if (warmup == null) {
       return const SizedBox.shrink();
@@ -260,14 +311,18 @@ class _LoggingScaffold extends StatelessWidget {
               isWarmup: true,
             ),
           ),
-      child: SetRow(
+      child: EffectiveSetRow(
         key: ValueKey('warmup_${warmup.id}'),
         marker: 'W',
         isWarmup: true,
         weight: warmup.weight,
         reps: warmup.reps,
         isLogged: warmup.isLogged,
-        repsGhost: ghostReps?.toString(),
+        isCurrent: !warmup.isLogged,
+        prefillWeight: prefill.weight,
+        prefillReps: prefill.reps,
+        repsFocusNode: repsFocusFor('warmup'),
+        onSubmitted: () => _onLogSetTap(context),
         onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
               UpdateSetDraft(
                 exerciseId: exercise.exerciseId,
@@ -290,7 +345,21 @@ class _LoggingScaffold extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildSetRows(BuildContext context, int? ghostReps) {
+  List<Widget> _buildSetRows(BuildContext context, _Prefill prefill) {
+    // The "current" effective set is the first non-logged one — but only if
+    // warmup is already done. While warmup is pending, it owns the current
+    // state and effective sets stay dark.
+    final warmupPending =
+        exercise.warmupSet != null && !exercise.warmupSet!.isLogged;
+    int? currentIndex;
+    if (!warmupPending) {
+      for (var i = 0; i < exercise.sets.length; i++) {
+        if (!exercise.sets[i].isLogged) {
+          currentIndex = i;
+          break;
+        }
+      }
+    }
     return [
       for (var i = 0; i < exercise.sets.length; i++)
         Padding(
@@ -303,13 +372,17 @@ class _LoggingScaffold extends StatelessWidget {
                     setId: exercise.sets[i].id,
                   ),
                 ),
-            child: SetRow(
+            child: EffectiveSetRow(
               key: ValueKey('set_${exercise.sets[i].id}'),
               marker: '${i + 1}',
               weight: exercise.sets[i].weight,
               reps: exercise.sets[i].reps,
               isLogged: exercise.sets[i].isLogged,
-              repsGhost: ghostReps?.toString(),
+              isCurrent: currentIndex == i,
+              prefillWeight: prefill.weight,
+              prefillReps: prefill.reps,
+              repsFocusNode: repsFocusFor(exercise.sets[i].id),
+              onSubmitted: () => _onLogSetTap(context),
               onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
                     UpdateSetDraft(
                       exerciseId: exercise.exerciseId,
@@ -332,50 +405,99 @@ class _LoggingScaffold extends StatelessWidget {
     ];
   }
 
-  bool _firstUnloggedFilled(SessionExercise ex) {
+  /// The set that the Log Set / Done button currently targets — warmup if
+  /// it's still pending, otherwise the first non-logged effective set.
+  SessionSet? _currentTarget(SessionExercise ex) {
+    final w = ex.warmupSet;
+    if (w != null && !w.isLogged) return w;
     for (final s in ex.sets) {
-      if (!s.isLogged) return s.isFilled;
+      if (!s.isLogged) return s;
     }
-    return false;
+    return null;
+  }
+
+  bool _isWarmupTarget(SessionExercise ex) {
+    final w = ex.warmupSet;
+    return w != null && !w.isLogged;
+  }
+
+  bool _firstUnloggedFilled(SessionExercise ex) {
+    final t = _currentTarget(ex);
+    return t?.isFilled ?? false;
   }
 
   void _onLogSetTap(BuildContext context) {
     final bloc = context.read<WorkoutSessionBloc>();
-    SessionSet? target;
-    for (final s in exercise.sets) {
-      if (!s.isLogged) {
-        target = s;
-        break;
-      }
-    }
-    if (target == null) return; // all logged: button shouldn't be enabled
+    final target = _currentTarget(exercise);
+    if (target == null) return;
     if (!target.isFilled) return;
 
+    final isWarmup = _isWarmupTarget(exercise);
     bloc.add(LogSet(
       exerciseId: exercise.exerciseId,
       setId: target.id,
       weight: target.weight!,
       reps: target.reps!,
+      isWarmup: isWarmup,
     ));
 
-    // If this was the last unlogged set, mark the exercise complete and pop.
-    final remaining =
-        exercise.sets.where((s) => !s.isLogged && s.id != target!.id).length;
-    if (remaining == 0) {
+    // Compute the next set we'd jump to so the IME can chain into it. We
+    // figure this out *before* dispatching MarkExerciseDone (that pops the
+    // screen, so jumping focus would be pointless then).
+    final remainingEffective =
+        exercise.sets.where((s) => !s.isLogged && s.id != target.id).toList();
+
+    if (isWarmup) {
+      bloc.add(const StartRestTimer(duration: Duration(seconds: 120)));
+      // Warmup just logged → focus first effective set's REPS.
+      if (remainingEffective.isNotEmpty) {
+        _focusReps(context, remainingEffective.first.id);
+      }
+      return;
+    }
+
+    if (remainingEffective.isEmpty) {
       bloc.add(MarkExerciseDone(exercise.exerciseId));
     } else {
       bloc.add(const StartRestTimer(duration: Duration(seconds: 120)));
+      _focusReps(context, remainingEffective.first.id);
     }
   }
 
-  /// Last-session ghost: with no history wired in Part 1, fall back to the
-  /// original planned reps from the catalog. Returns null if the exercise
-  /// isn't in the catalog (e.g., it was already replaced and we don't have
-  /// `Exercise.reps` available — fine; ghost just stays empty).
-  int? _resolveGhostReps(SessionExercise ex) {
+  /// Move focus to the REPS field of [setId] on the next frame so the
+  /// system keyboard stays visible and the user can immediately type.
+  void _focusReps(BuildContext context, String setId) {
+    final node = repsFocusFor(setId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!node.canRequestFocus) return;
+      node.requestFocus();
+    });
+  }
+
+  /// Pre-fill order:
+  ///   1. Last logged set in *this* session (so set #2 picks up set #1).
+  ///   2. Last logged set from history (previous finished session).
+  ///   3. Catalog plan (Exercise.weight / Exercise.reps).
+  _Prefill _resolvePrefill(SessionExercise ex) {
+    SessionSet? lastInSession;
+    for (final s in ex.sets) {
+      if (s.isLogged) lastInSession = s;
+    }
+    if (lastInSession != null) {
+      return _Prefill(
+        weight: lastInSession.weight,
+        reps: lastInSession.reps,
+      );
+    }
+    if (historyLastLog != null) {
+      return _Prefill(
+        weight: historyLastLog!.weight,
+        reps: historyLastLog!.reps,
+      );
+    }
     final repo = getIt<ExerciseRepository>();
-    final Exercise? full = repo.getExerciseById(ex.exerciseId);
-    return full?.reps;
+    final Exercise? plan = repo.getExerciseById(ex.exerciseId);
+    return _Prefill(weight: plan?.weight, reps: plan?.reps);
   }
 
   void _toast(BuildContext context, String msg) {
@@ -389,19 +511,24 @@ class _LoggingScaffold extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
+class _Prefill {
+  final double? weight;
+  final int? reps;
+  const _Prefill({this.weight, this.reps});
+}
+
+class _SectionTitle extends StatelessWidget {
   final String text;
-  const _SectionLabel({required this.text});
+  const _SectionTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
       style: const TextStyle(
-        color: AppTheme.textSecondary,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.4,
+        color: AppTheme.textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -415,7 +542,7 @@ class _Headers extends StatelessWidget {
     return Row(
       children: const [
         SizedBox(
-          width: 22,
+          width: 50,
           child: Text(
             'SET',
             textAlign: TextAlign.center,
@@ -423,24 +550,11 @@ class _Headers extends StatelessWidget {
               color: AppTheme.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              letterSpacing: 1.0,
+              letterSpacing: 1.4,
             ),
           ),
         ),
-        SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'WEIGHT (lb)',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.0,
-            ),
-          ),
-        ),
-        SizedBox(width: 24),
+        SizedBox(width: 10),
         Expanded(
           child: Text(
             'REPS',
@@ -449,11 +563,23 @@ class _Headers extends StatelessWidget {
               color: AppTheme.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              letterSpacing: 1.0,
+              letterSpacing: 1.4,
             ),
           ),
         ),
-        SizedBox(width: 32),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'WEIGHT (lb)',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.4,
+            ),
+          ),
+        ),
       ],
     );
   }

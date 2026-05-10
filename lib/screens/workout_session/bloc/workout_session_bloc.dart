@@ -35,6 +35,7 @@ class WorkoutSessionBloc
     on<SetWarmup>(_onSetWarmup);
     on<StartRestTimer>(_onStartRestTimer);
     on<CancelRestTimer>(_onCancelRestTimer);
+    on<AdjustRestTimer>(_onAdjustRestTimer);
     on<CancelWorkout>(_onCancelWorkout);
     on<FinishWorkout>(_onFinishWorkout);
   }
@@ -340,6 +341,27 @@ class WorkoutSessionBloc
     final cur = _current;
     if (cur == null) return;
     final updated = cur.copyWith(activeRestEndsAt: null);
+    emit(SessionActive(updated));
+    _schedulePersist(updated);
+  }
+
+  Future<void> _onAdjustRestTimer(
+    AdjustRestTimer event,
+    Emitter<WorkoutSessionState> emit,
+  ) async {
+    final cur = _current;
+    if (cur == null) return;
+    final ends = cur.activeRestEndsAt;
+    if (ends == null) return; // no active timer to adjust
+    final shifted = ends.add(event.delta);
+    // If the user trimmed the timer past zero, cancel cleanly.
+    if (shifted.isBefore(DateTime.now())) {
+      final updated = cur.copyWith(activeRestEndsAt: null);
+      emit(SessionActive(updated));
+      _schedulePersist(updated);
+      return;
+    }
+    final updated = cur.copyWith(activeRestEndsAt: shifted);
     emit(SessionActive(updated));
     _schedulePersist(updated);
   }

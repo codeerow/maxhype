@@ -1,3 +1,4 @@
+import '../models/session/session_set.dart';
 import '../models/session/workout_session.dart';
 
 abstract class WorkoutSessionRepository {
@@ -8,4 +9,9 @@ abstract class WorkoutSessionRepository {
   Future<void> clearActive();
 
   Future<void> archiveFinished(WorkoutSession session);
+
+  /// Most recent logged set for [exerciseId] across archived (finished)
+  /// sessions. Returns null if the exercise has never been logged. Used by
+  /// the logging screen to pre-fill weight/reps for new sets.
+  Future<SessionSet?> lastLogFor(String exerciseId);
 }

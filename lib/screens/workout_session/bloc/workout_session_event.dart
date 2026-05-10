@@ -104,6 +104,13 @@ class CancelRestTimer extends WorkoutSessionEvent {
   const CancelRestTimer();
 }
 
+/// Shift the active rest end-time by [delta] (positive or negative). If the
+/// resulting end-time is in the past, the timer is cancelled.
+class AdjustRestTimer extends WorkoutSessionEvent {
+  final Duration delta;
+  const AdjustRestTimer(this.delta);
+}
+
 class CancelWorkout extends WorkoutSessionEvent {
   const CancelWorkout();
 }

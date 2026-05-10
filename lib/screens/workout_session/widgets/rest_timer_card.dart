@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/session_audio.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/tap_scale.dart';
 
 /// Sticky rest-timer card displayed above the Log Set button on the logging
 /// screen.
@@ -25,12 +26,17 @@ class RestTimerCard extends StatefulWidget {
   final VoidCallback onCompleted;
   final VoidCallback onCancel;
 
+  /// Shift the timer by this duration (e.g., -15s / +15s). When null, the
+  /// adjust buttons are hidden.
+  final ValueChanged<Duration>? onAdjust;
+
   const RestTimerCard({
     super.key,
     required this.endsAt,
     required this.totalSeconds,
     required this.onCompleted,
     required this.onCancel,
+    this.onAdjust,
   });
 
   @override
@@ -113,7 +119,7 @@ class _RestTimerCardState extends State<RestTimerCard>
               width: 1,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: [
               const Text(
@@ -126,6 +132,14 @@ class _RestTimerCardState extends State<RestTimerCard>
                 ),
               ),
               const Spacer(),
+              if (widget.onAdjust != null) ...[
+                _AdjustButton(
+                  label: '-15s',
+                  onTap: () =>
+                      widget.onAdjust!(const Duration(seconds: -15)),
+                ),
+                const SizedBox(width: 10),
+              ],
               Text(
                 _format(secs),
                 style: const TextStyle(
@@ -136,17 +150,61 @@ class _RestTimerCardState extends State<RestTimerCard>
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
+              if (widget.onAdjust != null) ...[
+                const SizedBox(width: 10),
+                _AdjustButton(
+                  label: '+15s',
+                  onTap: () => widget.onAdjust!(const Duration(seconds: 15)),
+                ),
+              ],
               const Spacer(),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              TapScale(
+                scaleDown: 0.85,
                 onTap: widget.onCancel,
-                child: const Icon(
-                  Icons.close,
-                  size: 18,
-                  color: AppTheme.textSecondary,
+                child: const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small "-15s" / "+15s" pill button shown either side of the rest count
+/// for quick mid-rest adjustments.
+class _AdjustButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _AdjustButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      scaleDown: 0.94,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.recoveryGreen.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.recoveryGreen,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
           ),
         ),
       ),
