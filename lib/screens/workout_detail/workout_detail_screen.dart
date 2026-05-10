@@ -1,17 +1,21 @@
+import 'package:flutter/cupertino.dart'
+    show CupertinoIcons, CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
 import 'bloc/workout_detail_state.dart';
 import 'widgets/exercise_card.dart';
-import 'widgets/exercise_options_sheet.dart';
-import 'widgets/replace_exercise_sheet.dart';
+import 'widgets/exercise_navigation.dart';
+import '../workout_session/workout_session_screen.dart';
+import '../workout_session/bloc/workout_session_bloc.dart';
+import '../workout_session/bloc/workout_session_state.dart';
 
 class WorkoutDetailScreen extends StatelessWidget {
   final Workout workout;
@@ -57,21 +61,18 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: AppTheme.backgroundColor,
-      elevation: 0,
       leading: TapScale(
         scaleDown: 0.90,
         onTap: () => Navigator.of(context).pop(),
         child: const Center(
-          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          child: Icon(
+            CupertinoIcons.back,
+            color: AppTheme.textPrimary,
+            size: 26,
+          ),
         ),
       ),
-      title: Text(
-        workout.title,
-        style: Theme.of(context).textTheme.headlineSmall,
-      ),
-      centerTitle: true,
-      actions: const [],
+      title: Text(workout.title),
     );
   }
 
@@ -124,42 +125,54 @@ class WorkoutDetailScreen extends StatelessWidget {
           left: 24,
           right: 24,
           child: SafeArea(
-            child: TapScale(
-              scaleDown: 0.96,
-              enableHaptic: true,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Start Workout - Coming soon!'),
-                    backgroundColor: AppTheme.primaryOrange,
+            child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
+              buildWhen: (prev, next) {
+                bool isMine(WorkoutSessionState s) =>
+                    s is SessionActive && s.session.workoutId == workout.id;
+                return isMine(prev) != isMine(next);
+              },
+              builder: (context, sessionState) {
+                final inProgress = sessionState is SessionActive &&
+                    sessionState.session.workoutId == workout.id;
+                return TapScale(
+                  scaleDown: 0.96,
+                  enableHaptic: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      CupertinoPageRoute<void>(
+                        builder: (_) => inProgress
+                            ? WorkoutSessionScreen.restored()
+                            : WorkoutSessionScreen.start(workout: workout),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.recoveryGreen,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.recoveryGreen.withValues(alpha: 0.5),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        inProgress ? 'Resume Workout' : 'Start Workout',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 );
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppTheme.recoveryGreen,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.recoveryGreen.withOpacity(0.5),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    'Start Workout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
@@ -205,58 +218,19 @@ class WorkoutDetailScreen extends StatelessWidget {
   }
 
   void _showExerciseOptions(BuildContext context, Exercise exercise) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => ExerciseOptionsSheet(
-        exercise: exercise,
-        onReplaceExercise: () => _showReplaceExercise(context, exercise),
-      ),
-    );
-  }
-
-  void _showReplaceExercise(BuildContext context, Exercise currentExercise) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ReplaceExerciseSheet(
-          currentExercise: currentExercise,
-          onExerciseSelected: (newExercise) {
-            context.read<WorkoutDetailBloc>().add(
-                  ReplaceExercise(
-                    workoutId: workout.id,
-                    oldExerciseId: currentExercise.id,
-                    newExercise: newExercise,
-                  ),
-                );
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Replaced with ${newExercise.name}'),
-                backgroundColor: AppTheme.recoveryGreen,
-                duration: const Duration(seconds: 2),
+    showExerciseOptionsSheet(
+      context,
+      exercise: exercise,
+      onReplace: (newExercise) {
+        context.read<WorkoutDetailBloc>().add(
+              ReplaceExercise(
+                workoutId: workout.id,
+                oldExerciseId: exercise.id,
+                newExercise: newExercise,
               ),
             );
-          },
-        ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final slideAnimation = Tween(
-            begin: const Offset(0, 0.05),
-            end: Offset.zero,
-          )
-              .chain(CurveTween(curve: Curves.easeOutCubic))
-              .animate(animation);
-
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: slideAnimation,
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 220),
-      ),
+        AppToast.show(context, 'Replaced with ${newExercise.name}');
+      },
     );
   }
 }

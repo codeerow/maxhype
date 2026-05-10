@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../core/haptic_manager.dart';
+import '../core/service_locator.dart';
 
 class TapScale extends StatefulWidget {
   final Widget child;
@@ -68,7 +69,7 @@ class _TapScaleState extends State<TapScale>
 
   void _onTap() {
     if (widget.enableHaptic) {
-      HapticFeedback.lightImpact();
+      getIt<HapticManager>().light();
     }
     widget.onTap?.call();
   }

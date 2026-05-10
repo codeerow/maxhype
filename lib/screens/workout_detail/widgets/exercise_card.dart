@@ -4,24 +4,43 @@ import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 import 'mini_muscle_atlas.dart';
 
+/// Exercise card used by the Workout Detail screen and (wrapped) by the
+/// Session main screen. Compact variants for other surfaces (e.g., the
+/// Replace sheet) live in their own widgets — see [ReplaceExerciseTile].
 class ExerciseCard extends StatelessWidget {
   final Exercise exercise;
   final VoidCallback? onTap;
   final VoidCallback? onOptionsPressed;
+
+  /// Subtitle override. If null, falls back to "{N} sets". The session
+  /// screen passes its own session-aware string here ("{N} sets · {M} done
+  /// · {Equipment}").
+  final String? subtitleOverride;
+
+  /// Optional widget rendered in the bottom-left of the card, before the
+  /// thumbnail. The session card uses this slot for a vertical
+  /// active-accent bar / completion checkmark without duplicating layout.
+  final Widget? leadingAccent;
 
   const ExerciseCard({
     super.key,
     required this.exercise,
     this.onTap,
     this.onOptionsPressed,
+    this.subtitleOverride,
+    this.leadingAccent,
   });
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = '${exercise.sets} sets';
+    final subtitle = subtitleOverride ?? '${exercise.sets} sets';
 
     final content = Row(
       children: [
+        if (leadingAccent != null) ...[
+          leadingAccent!,
+          const SizedBox(width: 8),
+        ],
         // Exercise image with muscle atlas overlay
         SizedBox(
           width: 70,

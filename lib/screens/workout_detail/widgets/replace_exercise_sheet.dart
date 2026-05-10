@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../models/exercise.dart';
@@ -5,7 +6,7 @@ import '../../../models/muscle_group.dart';
 import '../../../repositories/exercise_repository.dart';
 import '../../../core/service_locator.dart';
 import '../../../widgets/tap_scale.dart';
-import 'exercise_card.dart';
+import 'replace_exercise_tile.dart';
 
 class ReplaceExerciseSheet extends StatelessWidget {
   final Exercise currentExercise;
@@ -36,13 +37,15 @@ class ReplaceExerciseSheet extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.backgroundColor,
-        elevation: 0,
         leading: TapScale(
           scaleDown: 0.90,
           onTap: () => Navigator.of(context).pop(),
           child: const Center(
-            child: Icon(Icons.close, color: AppTheme.textSecondary),
+            child: Icon(
+              CupertinoIcons.back,
+              color: AppTheme.textPrimary,
+              size: 26,
+            ),
           ),
         ),
         title: Column(
@@ -70,20 +73,20 @@ class ReplaceExerciseSheet extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         children: [
           if (topExercises.isNotEmpty) ...[
             Text('TOP 8 POPULAR',
                 style: Theme.of(context).textTheme.displayMedium),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: topExercises.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final exercise = topExercises[index];
-                return ExerciseCard(
+                return ReplaceExerciseTile(
                   exercise: exercise,
                   onTap: () {
                     Navigator.of(context).pop();
@@ -92,22 +95,22 @@ class ReplaceExerciseSheet extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
           if (remainingExercises.isNotEmpty) ...[
             Text(
               'ALL ${primaryMuscleGroup.displayName.toUpperCase()} EXERCISES',
               style: Theme.of(context).textTheme.displayMedium,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: remainingExercises.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final exercise = remainingExercises[index];
-                return ExerciseCard(
+                return ReplaceExerciseTile(
                   exercise: exercise,
                   onTap: () {
                     Navigator.of(context).pop();
