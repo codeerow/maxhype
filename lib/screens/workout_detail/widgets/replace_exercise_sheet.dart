@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../models/exercise.dart';
@@ -36,13 +37,15 @@ class ReplaceExerciseSheet extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.backgroundColor,
-        elevation: 0,
         leading: TapScale(
           scaleDown: 0.90,
           onTap: () => Navigator.of(context).pop(),
           child: const Center(
-            child: Icon(Icons.close, color: AppTheme.textSecondary),
+            child: Icon(
+              CupertinoIcons.back,
+              color: AppTheme.textPrimary,
+              size: 26,
+            ),
           ),
         ),
         title: Column(

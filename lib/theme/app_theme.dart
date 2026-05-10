@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Colors from the design
@@ -35,11 +36,15 @@ class AppTheme {
   static const Color thumbnailRedTint = Color(0xFF3A1A1F);
 
   static ThemeData get darkTheme {
+    // Inter is the closest open-source aproximation of SF Pro and gives the
+    // app a consistent iOS-like type system on every platform.
+    final base = ThemeData.dark();
+    final textTheme = GoogleFonts.interTextTheme(base.textTheme);
+
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: backgroundColor,
       primaryColor: primaryOrange,
-      fontFamily: 'SF Pro Display',
 
       // Force Cupertino-style horizontal slide on every platform so any
       // MaterialPageRoute (e.g., framework dialogs, third-party plugins)
@@ -55,43 +60,60 @@ class AppTheme {
         },
       ),
 
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
+      textTheme: textTheme.copyWith(
+        displayLarge: textTheme.displayLarge?.copyWith(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: primaryOrange,
         ),
-        displayMedium: TextStyle(
+        displayMedium: textTheme.displayMedium?.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: textSecondary,
           letterSpacing: 1.2,
         ),
-        headlineMedium: TextStyle(
+        headlineMedium: textTheme.headlineMedium?.copyWith(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: textPrimary,
         ),
-        headlineSmall: TextStyle(
+        headlineSmall: textTheme.headlineSmall?.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        bodyLarge: TextStyle(
+        bodyLarge: textTheme.bodyLarge?.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: textSecondary,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: textTheme.bodyMedium?.copyWith(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: textSecondary,
         ),
-        labelLarge: TextStyle(
+        labelLarge: textTheme.labelLarge?.copyWith(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: 0.5,
+        ),
+      ),
+
+      // iOS-style flat AppBar: no shadow, no surface tint, transparent
+      // background tied to scaffold.
+      appBarTheme: AppBarTheme(
+        backgroundColor: backgroundColor,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
+        titleTextStyle: textTheme.titleMedium?.copyWith(
+          color: textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
         ),
       ),
     );

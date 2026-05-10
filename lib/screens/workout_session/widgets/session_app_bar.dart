@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
@@ -22,18 +23,29 @@ class SessionAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       backgroundColor: AppTheme.backgroundColor,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: true,
       leading: TapScale(
         scaleDown: 0.90,
         onTap: onBack,
         child: const Center(
-          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          child: Icon(
+            CupertinoIcons.back,
+            color: AppTheme.textPrimary,
+            size: 26,
+          ),
         ),
       ),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.headlineSmall,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
+        ),
       ),
       actions: [
         SizedBox(
@@ -42,7 +54,11 @@ class SessionAppBar extends StatelessWidget implements PreferredSizeWidget {
             scaleDown: 0.90,
             onTap: onCancel,
             child: const Center(
-              child: Icon(Icons.close, color: AppTheme.recoveryRed),
+              child: Icon(
+                CupertinoIcons.xmark,
+                color: AppTheme.recoveryRed,
+                size: 20,
+              ),
             ),
           ),
         ),

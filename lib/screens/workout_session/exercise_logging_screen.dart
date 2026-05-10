@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,6 +11,7 @@ import '../../models/session/workout_session.dart';
 import '../../repositories/exercise_repository.dart';
 import '../../repositories/workout_session_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
@@ -260,14 +262,15 @@ class _LoggingScaffold extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: AppTheme.backgroundColor,
-      elevation: 0,
-      centerTitle: true,
       leading: TapScale(
         scaleDown: 0.90,
         onTap: () => Navigator.of(context).maybePop(),
         child: const Center(
-          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          child: Icon(
+            CupertinoIcons.back,
+            color: AppTheme.textPrimary,
+            size: 26,
+          ),
         ),
       ),
       title: Text(
@@ -494,13 +497,7 @@ class _LoggingScaffold extends StatelessWidget {
   }
 
   void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: AppTheme.cardBackground,
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    AppToast.show(context, msg);
   }
 }
 

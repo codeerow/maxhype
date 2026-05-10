@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../models/exercise.dart';
+import '../../../widgets/app_toast.dart';
 import '../../../widgets/tap_scale.dart';
 
 class ExerciseOptionsSheet extends StatelessWidget {
@@ -73,12 +74,7 @@ class ExerciseOptionsSheet extends StatelessWidget {
               title: 'Favorite for this routine',
               onTap: () {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Favorite - Coming soon!'),
-                    backgroundColor: AppTheme.primaryOrange,
-                  ),
-                );
+                AppToast.show(context, 'Favorite — coming soon');
               },
             ),
             _buildOption(
@@ -88,11 +84,10 @@ class ExerciseOptionsSheet extends StatelessWidget {
               textColor: AppTheme.recoveryRed,
               onTap: () {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Exclude - Coming soon!'),
-                    backgroundColor: AppTheme.recoveryRed,
-                  ),
+                AppToast.show(
+                  context,
+                  'Exclude — coming soon',
+                  accent: AppTheme.recoveryRed,
                 );
               },
             ),

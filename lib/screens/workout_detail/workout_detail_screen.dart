@@ -1,4 +1,5 @@
-import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
+import 'package:flutter/cupertino.dart'
+    show CupertinoIcons, CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
@@ -61,21 +63,18 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: AppTheme.backgroundColor,
-      elevation: 0,
       leading: TapScale(
         scaleDown: 0.90,
         onTap: () => Navigator.of(context).pop(),
         child: const Center(
-          child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          child: Icon(
+            CupertinoIcons.back,
+            color: AppTheme.textPrimary,
+            size: 26,
+          ),
         ),
       ),
-      title: Text(
-        workout.title,
-        style: Theme.of(context).textTheme.headlineSmall,
-      ),
-      centerTitle: true,
-      actions: const [],
+      title: Text(workout.title),
     );
   }
 
@@ -245,12 +244,9 @@ class WorkoutDetailScreen extends StatelessWidget {
                     newExercise: newExercise,
                   ),
                 );
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Replaced with ${newExercise.name}'),
-                backgroundColor: AppTheme.recoveryGreen,
-                duration: const Duration(seconds: 2),
-              ),
+            AppToast.show(
+              context,
+              'Replaced with ${newExercise.name}',
             );
           },
         ),
