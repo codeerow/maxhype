@@ -408,14 +408,17 @@ class _LoggingScaffold extends StatelessWidget {
     }
   }
 
-  /// Move focus to the REPS field of [setId] on the next frame so the
-  /// system keyboard stays visible and the user can immediately type.
+  /// Move focus to the REPS field of [setId] **synchronously** so the IME
+  /// performs an in-place focus transfer instead of closing and re-opening
+  /// the soft keyboard.
+  ///
+  /// `addPostFrameCallback` would land the focus request a frame too late:
+  /// the previous field has already lost focus and the system has begun
+  /// dismissing the keyboard, so we'd see a flicker. Calling
+  /// `requestFocus()` immediately keeps a focused TextField in the tree at
+  /// every moment — the OS treats it as a connection swap.
   void _focusReps(String setId) {
-    final node = repsFocusFor(setId);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!node.canRequestFocus) return;
-      node.requestFocus();
-    });
+    repsFocusFor(setId).requestFocus();
   }
 
   /// Pre-fill order:
