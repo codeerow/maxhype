@@ -31,7 +31,7 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
       if (!(prefs.getBool(_activeFlagKey) ?? false)) return null;
 
       final file = await _activeFile();
-      if (!await file.exists()) return null;
+      if (!file.existsSync()) return null;
 
       final raw = await file.readAsString();
       if (raw.trim().isEmpty) return null;
@@ -40,8 +40,9 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
       final session = WorkoutSession.fromJson(json);
       if (session.status != SessionStatus.active) return null;
       return session;
-    } catch (_) {
-      // Corrupt store — clear silently rather than crash on launch.
+    } on Object {
+      // Corrupt store (FileSystemException, FormatException, json shape
+      // mismatch) — clear silently rather than crash on launch.
       await clearActive();
       return null;
     }
@@ -64,10 +65,12 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
     await prefs.setBool(_activeFlagKey, false);
 
     final file = await _activeFile();
-    if (await file.exists()) {
+    if (file.existsSync()) {
       try {
         await file.delete();
-      } catch (_) {}
+      } on FileSystemException {
+        // Best-effort cleanup; tolerate platform-level delete failures.
+      }
     }
   }
 
@@ -81,7 +84,7 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
   @override
   Future<SessionSet?> lastLogFor(String exerciseId) async {
     final file = await _historyFile();
-    if (!await file.exists()) return null;
+    if (!file.existsSync()) return null;
 
     // History is append-only JSONL; iterate from newest entry by reading the
     // whole file and walking backwards. For Part 1 (low session count) this
@@ -104,8 +107,8 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
           }
           if (ex.warmupSet?.isLogged ?? false) return ex.warmupSet;
         }
-      } catch (_) {
-        continue; // skip corrupt line
+      } on FormatException {
+        continue; // skip corrupt JSON line
       }
     }
     return null;

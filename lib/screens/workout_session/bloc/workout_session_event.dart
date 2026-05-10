@@ -120,4 +120,3 @@ class CancelWorkout extends WorkoutSessionEvent {
 class FinishWorkout extends WorkoutSessionEvent {
   const FinishWorkout();
 }
-

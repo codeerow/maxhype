@@ -84,7 +84,7 @@ class _LaunchShellState extends State<_LaunchShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         getIt<WorkoutSessionBloc>().add(const RestoreSession());
         MyApp.rootNavKey.currentState?.push(
-          CupertinoPageRoute(
+          CupertinoPageRoute<void>(
             builder: (_) => WorkoutSessionScreen.restored(),
           ),
         );

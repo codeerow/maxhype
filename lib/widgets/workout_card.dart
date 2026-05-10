@@ -155,7 +155,7 @@ class WorkoutCard extends StatelessWidget {
 
   void _handleTap(BuildContext context, bool inProgress) {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         builder: (_) => inProgress
             ? WorkoutSessionScreen.restored()
             : WorkoutDetailScreen(workout: workout),

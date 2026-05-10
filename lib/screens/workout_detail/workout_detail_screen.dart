@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart'
     show CupertinoIcons, CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
@@ -140,7 +139,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                   enableHaptic: true,
                   onTap: () {
                     Navigator.of(context).push(
-                      CupertinoPageRoute(
+                      CupertinoPageRoute<void>(
                         builder: (_) => inProgress
                             ? WorkoutSessionScreen.restored()
                             : WorkoutSessionScreen.start(workout: workout),

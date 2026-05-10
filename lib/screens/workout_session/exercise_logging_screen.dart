@@ -67,7 +67,7 @@ class _LoggingViewState extends State<_LoggingView> {
   final Map<String, FocusNode> _repsFocusNodes = {};
 
   FocusNode _repsFocusFor(String key) =>
-      _repsFocusNodes.putIfAbsent(key, () => FocusNode());
+      _repsFocusNodes.putIfAbsent(key, FocusNode.new);
 
   @override
   void initState() {
@@ -473,8 +473,8 @@ class _Headers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
+    return const Row(
+      children: [
         SizedBox(
           width: 50,
           child: Text(

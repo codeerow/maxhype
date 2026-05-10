@@ -16,7 +16,7 @@ Future<Exercise?> pickReplacementExercise(
   final completer = Completer<Exercise?>();
   Navigator.of(context)
       .push<void>(
-        CupertinoPageRoute(
+        CupertinoPageRoute<void>(
           builder: (_) => ReplaceExerciseSheet(
             currentExercise: currentExercise,
             onExerciseSelected: (newExercise) {

@@ -129,7 +129,7 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   final Map<String, GlobalKey> _cardKeys = {};
 
   GlobalKey _cardKeyFor(String exerciseId) =>
-      _cardKeys.putIfAbsent(exerciseId, () => GlobalKey());
+      _cardKeys.putIfAbsent(exerciseId, GlobalKey.new);
 
   GlobalKey? get _activeCardKey {
     final id = widget.state.session.activeExerciseId;
@@ -292,7 +292,7 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     // on pop. CupertinoPageRoute also enables interactive swipe-back from
     // the left edge for free.
     await Navigator.of(context).push(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         builder: (_) => ExerciseLoggingScreen(
           exerciseId: ex.exerciseId,
           bloc: bloc,
