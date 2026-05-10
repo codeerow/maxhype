@@ -174,9 +174,13 @@ class _LoggingScaffold extends StatelessWidget {
         children: [
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              // Vertical-only padding: edge-to-edge horizontally lets the
+              // swipe-to-delete background bleed off the screen edge instead
+              // of being clipped at the row content's margin. Non-Dismissible
+              // items wear their own horizontal padding via _Hp.
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
               children: [
-                const PrPlaceholderHeader(),
+                const _Hp(child: PrPlaceholderHeader()),
                 ActionChipRow(
                   restSeconds: 120,
                   onRestTap: () =>
@@ -187,36 +191,42 @@ class _LoggingScaffold extends StatelessWidget {
                       _toast(context, 'Analytics — coming in Part 2'),
                 ),
                 const SizedBox(height: 18),
-                const _SectionTitle(text: 'Warmup'),
+                const _Hp(child: _SectionTitle(text: 'Warmup')),
                 const SizedBox(height: 8),
-                const _Headers(),
+                const _Hp(child: _Headers()),
                 const SizedBox(height: 4),
                 _buildWarmupRow(context, prefill),
                 const SizedBox(height: 18),
-                const _SectionTitle(text: 'Effective sets'),
-                const Divider(
-                  color: AppTheme.textSecondary,
-                  height: 18,
-                  thickness: 0.4,
+                const _Hp(child: _SectionTitle(text: 'Effective sets')),
+                const _Hp(
+                  child: Divider(
+                    color: AppTheme.textSecondary,
+                    height: 18,
+                    thickness: 0.4,
+                  ),
                 ),
-                const _Headers(),
+                const _Hp(child: _Headers()),
                 const SizedBox(height: 4),
                 ..._buildSetRows(context, prefill),
                 const SizedBox(height: 8),
-                AddSetButton(
-                  onTap: () => context
-                      .read<WorkoutSessionBloc>()
-                      .add(AddSet(exercise.exerciseId)),
+                _Hp(
+                  child: AddSetButton(
+                    onTap: () => context
+                        .read<WorkoutSessionBloc>()
+                        .add(AddSet(exercise.exerciseId)),
+                  ),
                 ),
                 const SizedBox(height: 22),
-                NotesCard(
-                  initialValue: exercise.notes,
-                  onChanged: (s) => context.read<WorkoutSessionBloc>().add(
-                        UpdateNotes(
-                          exerciseId: exercise.exerciseId,
-                          notes: s,
+                _Hp(
+                  child: NotesCard(
+                    initialValue: exercise.notes,
+                    onChanged: (s) => context.read<WorkoutSessionBloc>().add(
+                          UpdateNotes(
+                            exerciseId: exercise.exerciseId,
+                            notes: s,
+                          ),
                         ),
-                      ),
+                  ),
                 ),
               ],
             ),
@@ -304,6 +314,7 @@ class _LoggingScaffold extends StatelessWidget {
     }
     return SwipeToDelete(
       dismissKey: ValueKey('warmup_dismiss_${warmup.id}'),
+      borderRadius: BorderRadius.zero,
       onDismissed: () => context.read<WorkoutSessionBloc>().add(
             DeleteSet(
               exerciseId: exercise.exerciseId,
@@ -311,36 +322,40 @@ class _LoggingScaffold extends StatelessWidget {
               isWarmup: true,
             ),
           ),
-      child: EffectiveSetRow(
-        key: ValueKey('warmup_${warmup.id}'),
-        marker: 'W',
-        isWarmup: true,
-        weight: warmup.weight,
-        reps: warmup.reps,
-        isLogged: warmup.isLogged,
-        isCurrent: !warmup.isLogged,
-        prefillWeight: prefill.weight,
-        prefillReps: prefill.reps,
-        repsFocusNode: repsFocusFor('warmup'),
-        onSubmitted: () => _onLogSetTap(context),
-        onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
-              UpdateSetDraft(
-                exerciseId: exercise.exerciseId,
-                setId: warmup.id,
-                weight: v,
-                isWarmup: true,
-                clearWeight: v == null,
+      // Dismissible itself spans edge-to-edge so the red background and the
+      // delete icon swipe in from the screen edge; pills sit at 16px inset.
+      child: _Hp(
+        child: EffectiveSetRow(
+          key: ValueKey('warmup_${warmup.id}'),
+          marker: 'W',
+          isWarmup: true,
+          weight: warmup.weight,
+          reps: warmup.reps,
+          isLogged: warmup.isLogged,
+          isCurrent: !warmup.isLogged,
+          prefillWeight: prefill.weight,
+          prefillReps: prefill.reps,
+          repsFocusNode: repsFocusFor('warmup'),
+          onSubmitted: () => _onLogSetTap(context),
+          onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
+                UpdateSetDraft(
+                  exerciseId: exercise.exerciseId,
+                  setId: warmup.id,
+                  weight: v,
+                  isWarmup: true,
+                  clearWeight: v == null,
+                ),
               ),
-            ),
-        onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
-              UpdateSetDraft(
-                exerciseId: exercise.exerciseId,
-                setId: warmup.id,
-                reps: v,
-                isWarmup: true,
-                clearReps: v == null,
+          onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
+                UpdateSetDraft(
+                  exerciseId: exercise.exerciseId,
+                  setId: warmup.id,
+                  reps: v,
+                  isWarmup: true,
+                  clearReps: v == null,
+                ),
               ),
-            ),
+        ),
       ),
     );
   }
@@ -366,39 +381,43 @@ class _LoggingScaffold extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: SwipeToDelete(
             dismissKey: ValueKey('set_dismiss_${exercise.sets[i].id}'),
+            borderRadius: BorderRadius.zero,
             onDismissed: () => context.read<WorkoutSessionBloc>().add(
                   DeleteSet(
                     exerciseId: exercise.exerciseId,
                     setId: exercise.sets[i].id,
                   ),
                 ),
-            child: EffectiveSetRow(
-              key: ValueKey('set_${exercise.sets[i].id}'),
-              marker: '${i + 1}',
-              weight: exercise.sets[i].weight,
-              reps: exercise.sets[i].reps,
-              isLogged: exercise.sets[i].isLogged,
-              isCurrent: currentIndex == i,
-              prefillWeight: prefill.weight,
-              prefillReps: prefill.reps,
-              repsFocusNode: repsFocusFor(exercise.sets[i].id),
-              onSubmitted: () => _onLogSetTap(context),
-              onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                    UpdateSetDraft(
-                      exerciseId: exercise.exerciseId,
-                      setId: exercise.sets[i].id,
-                      weight: v,
-                      clearWeight: v == null,
+            child: _Hp(
+              child: EffectiveSetRow(
+                key: ValueKey('set_${exercise.sets[i].id}'),
+                marker: '${i + 1}',
+                weight: exercise.sets[i].weight,
+                reps: exercise.sets[i].reps,
+                isLogged: exercise.sets[i].isLogged,
+                isCurrent: currentIndex == i,
+                prefillWeight: prefill.weight,
+                prefillReps: prefill.reps,
+                repsFocusNode: repsFocusFor(exercise.sets[i].id),
+                onSubmitted: () => _onLogSetTap(context),
+                onWeightChanged: (v) =>
+                    context.read<WorkoutSessionBloc>().add(
+                          UpdateSetDraft(
+                            exerciseId: exercise.exerciseId,
+                            setId: exercise.sets[i].id,
+                            weight: v,
+                            clearWeight: v == null,
+                          ),
+                        ),
+                onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
+                      UpdateSetDraft(
+                        exerciseId: exercise.exerciseId,
+                        setId: exercise.sets[i].id,
+                        reps: v,
+                        clearReps: v == null,
+                      ),
                     ),
-                  ),
-              onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                    UpdateSetDraft(
-                      exerciseId: exercise.exerciseId,
-                      setId: exercise.sets[i].id,
-                      reps: v,
-                      clearReps: v == null,
-                    ),
-                  ),
+              ),
             ),
           ),
         ),
@@ -515,6 +534,23 @@ class _Prefill {
   final double? weight;
   final int? reps;
   const _Prefill({this.weight, this.reps});
+}
+
+/// Horizontal padding wrapper for non-Dismissible items in the logging
+/// list. Keeps content aligned at 16px from each edge while leaving the
+/// ListView itself edge-to-edge so swipe-to-delete backgrounds extend to
+/// the screen edge.
+class _Hp extends StatelessWidget {
+  final Widget child;
+  const _Hp({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: child,
+    );
+  }
 }
 
 class _SectionTitle extends StatelessWidget {
