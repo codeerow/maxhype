@@ -6,9 +6,9 @@ import 'package:audioplayers/audioplayers.dart';
 /// app is in the foreground**. Part 2 will add background notifications, a
 /// foreground service on Android, and exact alarms — none of that is here.
 ///
-/// The bell asset is loaded from `assets/audio/boxing_bell.mp3`. If the asset
-/// is missing (we ship a stub for now), playback is silently skipped so the
-/// app still builds and runs without the audio file.
+/// The bell asset is loaded from `assets/audio/boxing_bell.mp3` (a tri-bell
+/// "3 short rings" sample). If the asset is missing or the platform isn't
+/// ready, playback is silently skipped so the app still builds and runs.
 class SessionAudio {
   SessionAudio._();
   static final instance = SessionAudio._();
@@ -23,7 +23,7 @@ class SessionAudio {
       await _player.play(AssetSource('audio/boxing_bell.mp3'));
     } catch (_) {
       // Asset missing or platform not ready — disable for the rest of the
-      // session so we don't spam the log. Part 2 will ship the real asset.
+      // session so we don't spam the log.
       _disabled = true;
     }
   }

@@ -147,7 +147,10 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
               controller: _repsCtrl,
               focusNode: _repsFocus,
               state: state,
-              readOnly: widget.isLogged,
+              // Logged sets are still editable — the user can fix typos
+              // after the fact. The pill keeps its green colour to signal
+              // it's logged, but typing replaces the value in place.
+              readOnly: false,
               hint: widget.prefillReps?.toString() ?? '',
               keyboard: TextInputType.number,
               textInputAction: TextInputAction.next,
@@ -168,7 +171,7 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
               controller: _weightCtrl,
               focusNode: _weightFocus,
               state: state,
-              readOnly: widget.isLogged,
+              readOnly: false,
               hint: widget.prefillWeight == null
                   ? ''
                   : _formatWeight(widget.prefillWeight),
@@ -176,6 +179,12 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
                   const TextInputType.numberWithOptions(decimal: true),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) {
+                // Done on an already-logged set just dismisses the keyboard;
+                // it shouldn't trigger Log Set on some other unrelated row.
+                if (widget.isLogged) {
+                  _weightFocus.unfocus();
+                  return;
+                }
                 if (widget.onSubmitted != null) {
                   widget.onSubmitted!();
                 } else {

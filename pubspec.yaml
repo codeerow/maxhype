@@ -83,11 +83,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Assets — audio asset listed even though the file isn't bundled yet;
-  # SessionAudio degrades silently if the asset is missing. Drop a real
-  # `boxing_bell.mp3` in `assets/audio/` and uncomment to enable.
-  # assets:
-  #   - assets/audio/boxing_bell.mp3
+  # Boxing-bell sample played by SessionAudio when the rest timer reaches
+  # zero (foreground only). SessionAudio degrades silently if this asset is
+  # missing.
+  assets:
+    - assets/audio/boxing_bell.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
