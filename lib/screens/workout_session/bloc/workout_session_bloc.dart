@@ -3,10 +3,15 @@ import 'dart:math';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/battery_optimization.dart';
+import '../../../core/rest_timer_notifications.dart';
+import '../../../models/session/personal_record.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
 import '../../../models/session/workout_session.dart';
+import '../../../repositories/personal_record_repository.dart';
 import '../../../repositories/workout_session_repository.dart';
+import 'pr_signal.dart';
 import 'workout_session_event.dart';
 import 'workout_session_state.dart';
 
@@ -20,7 +25,10 @@ import 'workout_session_state.dart';
 ///   never losing.
 class WorkoutSessionBloc
     extends Bloc<WorkoutSessionEvent, WorkoutSessionState> {
-  WorkoutSessionBloc({required this.repository}) : super(const SessionIdle()) {
+  WorkoutSessionBloc({
+    required this.repository,
+    required this.prRepository,
+  }) : super(const SessionIdle()) {
     on<StartSession>(_onStartSession);
     on<RestoreSession>(_onRestoreSession);
     on<LogSet>(_onLogSet);
@@ -40,14 +48,63 @@ class WorkoutSessionBloc
   }
 
   final WorkoutSessionRepository repository;
+  final PersonalRecordRepository prRepository;
 
   Timer? _persistDebounce;
   final _idRng = Random();
+
+  /// Per-exercise PR snapshot loaded at session start. Updated in place
+  /// when a logged set beats the previous best.
+  final Map<String, PersonalRecord?> _prByExerciseId = {};
+
+  /// Snapshot of the previous best for each exercise that was beaten
+  /// during the current session — keeps the value around so the UI can
+  /// render "Previous Best: ..." next to the just-set "New Best".
+  final Map<String, PersonalRecord> _prevBestByExerciseId = {};
+
+  /// Exercise ids for which a PR was set in the current session.
+  /// Drives the persistent "PERSONAL RECORD" pill on the session card.
+  final Set<String> _prAchievedThisSession = {};
+
+  /// True when the user has set a PR for [exerciseId] in this session.
+  bool hasFreshPr(String exerciseId) =>
+      _prAchievedThisSession.contains(exerciseId);
+
+  /// Side-channel for one-shot PR celebrations. Subscribers (logging
+  /// screen) listen and animate without state-flag plumbing.
+  final StreamController<PrAchievedSignal> _prSignals =
+      StreamController<PrAchievedSignal>.broadcast();
+
+  Stream<PrAchievedSignal> get prSignals => _prSignals.stream;
+
+  /// Current best for [exerciseId]. Null when the cache hasn't loaded
+  /// yet or the exercise has no history.
+  PersonalRecord? prFor(String exerciseId) => _prByExerciseId[exerciseId];
+
+  /// Best at the moment we started the current session (or before the
+  /// most recent PR overwrite this session). Used to render "Previous
+  /// Best" under the "New Best" line.
+  PersonalRecord? previousBestFor(String exerciseId) =>
+      _prevBestByExerciseId[exerciseId];
 
   String _newId([String prefix = 'id']) {
     final t = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     final r = _idRng.nextInt(1 << 32).toRadixString(36);
     return '${prefix}_${t}_$r';
+  }
+
+  /// Reschedule (or cancel) the OS-level rest-end notification whenever
+  /// `activeRestEndsAt` changes. Keeps the in-app `RestTimerCard` and the
+  /// background notification in lockstep — the UI handles the foreground
+  /// case, the notification handles "user put the phone down".
+  void _syncRestNotification(WorkoutSession before, WorkoutSession after) {
+    if (before.activeRestEndsAt == after.activeRestEndsAt) return;
+    final ends = after.activeRestEndsAt;
+    if (ends == null) {
+      RestTimerNotifications.instance.cancel();
+    } else {
+      RestTimerNotifications.instance.schedule(ends);
+    }
   }
 
   void _schedulePersist(WorkoutSession session) {
@@ -80,6 +137,7 @@ class WorkoutSessionBloc
     if (cur == null) return null;
     final next = update(cur);
     emit(SessionActive(next));
+    _syncRestNotification(cur, next);
     if (flush) {
       await _flushPersist(next);
     } else {
@@ -123,6 +181,11 @@ class WorkoutSessionBloc
 
     emit(SessionActive(session));
     await _flushPersist(session);
+    unawaited(_loadPrsFor(session));
+    // Best-effort: ask for notification permission when the user starts
+    // their first workout. If they say no, the foreground rest-timer card
+    // still works, just no background bell.
+    unawaited(RestTimerNotifications.instance.requestPermission());
   }
 
   Future<void> _onRestoreSession(
@@ -141,10 +204,23 @@ class WorkoutSessionBloc
         ? restored.copyWith(activeRestEndsAt: null)
         : restored;
     emit(SessionActive(cleaned));
+    unawaited(_loadPrsFor(cleaned));
   }
 
-  Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) {
-    return _mutate(emit, (cur) {
+  /// Load best-PR per exercise from history into [_prByExerciseId]. The
+  /// look-up is async per exercise, so we run them in parallel and let the
+  /// UI re-render through `prFor` reads as data lands.
+  Future<void> _loadPrsFor(WorkoutSession session) async {
+    final futures = session.exercises.map((ex) async {
+      final pr = await prRepository.bestFor(ex.exerciseId);
+      _prByExerciseId[ex.exerciseId] = pr;
+    });
+    await Future.wait(futures);
+    // Nothing to emit — `prFor()` is read directly by UI listeners.
+  }
+
+  Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) async {
+    await _mutate(emit, (cur) {
       final next = _mutateExercise(cur, event.exerciseId, (ex) {
         if (event.isWarmup) {
           return ex.copyWith(
@@ -169,6 +245,47 @@ class WorkoutSessionBloc
       });
       return next.copyWith(activeExerciseId: event.exerciseId);
     }, flush: true);
+
+    // PR check happens after the state mutation: warmups don't count
+    // (they're light-weight prep), so only effective sets are eligible.
+    if (!event.isWarmup) {
+      _maybeEmitPr(event);
+    }
+  }
+
+  /// Compare the just-logged set against the cached best for its
+  /// exercise. If it beats the previous PR (or there's no previous PR),
+  /// update the cache and broadcast a `PrAchievedSignal` so the logging
+  /// screen can celebrate.
+  void _maybeEmitPr(LogSet event) {
+    final existing = _prByExerciseId[event.exerciseId];
+    final beats = existing == null ||
+        existing.isBeatenBy(weight: event.weight, reps: event.reps);
+    if (!beats) return;
+    // Stash the prior best before overwriting so the UI can render
+    // "Previous Best" alongside the new "New Best". Only set on the
+    // first PR per exercise per session — chained PRs keep the very
+    // first "previous" as their baseline so the user always sees what
+    // they came in with.
+    if (existing != null) {
+      _prevBestByExerciseId.putIfAbsent(event.exerciseId, () => existing);
+    }
+    final fresh = PersonalRecord(
+      exerciseId: event.exerciseId,
+      weight: event.weight,
+      reps: event.reps,
+      achievedAt: DateTime.now(),
+    );
+    _prByExerciseId[event.exerciseId] = fresh;
+    _prAchievedThisSession.add(event.exerciseId);
+    _prSignals.add(
+      PrAchievedSignal(
+        exerciseId: event.exerciseId,
+        setId: event.setId,
+        weight: event.weight,
+        reps: event.reps,
+      ),
+    );
   }
 
   Future<void> _onUpdateSetDraft(
@@ -352,6 +469,8 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     _persistDebounce?.cancel();
+    await RestTimerNotifications.instance.cancel();
+    await BatteryOptimization.instance.stopForegroundService();
     await repository.clearActive();
     emit(const SessionCancelled());
     emit(const SessionIdle());
@@ -374,6 +493,8 @@ class WorkoutSessionBloc
       activeExerciseId: null,
     );
     _persistDebounce?.cancel();
+    await RestTimerNotifications.instance.cancel();
+    await BatteryOptimization.instance.stopForegroundService();
     await repository.archiveFinished(finished);
     await repository.clearActive();
     emit(const SessionFinished());
@@ -396,6 +517,7 @@ class WorkoutSessionBloc
   @override
   Future<void> close() {
     _persistDebounce?.cancel();
+    _prSignals.close();
     return super.close();
   }
 }

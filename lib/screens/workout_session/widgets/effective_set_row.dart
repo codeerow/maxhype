@@ -44,6 +44,10 @@ class EffectiveSetRow extends StatefulWidget {
   /// (e.g., after logging the previous set we jump to the next row).
   final FocusNode? repsFocusNode;
 
+  /// True if this set holds a personal record. Adds 🔥 emojis on either
+  /// side of the row and tints the pills gold-ish to make it stand out.
+  final bool isPr;
+
   const EffectiveSetRow({
     super.key,
     required this.marker,
@@ -58,6 +62,7 @@ class EffectiveSetRow extends StatefulWidget {
     this.prefillReps,
     this.onSubmitted,
     this.repsFocusNode,
+    this.isPr = false,
   });
 
   @override
@@ -117,10 +122,14 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
   @override
   Widget build(BuildContext context) {
     final state = _state;
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
+          if (widget.isPr) ...[
+            const Text('🔥', style: TextStyle(fontSize: 18)),
+            const SizedBox(width: 6),
+          ],
           // SET marker pill — narrow, contains either the number or, when
           // logged, a checkmark icon (per the design ref).
           EffectiveSetPill(
@@ -203,11 +212,31 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
               },
             ),
           ),
+          if (widget.isPr) ...[
+            const SizedBox(width: 6),
+            const Text('🔥', style: TextStyle(fontSize: 18)),
+          ],
         ],
       ),
     );
-  }
 
+    if (!widget.isPr) return row;
+    // Subtle orange halo around a PR row so the achievement reads at a
+    // glance without bashing the user with too much colour.
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryOrange.withValues(alpha: 0.30),
+            blurRadius: 18,
+            spreadRadius: 0.5,
+          ),
+        ],
+      ),
+      child: row,
+    );
+  }
 }
 
 /// Real TextField styled to look like an [EffectiveSetPill]. Using a real

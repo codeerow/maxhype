@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/haptic_manager.dart';
 import '../../core/service_locator.dart';
 import '../../models/exercise.dart';
+import '../../models/session/personal_record.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
 import '../../models/session/workout_session.dart';
@@ -12,7 +16,11 @@ import '../../repositories/exercise_repository.dart';
 import '../../repositories/workout_session_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/fade_top_edge.dart';
+import '../../widgets/liquid_glass_app_bar.dart';
+import '../../widgets/new_pr_banner.dart';
 import '../../widgets/tap_scale.dart';
+import 'bloc/pr_signal.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
@@ -21,6 +29,7 @@ import 'widgets/add_set_button.dart';
 import 'widgets/effective_set_row.dart';
 import 'widgets/log_set_button.dart';
 import 'widgets/notes_card.dart';
+import 'widgets/pr_header.dart';
 import 'widgets/rest_timer_card.dart';
 import 'widgets/swipe_to_delete.dart';
 
@@ -69,15 +78,37 @@ class _LoggingViewState extends State<_LoggingView> {
   FocusNode _repsFocusFor(String key) =>
       _repsFocusNodes.putIfAbsent(key, FocusNode.new);
 
+  /// Set ids that have been flagged as PR during this logging session —
+  /// drives the 🔥 emoji decoration on their row.
+  final Set<String> _prSetIds = {};
+
+  StreamSubscription<PrAchievedSignal>? _prSub;
+
   @override
   void initState() {
     super.initState();
     _historyFuture =
         getIt<WorkoutSessionRepository>().lastLogFor(widget.exerciseId);
+
+    final bloc = context.read<WorkoutSessionBloc>();
+    _prSub = bloc.prSignals.listen(_onPrAchieved);
+  }
+
+  void _onPrAchieved(PrAchievedSignal signal) {
+    if (signal.exerciseId != widget.exerciseId) return;
+    if (!mounted) return;
+    setState(() => _prSetIds.add(signal.setId));
+    NewPrBanner.show(
+      context,
+      weight: signal.weight,
+      reps: signal.reps,
+    );
+    getIt<HapticManager>().strongest();
   }
 
   @override
   void dispose() {
+    _prSub?.cancel();
     for (final n in _repsFocusNodes.values) {
       n.dispose();
     }
@@ -126,6 +157,7 @@ class _LoggingViewState extends State<_LoggingView> {
             body: SizedBox.shrink(),
           );
         }
+        final bloc = context.read<WorkoutSessionBloc>();
         return FutureBuilder<SessionSet?>(
           future: _historyFuture,
           builder: (context, snapshot) {
@@ -136,6 +168,10 @@ class _LoggingViewState extends State<_LoggingView> {
               session: state.session,
               historyLastLog: snapshot.data,
               repsFocusFor: _repsFocusFor,
+              prSetIds: _prSetIds,
+              currentPr: bloc.prFor(widget.exerciseId),
+              previousBest: bloc.previousBestFor(widget.exerciseId),
+              isFreshPr: _prSetIds.isNotEmpty,
             );
           },
         );
@@ -149,12 +185,20 @@ class _LoggingScaffold extends StatelessWidget {
   final WorkoutSession session;
   final SessionSet? historyLastLog;
   final FocusNode Function(String key) repsFocusFor;
+  final Set<String> prSetIds;
+  final PersonalRecord? currentPr;
+  final PersonalRecord? previousBest;
+  final bool isFreshPr;
 
   const _LoggingScaffold({
     required this.exercise,
     required this.session,
     required this.historyLastLog,
     required this.repsFocusFor,
+    required this.prSetIds,
+    required this.currentPr,
+    required this.previousBest,
+    required this.isFreshPr,
   });
 
   @override
@@ -176,6 +220,12 @@ class _LoggingScaffold extends StatelessWidget {
               // items wear their own horizontal padding via _Hp.
               padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
               children: [
+                if (currentPr != null)
+                  PrHeader(
+                    pr: currentPr!,
+                    previousBest: previousBest,
+                    isFresh: isFreshPr,
+                  ),
                 ActionChipRow(
                   restSeconds: session.restDurationSeconds,
                   onRestTap: () =>
@@ -206,9 +256,15 @@ class _LoggingScaffold extends StatelessWidget {
                 const SizedBox(height: 8),
                 _Hp(
                   child: AddSetButton(
-                    onTap: () => context
+                    onAddOne: () => context
                         .read<WorkoutSessionBloc>()
                         .add(AddSet(exercise.exerciseId)),
+                    onAddMany: (count) {
+                      final bloc = context.read<WorkoutSessionBloc>();
+                      for (var i = 0; i < count; i++) {
+                        bloc.add(AddSet(exercise.exerciseId));
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -345,6 +401,7 @@ class _LoggingScaffold extends StatelessWidget {
           reps: set.reps,
           isLogged: set.isLogged,
           isCurrent: isCurrent,
+          isPr: !isWarmup && prSetIds.contains(set.id),
           prefillWeight: prefill.weight,
           prefillReps: prefill.reps,
           repsFocusNode: repsFocusFor(isWarmup ? 'warmup' : set.id),

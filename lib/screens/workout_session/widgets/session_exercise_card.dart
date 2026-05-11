@@ -25,6 +25,12 @@ import '../../workout_detail/widgets/exercise_card.dart';
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final bool isActive;
+
+  /// True when the user has set a PR for this exercise during the current
+  /// session — drives the persistent orange "PERSONAL RECORD" pill at the
+  /// top of the card.
+  final bool hasPr;
+
   final VoidCallback onTap;
   final VoidCallback onOptions;
 
@@ -34,6 +40,7 @@ class SessionExerciseCard extends StatefulWidget {
     required this.isActive,
     required this.onTap,
     required this.onOptions,
+    this.hasPr = false,
   });
 
   @override
@@ -194,12 +201,21 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
         borderRadius: BorderRadius.circular(14),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ExerciseCard(
-        exercise: catalogExercise,
-        subtitleOverride: subtitle,
-        leadingAccent: _buildLeadingAccent(),
-        onTap: widget.onTap,
-        onOptionsPressed: widget.onOptions,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.hasPr) ...[
+            const _PrCardPill(),
+            const SizedBox(height: 4),
+          ],
+          ExerciseCard(
+            exercise: catalogExercise,
+            subtitleOverride: subtitle,
+            leadingAccent: _buildLeadingAccent(),
+            onTap: widget.onTap,
+            onOptionsPressed: widget.onOptions,
+          ),
+        ],
       ),
     );
   }
@@ -255,5 +271,44 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
       );
     }
     return null;
+  }
+}
+
+/// Compact persistent PR pill rendered above the exercise card when the
+/// user has set a personal record for it during the current session.
+class _PrCardPill extends StatelessWidget {
+  const _PrCardPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryOrange.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+          width: 1,
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('🔥', style: TextStyle(fontSize: 11)),
+          SizedBox(width: 6),
+          Text(
+            'PERSONAL RECORD',
+            style: TextStyle(
+              color: AppTheme.primaryOrange,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          SizedBox(width: 6),
+          Text('🔥', style: TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
   }
 }

@@ -16,7 +16,7 @@ class TapScale extends StatefulWidget {
     required this.child,
     this.onTap,
     this.scaleDown = 0.97,
-    this.opacityDown = 0.95,
+    this.opacityDown = 0.92,
     this.pressDownDuration = const Duration(milliseconds: 80),
     this.releaseUpDuration = const Duration(milliseconds: 120),
     this.enableHaptic = false,
@@ -41,11 +41,11 @@ class _TapScaleState extends State<TapScale>
       reverseDuration: widget.releaseUpDuration,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: widget.scaleDown).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
     _opacityAnimation =
         Tween<double>(begin: 1.0, end: widget.opacityDown).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
   }
 

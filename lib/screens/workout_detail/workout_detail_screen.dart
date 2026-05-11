@@ -7,6 +7,8 @@ import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/fade_top_edge.dart';
+import '../../widgets/liquid_glass_app_bar.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
@@ -37,56 +39,65 @@ class WorkoutDetailScreen extends StatelessWidget {
         builder: (context, state) {
           return Scaffold(
             backgroundColor: AppTheme.backgroundColor,
-            appBar: _buildAppBar(context),
-            body: switch (state) {
-              WorkoutDetailLoading() => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryOrange,
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: switch (state) {
+                    WorkoutDetailLoading() => const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryOrange,
+                        ),
+                      ),
+                    WorkoutDetailError(:final message) => Center(
+                        child: Text(
+                          'Error: $message',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                    WorkoutDetailSuccess(:final workout) =>
+                      _buildContent(context, workout),
+                  },
+                ),
+                // Glass nav bar floats over the scroll body. Its shader
+                // reads the backdrop directly from the framebuffer, so
+                // the body MUST be painted first (below in the Stack).
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LiquidGlassNavBar(
+                    title: Text(workout.title),
+                    backIcon: CupertinoIcons.back,
+                    onBack: () => Navigator.of(context).pop(),
                   ),
                 ),
-              WorkoutDetailError(:final message) => Center(
-                  child: Text(
-                    'Error: $message',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-              WorkoutDetailSuccess(:final workout) =>
-                _buildContent(context, workout),
-            },
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      leading: TapScale(
-        scaleDown: 0.90,
-        onTap: () => Navigator.of(context).pop(),
-        child: const Center(
-          child: Icon(
-            CupertinoIcons.back,
-            color: AppTheme.textPrimary,
-            size: 26,
-          ),
-        ),
-      ),
-      title: Text(workout.title),
-    );
-  }
-
   Widget _buildContent(BuildContext context, Workout workout) {
+    final statusBar = MediaQuery.of(context).padding.top;
+    final navBottom = statusBar + kToolbarHeight;
     return Stack(
       children: [
-        // Main content
-        SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: 100,
-          ),
+        // Main content — scrolls underneath the floating glass nav bar.
+        // The fade ramp starts at the very top of the screen so content
+        // remains faintly visible through the status bar (matching iOS
+        // reference), then fully opaque just past the nav-bar bottom.
+        FadeTopEdge(
+          fullyTransparentTop: 0,
+          fullyOpaqueAt: navBottom + 12,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: navBottom + 8,
+              bottom: 100,
+            ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -117,6 +128,7 @@ class WorkoutDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
             ],
+          ),
           ),
         ),
         // Floating bottom button

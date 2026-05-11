@@ -1,4 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Rest-timer notifications scheduled at exact wall-clock times. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Optional foreground service used as a fallback when the device's
+         battery optimizer would otherwise kill our process during a
+         workout. Only started if the user declines the battery-saver
+         exemption prompt. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
     <application
         android:label="maxhype"
         android:name="${applicationName}"
@@ -30,6 +45,37 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Liquid-glass refraction shaders only render on Impeller. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="true" />
+        <meta-data
+            android:name="io.flutter.embedding.android.ImpellerBackend"
+            android:value="vulkan" />
+
+        <!-- Rebuild scheduled rest-timer notifications after a device
+             reboot — flutter_local_notifications ships a receiver that
+             reads them back from local storage. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Foreground service used during workouts as a fallback for
+             aggressive battery optimizers. Only started when the user
+             declines the IGNORE_BATTERY_OPTIMIZATIONS prompt. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="health"
+            android:exported="false"
+            android:stopWithTask="true"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
