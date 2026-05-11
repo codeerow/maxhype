@@ -18,7 +18,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/fade_top_edge.dart';
 import '../../widgets/liquid_glass_app_bar.dart';
-import '../../widgets/new_pr_banner.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/pr_signal.dart';
 import 'bloc/workout_session_bloc.dart';
@@ -29,6 +28,7 @@ import 'widgets/add_set_button.dart';
 import 'widgets/effective_set_row.dart';
 import 'widgets/log_set_button.dart';
 import 'widgets/notes_card.dart';
+import 'widgets/pr_celebration.dart';
 import 'widgets/pr_header.dart';
 import 'widgets/rest_timer_card.dart';
 import 'widgets/swipe_to_delete.dart';
@@ -67,7 +67,8 @@ class _LoggingView extends StatefulWidget {
   State<_LoggingView> createState() => _LoggingViewState();
 }
 
-class _LoggingViewState extends State<_LoggingView> {
+class _LoggingViewState extends State<_LoggingView>
+    with TickerProviderStateMixin {
   late final Future<SessionSet?> _historyFuture;
 
   /// Stable FocusNodes for REPS fields keyed by set id (or 'warmup'). Lets
@@ -79,8 +80,22 @@ class _LoggingViewState extends State<_LoggingView> {
       _repsFocusNodes.putIfAbsent(key, FocusNode.new);
 
   /// Set ids that have been flagged as PR during this logging session —
-  /// drives the 🔥 emoji decoration on their row.
+  /// drives the orange pill colouring on their row.
   final Set<String> _prSetIds = {};
+
+  /// One-shot celebration controllers keyed by setId. Created on first
+  /// PR for the set, runs once, stays parked at value=1.0 afterwards
+  /// (the celebration painter renders nothing once `t >= 1`).
+  final Map<String, AnimationController> _celebrationCtrls = {};
+
+  AnimationController celebrationFor(String setId) =>
+      _celebrationCtrls.putIfAbsent(
+        setId,
+        () => AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 900),
+        ),
+      );
 
   StreamSubscription<PrAchievedSignal>? _prSub;
 
@@ -98,11 +113,7 @@ class _LoggingViewState extends State<_LoggingView> {
     if (signal.exerciseId != widget.exerciseId) return;
     if (!mounted) return;
     setState(() => _prSetIds.add(signal.setId));
-    NewPrBanner.show(
-      context,
-      weight: signal.weight,
-      reps: signal.reps,
-    );
+    celebrationFor(signal.setId).forward(from: 0);
     getIt<HapticManager>().strongest();
   }
 
@@ -111,6 +122,9 @@ class _LoggingViewState extends State<_LoggingView> {
     _prSub?.cancel();
     for (final n in _repsFocusNodes.values) {
       n.dispose();
+    }
+    for (final c in _celebrationCtrls.values) {
+      c.dispose();
     }
     super.dispose();
   }
@@ -168,6 +182,7 @@ class _LoggingViewState extends State<_LoggingView> {
               session: state.session,
               historyLastLog: snapshot.data,
               repsFocusFor: _repsFocusFor,
+              celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
               currentPr: bloc.prFor(widget.exerciseId),
               previousBest: bloc.previousBestFor(widget.exerciseId),
@@ -185,6 +200,7 @@ class _LoggingScaffold extends StatelessWidget {
   final WorkoutSession session;
   final SessionSet? historyLastLog;
   final FocusNode Function(String key) repsFocusFor;
+  final AnimationController Function(String setId) celebrationFor;
   final Set<String> prSetIds;
   final PersonalRecord? currentPr;
   final PersonalRecord? previousBest;
@@ -195,6 +211,7 @@ class _LoggingScaffold extends StatelessWidget {
     required this.session,
     required this.historyLastLog,
     required this.repsFocusFor,
+    required this.celebrationFor,
     required this.prSetIds,
     required this.currentPr,
     required this.previousBest,
@@ -393,37 +410,40 @@ class _LoggingScaffold extends StatelessWidget {
             ),
           ),
       child: _Hp(
-        child: EffectiveSetRow(
-          key: ValueKey(isWarmup ? 'warmup_${set.id}' : 'set_${set.id}'),
-          marker: marker,
-          isWarmup: isWarmup,
-          weight: set.weight,
-          reps: set.reps,
-          isLogged: set.isLogged,
-          isCurrent: isCurrent,
-          isPr: !isWarmup && prSetIds.contains(set.id),
-          prefillWeight: prefill.weight,
-          prefillReps: prefill.reps,
-          repsFocusNode: repsFocusFor(isWarmup ? 'warmup' : set.id),
-          onSubmitted: () => _onLogSetTap(context),
-          onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                UpdateSetDraft(
-                  exerciseId: exercise.exerciseId,
-                  setId: set.id,
-                  weight: v,
-                  isWarmup: isWarmup,
-                  clearWeight: v == null,
+        child: PrCelebration(
+          controller: celebrationFor(set.id),
+          child: EffectiveSetRow(
+            key: ValueKey(isWarmup ? 'warmup_${set.id}' : 'set_${set.id}'),
+            marker: marker,
+            isWarmup: isWarmup,
+            weight: set.weight,
+            reps: set.reps,
+            isLogged: set.isLogged,
+            isCurrent: isCurrent,
+            isPr: !isWarmup && prSetIds.contains(set.id),
+            prefillWeight: prefill.weight,
+            prefillReps: prefill.reps,
+            repsFocusNode: repsFocusFor(isWarmup ? 'warmup' : set.id),
+            onSubmitted: () => _onLogSetTap(context),
+            onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
+                  UpdateSetDraft(
+                    exerciseId: exercise.exerciseId,
+                    setId: set.id,
+                    weight: v,
+                    isWarmup: isWarmup,
+                    clearWeight: v == null,
+                  ),
                 ),
-              ),
-          onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                UpdateSetDraft(
-                  exerciseId: exercise.exerciseId,
-                  setId: set.id,
-                  reps: v,
-                  isWarmup: isWarmup,
-                  clearReps: v == null,
+            onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
+                  UpdateSetDraft(
+                    exerciseId: exercise.exerciseId,
+                    setId: set.id,
+                    reps: v,
+                    isWarmup: isWarmup,
+                    clearReps: v == null,
+                  ),
                 ),
-              ),
+          ),
         ),
       ),
     );

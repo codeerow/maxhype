@@ -137,7 +137,7 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
             width: 50,
             state: state,
             child: widget.isPr
-                ? const Text('🔥', style: TextStyle(fontSize: 20))
+                ? const _PrFlame()
                 : widget.isLogged
                     ? const Icon(
                         Icons.check,
@@ -297,6 +297,60 @@ class _PillTextField extends StatelessWidget {
         ),
         onChanged: onChanged,
       ),
+    );
+  }
+}
+
+/// Animated 🔥 used in the SET column of a PR row.
+///
+/// Two layered animations:
+///  * `scaleIn` — one-shot pop on first mount (back-out curve, ~360ms).
+///  * `breath`  — gentle loop that scales the flame ±4% over ~1.4s so it
+///    "breathes" while the row is visible. Subtle by design — meant to
+///    catch the eye on the row, not flicker.
+class _PrFlame extends StatefulWidget {
+  const _PrFlame();
+
+  @override
+  State<_PrFlame> createState() => _PrFlameState();
+}
+
+class _PrFlameState extends State<_PrFlame> with TickerProviderStateMixin {
+  late final AnimationController _scaleIn;
+  late final AnimationController _breath;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleIn = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    )..forward();
+    _breath = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _scaleIn.dispose();
+    _breath.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_scaleIn, _breath]),
+      builder: (context, _) {
+        final pop = Curves.easeOutBack.transform(_scaleIn.value);
+        final breath = 1.0 + 0.04 * _breath.value;
+        return Transform.scale(
+          scale: pop * breath,
+          child: const Text('🔥', style: TextStyle(fontSize: 20)),
+        );
+      },
     );
   }
 }
