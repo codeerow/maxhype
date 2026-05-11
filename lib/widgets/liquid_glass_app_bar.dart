@@ -53,14 +53,21 @@ class LiquidGlassNavBar extends StatelessWidget {
       // Matches the basic_app sample's tuned settings — a thicker pane
       // with mild aberration, low-alpha tint so refracted content is
       // actually visible underneath.
-      settings: LiquidGlassSettings(
-        thickness: 30,
-        blur: 8,
+      settings: const LiquidGlassSettings(
+        // Calibrated against the reference shot. Visible bending of
+        // letters at the pill edge, but the body of the letter remains
+        // readable through the centre. No artificial highlight rim, no
+        // milky frost.
+        thickness: 20,
+        blur: 3.5,
         chromaticAberration: 0.04,
-        refractiveIndex: 1.21,
-        lightIntensity: 0.7,
-        ambientStrength: 0.2,
-        glassColor: Colors.white.withValues(alpha: 0.08),
+        refractiveIndex: 1.32,
+        lightIntensity: 0.25,
+        ambientStrength: 0.40,
+        saturation: 1.15,
+        // Cool neutral tint at low alpha so the pill reads as "cold
+        // glass" instead of inheriting the dark-blue background.
+        glassColor: Color.fromARGB(20, 200, 215, 240),
       ),
       child: LiquidGlassBlendGroup(
         blend: 10,
