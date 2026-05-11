@@ -114,6 +114,9 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
   }
 
   PillState get _state {
+    // A PR row overrides every other visual state — the row is meant to
+    // read instantly as "this beat your record", not as "logged".
+    if (widget.isPr) return PillState.pr;
     if (widget.isLogged) return PillState.logged;
     if (widget.isCurrent) return PillState.draft;
     return PillState.empty;
@@ -126,29 +129,29 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          if (widget.isPr) ...[
-            const Text('🔥', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
-          ],
-          // SET marker pill — narrow, contains either the number or, when
-          // logged, a checkmark icon (per the design ref).
+          // SET marker pill — narrow. Three render modes:
+          //  * PR    → 🔥 emoji (no number, no checkmark)
+          //  * logged → green checkmark
+          //  * else   → set number / "W"
           EffectiveSetPill(
             width: 50,
             state: state,
-            child: widget.isLogged
-                ? const Icon(
-                    Icons.check,
-                    color: Color(0xFF062716),
-                    size: 22,
-                  )
-                : Text(
-                    widget.marker,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: pillColorsFor(state).foreground,
-                    ),
-                  ),
+            child: widget.isPr
+                ? const Text('🔥', style: TextStyle(fontSize: 20))
+                : widget.isLogged
+                    ? const Icon(
+                        Icons.check,
+                        color: Color(0xFF062716),
+                        size: 22,
+                      )
+                    : Text(
+                        widget.marker,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: pillColorsFor(state).foreground,
+                        ),
+                      ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -212,30 +215,11 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
               },
             ),
           ),
-          if (widget.isPr) ...[
-            const SizedBox(width: 6),
-            const Text('🔥', style: TextStyle(fontSize: 18)),
-          ],
         ],
       ),
     );
 
-    if (!widget.isPr) return row;
-    // Subtle orange halo around a PR row so the achievement reads at a
-    // glance without bashing the user with too much colour.
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryOrange.withValues(alpha: 0.30),
-            blurRadius: 18,
-            spreadRadius: 0.5,
-          ),
-        ],
-      ),
-      child: row,
-    );
+    return row;
   }
 }
 

@@ -7,7 +7,8 @@ import '../../../widgets/tap_scale.dart';
 ///  * [logged] — solid green fill, dark bold value (a finished set).
 ///  * [draft]  — light fill, dark bold value (the row currently being typed).
 ///  * [empty]  — dark card fill, muted value (placeholder pre-fill).
-enum PillState { empty, draft, logged }
+///  * [pr]     — solid orange fill, dark bold value (a personal record).
+enum PillState { empty, draft, logged, pr }
 
 /// Background + foreground pair for a [PillState]. Shared between the
 /// static [EffectiveSetPill] and the editable text-field pill in
@@ -34,6 +35,11 @@ PillColors pillColorsFor(PillState state) {
       return const PillColors(
         background: AppTheme.cardBackground,
         foreground: AppTheme.textSecondary,
+      );
+    case PillState.pr:
+      return const PillColors(
+        background: AppTheme.primaryOrange,
+        foreground: Color(0xFF2A1500),
       );
   }
 }
