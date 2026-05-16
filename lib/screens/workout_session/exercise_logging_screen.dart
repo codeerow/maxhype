@@ -304,9 +304,6 @@ class _LoggingScaffold extends StatelessWidget {
             RestTimerCard(
               endsAt: session.activeRestEndsAt!,
               totalSeconds: session.restDurationSeconds,
-              onCompleted: () => context
-                  .read<WorkoutSessionBloc>()
-                  .add(const CancelRestTimer()),
               onCancel: () => context
                   .read<WorkoutSessionBloc>()
                   .add(const CancelRestTimer()),

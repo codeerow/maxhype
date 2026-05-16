@@ -58,7 +58,10 @@ dependencies:
   shared_preferences: ^2.3.0
   path_provider: ^2.1.0
 
-  # Audio for rest-timer boxing bell (foreground only in Part 1)
+  # Used to play the boxing bell from inside the app when a rest timer
+  # ends while we're in the foreground. The OS notification covers the
+  # background case but its foreground sound is unreliable on Android
+  # OEMs and silent on the iOS simulator.
   audioplayers: ^6.1.0
   google_fonts: ^8.1.0
   vibration: ^3.1.8

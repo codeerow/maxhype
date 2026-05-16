@@ -59,6 +59,9 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
   @override
   Future<void> save(WorkoutSession session) async {
     final file = await _activeFile();
+    // Ensure the Documents directory exists — first launch on a freshly
+    // wiped simulator can land here before the OS has materialized it.
+    await file.parent.create(recursive: true);
     final tmp = File('${file.path}.tmp');
     await tmp.writeAsString(jsonEncode(session.toJson()), flush: true);
     await tmp.rename(file.path);

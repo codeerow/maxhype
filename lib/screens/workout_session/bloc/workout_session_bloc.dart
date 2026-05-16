@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/battery_optimization.dart';
 import '../../../core/rest_timer_notifications.dart';
+import '../../../core/session_audio.dart';
 import '../../../models/session/personal_record.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
@@ -24,11 +26,13 @@ import 'workout_session_state.dart';
 ///   call `_flushPersist()` to write immediately — these are the moments worth
 ///   never losing.
 class WorkoutSessionBloc
-    extends Bloc<WorkoutSessionEvent, WorkoutSessionState> {
+    extends Bloc<WorkoutSessionEvent, WorkoutSessionState>
+    with WidgetsBindingObserver {
   WorkoutSessionBloc({
     required this.repository,
     required this.prRepository,
   }) : super(const SessionIdle()) {
+    WidgetsBinding.instance.addObserver(this);
     on<StartSession>(_onStartSession);
     on<RestoreSession>(_onRestoreSession);
     on<LogSet>(_onLogSet);
@@ -51,6 +55,8 @@ class WorkoutSessionBloc
   final PersonalRecordRepository prRepository;
 
   Timer? _persistDebounce;
+  Timer? _restBellTimer;
+  bool _appInForeground = true;
   final _idRng = Random();
 
   /// Per-exercise PR snapshot loaded at session start. Updated in place
@@ -93,16 +99,80 @@ class WorkoutSessionBloc
     return '${prefix}_${t}_$r';
   }
 
-  /// Reschedule (or cancel) the OS-level rest-end notification whenever
-  /// `activeRestEndsAt` changes. Keeps the in-app `RestTimerCard` and the
-  /// background notification in lockstep — the UI handles the foreground
-  /// case, the notification handles "user put the phone down".
+  /// Rest deadline ↔ side-effects.
+  ///
+  /// Exactly one bell rings per deadline. The architecture enforces this
+  /// by making sure only one source is armed at any time:
+  ///
+  ///   * **Foreground**: a Dart Timer fires the in-app bell via
+  ///     [SessionAudio]. The OS notification is NOT scheduled — it could
+  ///     race with the in-app timer.
+  ///   * **Background**: the OS notification is the only source. The
+  ///     Dart Timer is cancelled the moment we leave foreground.
+  ///
+  /// Lifecycle transitions ([didChangeAppLifecycleState]) swap the
+  /// source: leaving foreground → schedule notification, cancel timer;
+  /// returning to foreground → cancel notification, re-arm timer.
+  ///
+  /// Deadline already elapsed while we were backgrounded: the OS
+  /// notification has already played, and the re-arm path detects the
+  /// negative remaining and refuses to fire a second bell.
   void _syncRestNotification(WorkoutSession before, WorkoutSession after) {
     if (before.activeRestEndsAt == after.activeRestEndsAt) return;
     final ends = after.activeRestEndsAt;
+    _restBellTimer?.cancel();
+    _restBellTimer = null;
     if (ends == null) {
       RestTimerNotifications.instance.cancel();
+      return;
+    }
+    if (_appInForeground) {
+      // Foreground owns the bell — no OS notification scheduled.
+      RestTimerNotifications.instance.cancel();
+      _armForegroundBell(ends);
     } else {
+      // Background owns the bell — OS notification handles it.
+      RestTimerNotifications.instance.schedule(ends);
+    }
+  }
+
+  void _armForegroundBell(DateTime ends) {
+    _restBellTimer?.cancel();
+    final remaining = ends.difference(DateTime.now());
+    if (remaining.isNegative) return;
+    _restBellTimer = Timer(remaining, () {
+      _restBellTimer = null;
+      SessionAudio.instance.playRestComplete();
+      // Bloc owns the deadline lifecycle: clear `activeRestEndsAt`
+      // ourselves so the rest card stops rendering. Critically, we do
+      // NOT rely on the widget's `onCompleted` to do this — the widget
+      // ticks on its own 1s clock and can race ahead of this Timer,
+      // dispatching CancelRestTimer (which would cancel _restBellTimer)
+      // before we ever fire. That race is exactly the
+      // "silent-on-logging-screen" bug, since the logging screen is the
+      // only place RestTimerCard is mounted.
+      add(const CancelRestTimer());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _appInForeground) return;
+    _appInForeground = foreground;
+    final ends = _current?.activeRestEndsAt;
+    if (ends == null) return;
+    if (foreground) {
+      // Returning to foreground: cancel the OS notification, re-arm the
+      // Dart timer. If the deadline elapsed while we were backgrounded,
+      // _armForegroundBell sees a negative remaining and does nothing —
+      // the OS notification already rang.
+      RestTimerNotifications.instance.cancel();
+      _armForegroundBell(ends);
+    } else {
+      // Leaving foreground: hand the bell to the OS notification.
+      _restBellTimer?.cancel();
+      _restBellTimer = null;
       RestTimerNotifications.instance.schedule(ends);
     }
   }
@@ -516,7 +586,9 @@ class WorkoutSessionBloc
 
   @override
   Future<void> close() {
+    WidgetsBinding.instance.removeObserver(this);
     _persistDebounce?.cancel();
+    _restBellTimer?.cancel();
     _prSignals.close();
     return super.close();
   }
