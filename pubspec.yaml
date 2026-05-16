@@ -77,6 +77,13 @@ dependencies:
       url: https://github.com/whynotmake-it/flutter_liquid_glass.git
       path: packages/liquid_glass_renderer
       ref: ad3bcff22549f17f67bf87a01f80ed1f06cf9a0e
+  # Shader-based progressive (gradient) blur — applies a per-pixel
+  # Gaussian blur whose sigma is modulated by a gradient texture. Used
+  # behind the LiquidGlass nav bar so the top of the scroll content
+  # smears progressively into the bar with no visible seams. The
+  # built-in BackdropFilter + ShaderMask combo cannot do this (the
+  # mask kills the filter's backdrop sample — Flutter #164079).
+  progressive_blur: ^0.0.2
 
 dev_dependencies:
   flutter_test:

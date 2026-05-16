@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:progressive_blur/progressive_blur.dart';
 import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_scaffold.dart';
@@ -24,6 +27,11 @@ void main() async {
   // permission request happens at the moment the user starts a workout
   // (so we ask in context, not on cold launch).
   await RestTimerNotifications.instance.init();
+
+  // Precache the progressive-blur shader so the first time it shows up
+  // (workout detail screen) there's no pop-in while the fragment shader
+  // compiles.
+  unawaited(ProgressiveBlurWidget.precache());
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

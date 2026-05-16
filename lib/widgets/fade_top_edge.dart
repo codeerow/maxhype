@@ -25,11 +25,18 @@ class FadeTopEdge extends StatelessWidget {
   /// blur has something to refract before the cut becomes hard.
   final double fullyOpaqueAt;
 
+  /// Shape of the alpha ramp between [fullyTransparentTop] and
+  /// [fullyOpaqueAt]. 0.5 = linear. Values <0.5 push the midpoint
+  /// upward, making the top of the band hide content faster (visually
+  /// "darker fade"). Values >0.5 keep content visible longer.
+  final double bias;
+
   const FadeTopEdge({
     super.key,
     required this.child,
     this.fullyTransparentTop = 0,
     this.fullyOpaqueAt = kToolbarHeight,
+    this.bias = 0.5,
   });
 
   @override
@@ -45,16 +52,20 @@ class FadeTopEdge extends StatelessWidget {
         }
         final hideStop = (fullyTransparentTop / total).clamp(0.0, 1.0);
         final showStop = (fullyOpaqueAt / total).clamp(hideStop, 1.0);
+        // Midpoint inside [hideStop, showStop] biased toward the top
+        // so the alpha ramp rises faster near the nav bar.
+        final mid = hideStop + (showStop - hideStop) * bias.clamp(0.05, 0.95);
         return LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: const [
             Colors.transparent,
             Colors.transparent,
+            Colors.black54,
             Colors.black,
             Colors.black,
           ],
-          stops: [0, hideStop, showStop, 1],
+          stops: [0, hideStop, mid, showStop, 1],
         ).createShader(rect);
       },
       child: child,

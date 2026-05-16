@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart'
     show CupertinoIcons, CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:progressive_blur/progressive_blur.dart';
 import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
@@ -82,23 +83,44 @@ class WorkoutDetailScreen extends StatelessWidget {
   Widget _buildContent(BuildContext context, Workout workout) {
     final statusBar = MediaQuery.of(context).padding.top;
     final navBottom = statusBar + kToolbarHeight;
+    // Pixel height of the band where the progressive blur ramps from
+    // max (at the top edge) down to zero. Slightly past the nav-bar
+    // bottom so the smear tapers off softly into clear content.
+    final blurBandPx = navBottom + 40;
     return Stack(
       children: [
         // Main content — scrolls underneath the floating glass nav bar.
-        // The fade ramp starts at the very top of the screen so content
-        // remains faintly visible through the status bar (matching iOS
-        // reference), then fully opaque just past the nav-bar bottom.
-        FadeTopEdge(
-          fullyTransparentTop: 0,
-          fullyOpaqueAt: navBottom + 12,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: navBottom + 8,
-              bottom: 100,
-            ),
-          child: Column(
+        // Wrapped in ProgressiveBlurWidget so the top of the scroll is
+        // smeared by a shader-driven gradient blur (per-pixel sigma
+        // modulation), giving a seamless progression from sharp at the
+        // bottom of the band to fully blurred at the very top. The
+        // built-in BackdropFilter cannot do gradient sigma — masking
+        // it with a ShaderMask silently disables the blur entirely
+        // (Flutter issue #164079).
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Convert the absolute blur-band pixel height into the
+            // [0, 1] coordinate space the shader expects.
+            final stop = (blurBandPx / constraints.maxHeight).clamp(0.0, 1.0);
+            return ProgressiveBlurWidget(
+              sigma: 22,
+              linearGradientBlur: LinearGradientBlur(
+                values: const [1, 0],
+                stops: [0, stop],
+                start: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              child: FadeTopEdge(
+                fullyTransparentTop: 0,
+                fullyOpaqueAt: navBottom + 40,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: navBottom + 8,
+                    bottom: 100,
+                  ),
+                  child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Add Exercise button
@@ -128,8 +150,11 @@ class WorkoutDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
             ],
-          ),
-          ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
         // Floating bottom button
         Positioned(
@@ -246,3 +271,5 @@ class WorkoutDetailScreen extends StatelessWidget {
     );
   }
 }
+
+

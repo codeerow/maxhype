@@ -16,8 +16,6 @@ import '../../repositories/exercise_repository.dart';
 import '../../repositories/workout_session_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/fade_top_edge.dart';
-import '../../widgets/liquid_glass_app_bar.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/pr_signal.dart';
 import 'bloc/workout_session_bloc.dart';
@@ -30,6 +28,7 @@ import 'widgets/log_set_button.dart';
 import 'widgets/notes_card.dart';
 import 'widgets/pr_celebration.dart';
 import 'widgets/pr_header.dart';
+import 'widgets/pr_new_label.dart';
 import 'widgets/rest_timer_card.dart';
 import 'widgets/swipe_to_delete.dart';
 
@@ -120,6 +119,7 @@ class _LoggingViewState extends State<_LoggingView>
     setState(() => _prSetIds.add(signal.setId));
     celebrationFor(signal.setId).forward(from: 0);
     getIt<HapticManager>().strongest();
+    PrNewLabel.show(context);
   }
 
   @override
