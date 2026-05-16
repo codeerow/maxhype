@@ -144,14 +144,22 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
     });
   }
 
-  /// Schedule the soft glow pulse on the active accent bar, delayed until
-  /// after the Cupertino transition has settled.
+  /// Schedule a double soft-glow pulse on the active accent bar, delayed
+  /// until after the Cupertino transition has settled. Two pulses read as
+  /// a confident "I'm here" signal rather than a single quiet blink.
   void _scheduleActivePulse() {
     _activePulseTimer?.cancel();
     _activePulseTimer = Timer(AppDurations.screenSettle, () {
       if (!mounted) return;
-      _glowController.forward(from: 0.0);
+      _playDoublePulse();
     });
+  }
+
+  Future<void> _playDoublePulse() async {
+    if (!mounted) return;
+    await _glowController.forward(from: 0.0);
+    if (!mounted) return;
+    await _glowController.forward(from: 0.0);
   }
 
   @override
