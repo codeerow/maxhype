@@ -5,6 +5,10 @@ import '../../data/mock_data.dart';
 import '../../widgets/monthly_calendar.dart';
 import '../../widgets/monthly_chart.dart';
 
+// Bottom padding for each page's scroll so the calendar tail can pass
+// under the floating WORKOUT IN PROGRESS bar pinned by MainScaffold.
+const double _kBottomBarReserve = 96;
+
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -105,6 +109,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 itemBuilder: (context, index) {
                   final monthData = _monthlyData[index];
                   return SingleChildScrollView(
+                    padding: const EdgeInsets.only(
+                      bottom: _kBottomBarReserve,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

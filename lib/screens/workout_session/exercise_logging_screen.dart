@@ -37,6 +37,11 @@ import 'widgets/swipe_to_delete.dart';
 /// types anything. Resolved via session → history → catalog plan.
 typedef _Prefill = ({double? weight, int? reps});
 
+// Visual height of the rest-timer pill (single-row card with 10px
+// vertical padding + ~30px content). Used as bottom padding for the
+// ListView so the last rows can scroll under the floating timer.
+const double _kRestCardReserve = 60;
+
 /// Logging screen for a single exercise. Mounts the shared
 /// `WorkoutSessionBloc` so any state mutations stay in sync with the main
 /// session screen.
@@ -195,7 +200,7 @@ class _LoggingViewState extends State<_LoggingView>
   }
 }
 
-class _LoggingScaffold extends StatelessWidget {
+class _LoggingScaffold extends StatefulWidget {
   final SessionExercise exercise;
   final WorkoutSession session;
   final SessionSet? historyLastLog;
@@ -219,9 +224,30 @@ class _LoggingScaffold extends StatelessWidget {
   });
 
   @override
+  State<_LoggingScaffold> createState() => _LoggingScaffoldState();
+}
+
+class _LoggingScaffoldState extends State<_LoggingScaffold> {
+  // Field shorthands so the existing helper methods (_buildSetRows,
+  // _onLogSetTap, etc.) can keep using bare names instead of `widget.x`.
+  SessionExercise get exercise => widget.exercise;
+  WorkoutSession get session => widget.session;
+  SessionSet? get historyLastLog => widget.historyLastLog;
+  FocusNode Function(String key) get repsFocusFor => widget.repsFocusFor;
+  AnimationController Function(String setId) get celebrationFor =>
+      widget.celebrationFor;
+  Set<String> get prSetIds => widget.prSetIds;
+  PersonalRecord? get currentPr => widget.currentPr;
+  PersonalRecord? get previousBest => widget.previousBest;
+  bool get isFreshPr => widget.isFreshPr;
+
+  @override
   Widget build(BuildContext context) {
     final prefill = _resolvePrefill(exercise);
     final firstUnlogged = exercise.firstUnloggedSet;
+
+    final restActive = session.activeRestEndsAt != null &&
+        session.activeRestEndsAt!.isAfter(DateTime.now());
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -229,90 +255,106 @@ class _LoggingScaffold extends StatelessWidget {
       appBar: _buildAppBar(context),
       body: Column(
         children: [
+          // Scrolling area with the rest-timer card overlaid on top.
+          // List rows scroll under the (transparent-background) timer
+          // until they reach the bottom of this Stack, which sits
+          // exactly above the Log Set button.
           Expanded(
-            child: ListView(
-              // Vertical-only padding: edge-to-edge horizontally lets the
-              // swipe-to-delete background bleed off the screen edge instead
-              // of being clipped at the row content's margin. Non-Dismissible
-              // items wear their own horizontal padding via _Hp.
-              padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+            child: Stack(
               children: [
-                if (currentPr != null)
-                  PrHeader(
-                    pr: currentPr!,
-                    previousBest: previousBest,
-                    isFresh: isFreshPr,
+                ListView(
+                  // Edge-to-edge horizontally so swipe-to-delete bleeds
+                  // off the screen edge. Bottom padding reserves room
+                  // for the rest-timer card to overlay the last rows,
+                  // plus a small breathing-room tail in both states.
+                  padding: EdgeInsets.fromLTRB(
+                    0,
+                    8,
+                    0,
+                    (restActive ? _kRestCardReserve : 0) + 16,
                   ),
-                ActionChipRow(
-                  restSeconds: session.restDurationSeconds,
-                  onRestTap: () =>
-                      AppToast.show(context, 'Rest timer adjusts in card'),
-                  onInstructionTap: () =>
-                      AppToast.show(context, 'Instructions — coming in Part 2'),
-                  onAnalyticsTap: () =>
-                      AppToast.show(context, 'Analytics — coming in Part 2'),
+                  children: [
+                    if (currentPr != null)
+                      PrHeader(
+                        pr: currentPr!,
+                        previousBest: previousBest,
+                        isFresh: isFreshPr,
+                      ),
+                    ActionChipRow(
+                      restSeconds: session.restDurationSeconds,
+                      onRestTap: () =>
+                          AppToast.show(context, 'Rest timer adjusts in card'),
+                      onInstructionTap: () => AppToast.show(
+                          context, 'Instructions — coming in Part 2'),
+                      onAnalyticsTap: () => AppToast.show(
+                          context, 'Analytics — coming in Part 2'),
+                    ),
+                    const SizedBox(height: 18),
+                    const _Hp(child: _SectionTitle(text: 'Warmup')),
+                    const SizedBox(height: 8),
+                    const _Hp(child: _Headers()),
+                    const SizedBox(height: 4),
+                    _buildWarmupRow(context, prefill),
+                    const SizedBox(height: 18),
+                    const _Hp(child: _SectionTitle(text: 'Effective sets')),
+                    const _Hp(
+                      child: Divider(
+                        color: AppTheme.textSecondary,
+                        height: 18,
+                        thickness: 0.4,
+                      ),
+                    ),
+                    const _Hp(child: _Headers()),
+                    const SizedBox(height: 4),
+                    ..._buildSetRows(context, prefill, firstUnlogged?.id),
+                    const SizedBox(height: 8),
+                    _Hp(
+                      child: AddSetButton(
+                        onAddOne: () => context
+                            .read<WorkoutSessionBloc>()
+                            .add(AddSet(exercise.exerciseId)),
+                        onAddMany: (count) {
+                          final bloc = context.read<WorkoutSessionBloc>();
+                          for (var i = 0; i < count; i++) {
+                            bloc.add(AddSet(exercise.exerciseId));
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _Hp(
+                      child: NotesCard(
+                        initialValue: exercise.notes,
+                        onChanged: (s) =>
+                            context.read<WorkoutSessionBloc>().add(
+                                  UpdateNotes(
+                                    exerciseId: exercise.exerciseId,
+                                    notes: s,
+                                  ),
+                                ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 18),
-                const _Hp(child: _SectionTitle(text: 'Warmup')),
-                const SizedBox(height: 8),
-                const _Hp(child: _Headers()),
-                const SizedBox(height: 4),
-                _buildWarmupRow(context, prefill),
-                const SizedBox(height: 18),
-                const _Hp(child: _SectionTitle(text: 'Effective sets')),
-                const _Hp(
-                  child: Divider(
-                    color: AppTheme.textSecondary,
-                    height: 18,
-                    thickness: 0.4,
+                if (restActive)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 12,
+                    child: RestTimerCard(
+                      endsAt: session.activeRestEndsAt!,
+                      totalSeconds: session.restDurationSeconds,
+                      onCancel: () => context
+                          .read<WorkoutSessionBloc>()
+                          .add(const CancelRestTimer()),
+                      onAdjust: (delta) => context
+                          .read<WorkoutSessionBloc>()
+                          .add(AdjustRestTimer(delta)),
+                    ),
                   ),
-                ),
-                const _Hp(child: _Headers()),
-                const SizedBox(height: 4),
-                ..._buildSetRows(context, prefill, firstUnlogged?.id),
-                const SizedBox(height: 8),
-                _Hp(
-                  child: AddSetButton(
-                    onAddOne: () => context
-                        .read<WorkoutSessionBloc>()
-                        .add(AddSet(exercise.exerciseId)),
-                    onAddMany: (count) {
-                      final bloc = context.read<WorkoutSessionBloc>();
-                      for (var i = 0; i < count; i++) {
-                        bloc.add(AddSet(exercise.exerciseId));
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 22),
-                _Hp(
-                  child: NotesCard(
-                    initialValue: exercise.notes,
-                    onChanged: (s) => context.read<WorkoutSessionBloc>().add(
-                          UpdateNotes(
-                            exerciseId: exercise.exerciseId,
-                            notes: s,
-                          ),
-                        ),
-                  ),
-                ),
               ],
             ),
           ),
-          if (session.activeRestEndsAt != null &&
-              session.activeRestEndsAt!.isAfter(DateTime.now())) ...[
-            RestTimerCard(
-              endsAt: session.activeRestEndsAt!,
-              totalSeconds: session.restDurationSeconds,
-              onCancel: () => context
-                  .read<WorkoutSessionBloc>()
-                  .add(const CancelRestTimer()),
-              onAdjust: (delta) => context
-                  .read<WorkoutSessionBloc>()
-                  .add(AdjustRestTimer(delta)),
-            ),
-            const SizedBox(height: 8),
-          ],
           LogSetButton(
             enabled: exercise.currentTarget?.isFilled ?? false,
             isFinalSet: exercise.isOnFinalEffectiveSet,
