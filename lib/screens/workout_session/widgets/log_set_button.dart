@@ -31,11 +31,11 @@ class LogSetButton extends StatelessWidget {
             child: Container(
               height: 52,
               decoration: BoxDecoration(
-                color: AppTheme.recoveryGreen,
+                color: AppTheme.primaryOrange,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.recoveryGreen.withValues(alpha: 0.35),
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.35),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -45,7 +45,7 @@ class LogSetButton extends StatelessWidget {
               child: Text(
                 label,
                 style: const TextStyle(
-                  color: Color(0xFF062716),
+                  color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.4,

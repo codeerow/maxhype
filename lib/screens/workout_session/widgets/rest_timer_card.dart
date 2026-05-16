@@ -115,7 +115,7 @@ class _RestTimerCardState extends State<RestTimerCard>
             color: AppTheme.restCardTint,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppTheme.recoveryGreen.withValues(alpha: 0.25),
+              color: AppTheme.primaryOrange.withValues(alpha: 0.25),
               width: 1,
             ),
           ),
@@ -143,7 +143,7 @@ class _RestTimerCardState extends State<RestTimerCard>
               Text(
                 _format(secs),
                 style: const TextStyle(
-                  color: AppTheme.recoveryGreen,
+                  color: AppTheme.primaryOrange,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -195,13 +195,13 @@ class _AdjustButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: AppTheme.recoveryGreen.withValues(alpha: 0.12),
+          color: AppTheme.primaryOrange.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           label,
           style: const TextStyle(
-            color: AppTheme.recoveryGreen,
+            color: AppTheme.primaryOrange,
             fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,

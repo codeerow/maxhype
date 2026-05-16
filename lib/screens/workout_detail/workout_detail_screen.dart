@@ -156,12 +156,14 @@ class WorkoutDetailScreen extends StatelessWidget {
             );
           },
         ),
-        // Floating bottom button
+        // Floating bottom button — compact 80×32 pill centred along
+        // the screen's horizontal axis.
         Positioned(
           bottom: 24,
-          left: 24,
-          right: 24,
-          child: SafeArea(
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SafeArea(
             child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
               buildWhen: (prev, next) {
                 bool isMine(WorkoutSessionState s) =>
@@ -172,7 +174,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                 final inProgress = sessionState is SessionActive &&
                     sessionState.session.workoutId == workout.id;
                 return TapScale(
-                  scaleDown: 0.96,
+                  scaleDown: 0.94,
                   enableHaptic: true,
                   onTap: () {
                     Navigator.of(context).push(
@@ -184,32 +186,33 @@ class WorkoutDetailScreen extends StatelessWidget {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    width: 220,
+                    height: 52,
                     decoration: BoxDecoration(
-                      color: AppTheme.recoveryGreen,
-                      borderRadius: BorderRadius.circular(30),
+                      color: AppTheme.primaryOrange,
+                      borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.recoveryGreen.withValues(alpha: 0.5),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: AppTheme.primaryOrange.withValues(alpha: 0.45),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        inProgress ? 'Resume Workout' : 'Start Workout',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: Colors.white,
-                        ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      inProgress ? 'Resume Workout' : 'Start Workout',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 );
               },
+              ),
             ),
           ),
         ),

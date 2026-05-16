@@ -14,31 +14,31 @@ class SessionFinishButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TapScale(
-      scaleDown: 0.96,
+      scaleDown: 0.94,
       enableHaptic: true,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        width: 220,
+        height: 52,
         decoration: BoxDecoration(
           color: AppTheme.recoveryRed,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(26),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.recoveryRed.withValues(alpha: 0.5),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppTheme.recoveryRed.withValues(alpha: 0.45),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: const Center(
-          child: Text(
-            'Finish',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-              color: Colors.white,
-            ),
+        alignment: Alignment.center,
+        child: const Text(
+          'Finish',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.4,
+            color: Colors.white,
           ),
         ),
       ),

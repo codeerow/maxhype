@@ -4,7 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 
 /// Visual state of an effective-set pill.
-///  * [logged] — solid green fill, dark bold value (a finished set).
+///  * [logged] — solid orange fill, dark bold value (a finished set).
 ///  * [draft]  — light fill, dark bold value (the row currently being typed).
 ///  * [empty]  — dark card fill, muted value (placeholder pre-fill).
 ///  * [pr]     — solid orange fill, dark bold value (a personal record).
@@ -23,8 +23,8 @@ PillColors pillColorsFor(PillState state) {
   switch (state) {
     case PillState.logged:
       return const PillColors(
-        background: AppTheme.recoveryGreen,
-        foreground: Color(0xFF062716),
+        background: AppTheme.primaryOrange,
+        foreground: Color(0xFF2A1500),
       );
     case PillState.draft:
       return const PillColors(

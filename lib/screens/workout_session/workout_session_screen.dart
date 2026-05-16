@@ -293,17 +293,20 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
               ),
             ],
           ),
-          // Floating Finish button — same shape/shadow as Start Workout on
-          // the Workout Detail screen.
+          // Floating Finish button — compact 80×32 pill centred along
+          // the screen's horizontal axis, matching Start Workout on the
+          // Workout Detail screen.
           Positioned(
             bottom: 24,
-            left: 24,
-            right: 24,
-            child: SafeArea(
-              child: SessionFinishButton(
-                onTap: () => context
-                    .read<WorkoutSessionBloc>()
-                    .add(const FinishWorkout()),
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SafeArea(
+                child: SessionFinishButton(
+                  onTap: () => context
+                      .read<WorkoutSessionBloc>()
+                      .add(const FinishWorkout()),
+                ),
               ),
             ),
           ),
