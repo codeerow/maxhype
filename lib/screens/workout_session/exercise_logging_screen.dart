@@ -296,14 +296,6 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     const SizedBox(height: 4),
                     _buildWarmupRow(context, prefill),
                     const SizedBox(height: 18),
-                    const _Hp(child: _SectionTitle(text: 'Effective sets')),
-                    const _Hp(
-                      child: Divider(
-                        color: AppTheme.textSecondary,
-                        height: 18,
-                        thickness: 0.4,
-                      ),
-                    ),
                     const _Hp(child: _Headers()),
                     const SizedBox(height: 4),
                     ..._buildSetRows(context, prefill, firstUnlogged?.id),
@@ -594,10 +586,13 @@ class _Headers extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Row(
       children: [
-        SizedBox(
-          width: 50,
+        // Reserve the same width the row uses for its SET marker so the
+        // column headers align with the pills underneath.
+        SizedBox(width: 28),
+        SizedBox(width: 10),
+        Expanded(
           child: Text(
-            'SET',
+            'WEIGHT (lb)',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textSecondary,
@@ -611,19 +606,6 @@ class _Headers extends StatelessWidget {
         Expanded(
           child: Text(
             'REPS',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.4,
-            ),
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'WEIGHT (lb)',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textSecondary,

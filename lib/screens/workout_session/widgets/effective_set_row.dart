@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import '../../../theme/app_theme.dart';
 import 'effective_set_pill.dart';
 
-/// One row in the Effective sets / Warmup table — three pills laid out as
-/// `[ SET | REPS | WEIGHT ]`.
+/// One row in the sets / warmup table — a SET marker on the left and
+/// `[ WEIGHT | REPS ]` pills on the right.
 ///
 /// REPS / WEIGHT cells are real `TextField`s styled as pills so the system
 /// numeric keyboard works the way the OS expects (focus, selection, IME).
@@ -129,52 +129,31 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          // SET marker pill — narrow. Three render modes:
-          //  * PR    → 🔥 emoji (no number, no checkmark)
-          //  * logged → green checkmark
-          //  * else   → set number / "W"
-          EffectiveSetPill(
-            width: 50,
-            state: state,
-            child: widget.isPr
-                ? const _PrFlame()
-                : widget.isLogged
-                    ? const Icon(
-                        Icons.check,
-                        color: Color(0xFF062716),
-                        size: 22,
-                      )
-                    : Text(
-                        widget.marker,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: pillColorsFor(state).foreground,
+          // SET marker — plain label to the left of the row, no bubble.
+          // Three render modes:
+          //  * PR    → animated 🔥
+          //  * logged → orange checkmark
+          //  * else   → set number / "W" in muted text
+          SizedBox(
+            width: 28,
+            child: Center(
+              child: widget.isPr
+                  ? const _PrFlame()
+                  : widget.isLogged
+                      ? const Icon(
+                          Icons.check,
+                          color: AppTheme.primaryOrange,
+                          size: 20,
+                        )
+                      : Text(
+                          widget.marker,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
-                      ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _PillTextField(
-              controller: _repsCtrl,
-              focusNode: _repsFocus,
-              state: state,
-              // Logged sets are still editable — the user can fix typos
-              // after the fact. The pill keeps its green colour to signal
-              // it's logged, but typing replaces the value in place.
-              readOnly: false,
-              hint: widget.prefillReps?.toString() ?? '',
-              keyboard: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              onSubmitted: (_) => _weightFocus.requestFocus(),
-              formatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (s) {
-                if (s.isEmpty) {
-                  widget.onRepsChanged(null);
-                } else {
-                  widget.onRepsChanged(int.tryParse(s));
-                }
-              },
             ),
           ),
           const SizedBox(width: 10),
@@ -189,20 +168,8 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
                   : _formatWeight(widget.prefillWeight),
               keyboard:
                   const TextInputType.numberWithOptions(decimal: true),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) {
-                // Done on an already-logged set just dismisses the keyboard;
-                // it shouldn't trigger Log Set on some other unrelated row.
-                if (widget.isLogged) {
-                  _weightFocus.unfocus();
-                  return;
-                }
-                if (widget.onSubmitted != null) {
-                  widget.onSubmitted!();
-                } else {
-                  _weightFocus.unfocus();
-                }
-              },
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _repsFocus.requestFocus(),
               formatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
               ],
@@ -211,6 +178,43 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
                   widget.onWeightChanged(null);
                 } else {
                   widget.onWeightChanged(double.tryParse(s));
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _PillTextField(
+              controller: _repsCtrl,
+              focusNode: _repsFocus,
+              state: state,
+              // Logged sets are still editable — the user can fix typos
+              // after the fact. The pill keeps its orange colour to
+              // signal it's logged, but typing replaces the value in
+              // place.
+              readOnly: false,
+              hint: widget.prefillReps?.toString() ?? '',
+              keyboard: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                // Done on an already-logged set just dismisses the keyboard;
+                // it shouldn't trigger Log Set on some other unrelated row.
+                if (widget.isLogged) {
+                  _repsFocus.unfocus();
+                  return;
+                }
+                if (widget.onSubmitted != null) {
+                  widget.onSubmitted!();
+                } else {
+                  _repsFocus.unfocus();
+                }
+              },
+              formatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (s) {
+                if (s.isEmpty) {
+                  widget.onRepsChanged(null);
+                } else {
+                  widget.onRepsChanged(int.tryParse(s));
                 }
               },
             ),

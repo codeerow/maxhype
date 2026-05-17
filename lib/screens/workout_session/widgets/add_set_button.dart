@@ -24,33 +24,38 @@ class AddSetButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onLongPress: () => _showPicker(context),
       child: TapScale(
-        scaleDown: 0.96,
+        scaleDown: 0.97,
         onTap: onAddOne,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
+        // Edge-to-edge outlined pill, ~44 tall — sits across the full
+        // width of the row beneath the last effective set.
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryOrange.withValues(alpha: 0.08),
+            border: Border.all(
+              color: AppTheme.primaryOrange.withValues(alpha: 0.45),
+              width: 1.2,
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          alignment: Alignment.center,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: AppTheme.cardBackground,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.add,
-                  color: AppTheme.recoveryGreen,
-                  size: 22,
-                ),
+              Icon(
+                Icons.add,
+                color: AppTheme.primaryOrange,
+                size: 18,
               ),
-              const SizedBox(width: 12),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Add Set',
                 style: TextStyle(
-                  color: AppTheme.recoveryGreen,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primaryOrange,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
                 ),
               ),
             ],

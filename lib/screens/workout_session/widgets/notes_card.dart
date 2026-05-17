@@ -87,7 +87,7 @@ class _NotesCardState extends State<NotesCard> {
               isDense: true,
               contentPadding: EdgeInsets.zero,
               border: InputBorder.none,
-              hintText: 'No notes added…',
+              hintText: 'Add notes for this exercise…',
               hintStyle: TextStyle(
                 color: AppTheme.textSecondary.withValues(alpha: 0.7),
                 fontSize: 13,
