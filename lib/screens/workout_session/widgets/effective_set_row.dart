@@ -39,9 +39,14 @@ class EffectiveSetRow extends StatefulWidget {
   /// just dismisses the keyboard.
   final VoidCallback? onSubmitted;
 
+  /// Externally-owned focus node for the WEIGHT field. When supplied,
+  /// the caller can `requestFocus()` to bring the keyboard up on the
+  /// first field of this row (e.g., after logging the previous set we
+  /// jump to the WEIGHT of the next row).
+  final FocusNode? weightFocusNode;
+
   /// Externally-owned focus node for the REPS field. When supplied, the
-  /// caller can `requestFocus()` to bring the keyboard up on this row
-  /// (e.g., after logging the previous set we jump to the next row).
+  /// caller can `requestFocus()` to bring the keyboard up on this row.
   final FocusNode? repsFocusNode;
 
   /// True if this set holds a personal record. Adds 🔥 emojis on either
@@ -61,6 +66,7 @@ class EffectiveSetRow extends StatefulWidget {
     this.prefillWeight,
     this.prefillReps,
     this.onSubmitted,
+    this.weightFocusNode,
     this.repsFocusNode,
     this.isPr = false,
   });
@@ -72,9 +78,11 @@ class EffectiveSetRow extends StatefulWidget {
 class _EffectiveSetRowState extends State<EffectiveSetRow> {
   late final TextEditingController _weightCtrl;
   late final TextEditingController _repsCtrl;
-  final FocusNode _weightFocus = FocusNode();
-  // Internal fallback when the parent doesn't pass one in.
+  // Internal fallbacks when the parent doesn't pass focus nodes in.
+  FocusNode? _ownedWeightFocus;
   FocusNode? _ownedRepsFocus;
+  FocusNode get _weightFocus =>
+      widget.weightFocusNode ?? (_ownedWeightFocus ??= FocusNode());
   FocusNode get _repsFocus =>
       widget.repsFocusNode ?? (_ownedRepsFocus ??= FocusNode());
 
@@ -102,7 +110,7 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
   void dispose() {
     _weightCtrl.dispose();
     _repsCtrl.dispose();
-    _weightFocus.dispose();
+    _ownedWeightFocus?.dispose();
     _ownedRepsFocus?.dispose();
     super.dispose();
   }
@@ -283,6 +291,11 @@ class _PillTextField extends StatelessWidget {
         inputFormatters: formatters,
         textAlign: TextAlign.center,
         cursorColor: fg,
+        // Bigger inset so when the keyboard appears, the surrounding
+        // scrollable lifts the focused row well clear of the keyboard
+        // (Flutter's built-in scrollIntoView uses this). Replaces the
+        // hand-rolled Scrollable.ensureVisible plumbing.
+        scrollPadding: const EdgeInsets.symmetric(vertical: 120),
         style: TextStyle(
           color: fg,
           fontSize: 18,

@@ -75,11 +75,17 @@ class _LoggingViewState extends State<_LoggingView>
     with TickerProviderStateMixin {
   late final Future<SessionSet?> _historyFuture;
 
-  /// Stable FocusNodes for REPS fields keyed by set id (or 'warmup'). Lets
-  /// the Log Set / Done IME action programmatically jump focus to the next
-  /// set's REPS field after the previous one is logged.
+  /// Stable FocusNodes for WEIGHT / REPS fields keyed by `setId`
+  /// (or `'warmup'`). Owned here so we can chain focus to the next
+  /// row's WEIGHT after Log Set. Auto-scroll on focus is handled by
+  /// Flutter itself via [TextField.scrollPadding] inside the row, so
+  /// no GlobalKeys / ScrollController plumbing is needed at this
+  /// level.
+  final Map<String, FocusNode> _weightFocusNodes = {};
   final Map<String, FocusNode> _repsFocusNodes = {};
 
+  FocusNode _weightFocusFor(String key) =>
+      _weightFocusNodes.putIfAbsent(key, FocusNode.new);
   FocusNode _repsFocusFor(String key) =>
       _repsFocusNodes.putIfAbsent(key, FocusNode.new);
 
@@ -126,6 +132,9 @@ class _LoggingViewState extends State<_LoggingView>
   void dispose() {
     _prSub?.cancel();
     for (final n in _repsFocusNodes.values) {
+      n.dispose();
+    }
+    for (final n in _weightFocusNodes.values) {
       n.dispose();
     }
     for (final c in _celebrationCtrls.values) {
@@ -186,6 +195,7 @@ class _LoggingViewState extends State<_LoggingView>
               exercise: ex,
               session: state.session,
               historyLastLog: snapshot.data,
+              weightFocusFor: _weightFocusFor,
               repsFocusFor: _repsFocusFor,
               celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
@@ -204,6 +214,7 @@ class _LoggingScaffold extends StatefulWidget {
   final SessionExercise exercise;
   final WorkoutSession session;
   final SessionSet? historyLastLog;
+  final FocusNode Function(String key) weightFocusFor;
   final FocusNode Function(String key) repsFocusFor;
   final AnimationController Function(String setId) celebrationFor;
   final Set<String> prSetIds;
@@ -215,6 +226,7 @@ class _LoggingScaffold extends StatefulWidget {
     required this.exercise,
     required this.session,
     required this.historyLastLog,
+    required this.weightFocusFor,
     required this.repsFocusFor,
     required this.celebrationFor,
     required this.prSetIds,
@@ -233,6 +245,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   SessionExercise get exercise => widget.exercise;
   WorkoutSession get session => widget.session;
   SessionSet? get historyLastLog => widget.historyLastLog;
+  FocusNode Function(String key) get weightFocusFor => widget.weightFocusFor;
   FocusNode Function(String key) get repsFocusFor => widget.repsFocusFor;
   AnimationController Function(String setId) get celebrationFor =>
       widget.celebrationFor;
@@ -383,16 +396,19 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
 
   Widget _buildWarmupRow(BuildContext context, _Prefill prefill) {
     final warmup = exercise.warmupSet;
-    if (warmup == null) {
-      return const SizedBox.shrink();
-    }
-    return _swipeableRow(
-      context: context,
+    if (warmup == null) return const SizedBox.shrink();
+    return _LoggingSetRow(
+      exerciseId: exercise.exerciseId,
       set: warmup,
       marker: 'W',
       isWarmup: true,
       isCurrent: !warmup.isLogged,
+      isPr: false,
       prefill: prefill,
+      weightFocus: weightFocusFor('warmup'),
+      repsFocus: repsFocusFor('warmup'),
+      celebrationController: celebrationFor(warmup.id),
+      onSubmitted: () => _onLogSetTap(context),
     );
   }
 
@@ -405,79 +421,23 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
       for (var i = 0; i < exercise.sets.length; i++)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
-          child: _swipeableRow(
-            context: context,
+          child: _LoggingSetRow(
+            exerciseId: exercise.exerciseId,
             set: exercise.sets[i],
             marker: '${i + 1}',
+            isWarmup: false,
             // Warmup pending → no effective row is "current" yet.
             isCurrent: !exercise.hasWarmupPending &&
                 exercise.sets[i].id == currentSetId,
+            isPr: prSetIds.contains(exercise.sets[i].id),
             prefill: prefill,
+            weightFocus: weightFocusFor(exercise.sets[i].id),
+            repsFocus: repsFocusFor(exercise.sets[i].id),
+            celebrationController: celebrationFor(exercise.sets[i].id),
+            onSubmitted: () => _onLogSetTap(context),
           ),
         ),
     ];
-  }
-
-  /// Single source of truth for building a swipeable [EffectiveSetRow].
-  /// Used by both warmup row and effective set rows so wiring stays consistent.
-  Widget _swipeableRow({
-    required BuildContext context,
-    required SessionSet set,
-    required String marker,
-    required bool isCurrent,
-    required _Prefill prefill,
-    bool isWarmup = false,
-  }) {
-    return SwipeToDelete(
-      dismissKey: ValueKey(
-        isWarmup ? 'warmup_dismiss_${set.id}' : 'set_dismiss_${set.id}',
-      ),
-      borderRadius: BorderRadius.zero,
-      onDismissed: () => context.read<WorkoutSessionBloc>().add(
-            DeleteSet(
-              exerciseId: exercise.exerciseId,
-              setId: set.id,
-              isWarmup: isWarmup,
-            ),
-          ),
-      child: _Hp(
-        child: PrCelebration(
-          controller: celebrationFor(set.id),
-          child: EffectiveSetRow(
-            key: ValueKey(isWarmup ? 'warmup_${set.id}' : 'set_${set.id}'),
-            marker: marker,
-            isWarmup: isWarmup,
-            weight: set.weight,
-            reps: set.reps,
-            isLogged: set.isLogged,
-            isCurrent: isCurrent,
-            isPr: !isWarmup && prSetIds.contains(set.id),
-            prefillWeight: prefill.weight,
-            prefillReps: prefill.reps,
-            repsFocusNode: repsFocusFor(isWarmup ? 'warmup' : set.id),
-            onSubmitted: () => _onLogSetTap(context),
-            onWeightChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                  UpdateSetDraft(
-                    exerciseId: exercise.exerciseId,
-                    setId: set.id,
-                    weight: v,
-                    isWarmup: isWarmup,
-                    clearWeight: v == null,
-                  ),
-                ),
-            onRepsChanged: (v) => context.read<WorkoutSessionBloc>().add(
-                  UpdateSetDraft(
-                    exerciseId: exercise.exerciseId,
-                    setId: set.id,
-                    reps: v,
-                    isWarmup: isWarmup,
-                    clearReps: v == null,
-                  ),
-                ),
-          ),
-        ),
-      ),
-    );
   }
 
   void _onLogSetTap(BuildContext context) {
@@ -503,7 +463,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
     if (isWarmup) {
       bloc.add(const StartRestTimer());
       if (remainingEffective.isNotEmpty) {
-        _focusReps(remainingEffective.first.id);
+        _focusWeight(remainingEffective.first.id);
       }
       return;
     }
@@ -512,21 +472,22 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
       bloc.add(MarkExerciseDone(exercise.exerciseId));
     } else {
       bloc.add(const StartRestTimer());
-      _focusReps(remainingEffective.first.id);
+      _focusWeight(remainingEffective.first.id);
     }
   }
 
-  /// Move focus to the REPS field of [setId] **synchronously** so the IME
-  /// performs an in-place focus transfer instead of closing and re-opening
-  /// the soft keyboard.
+  /// Move focus to the WEIGHT field of [setId] **synchronously** so the
+  /// IME performs an in-place focus transfer instead of closing and
+  /// re-opening the soft keyboard. WEIGHT is the first column in a row,
+  /// so this is where the chain should land after Log Set.
   ///
   /// `addPostFrameCallback` would land the focus request a frame too late:
   /// the previous field has already lost focus and the system has begun
   /// dismissing the keyboard, so we'd see a flicker. Calling
   /// `requestFocus()` immediately keeps a focused TextField in the tree at
   /// every moment — the OS treats it as a connection swap.
-  void _focusReps(String setId) {
-    repsFocusFor(setId).requestFocus();
+  void _focusWeight(String setId) {
+    weightFocusFor(setId).requestFocus();
   }
 
   /// Pre-fill order:
@@ -616,6 +577,95 @@ class _Headers extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One swipeable, PR-celebrating, draft-dispatching row in the
+/// logging list. Encapsulates everything that used to live as nested
+/// matryoshka under the scaffold's `_swipeableRow` helper:
+///
+///   SwipeToDelete → _Hp → PrCelebration → EffectiveSetRow
+///
+/// All draft mutations (`UpdateSetDraft`, `DeleteSet`) are dispatched
+/// from here directly via `context.read<WorkoutSessionBloc>()` — the
+/// scaffold no longer has to forward them through callbacks.
+class _LoggingSetRow extends StatelessWidget {
+  final String exerciseId;
+  final SessionSet set;
+  final String marker;
+  final bool isWarmup;
+  final bool isCurrent;
+  final bool isPr;
+  final _Prefill prefill;
+  final FocusNode weightFocus;
+  final FocusNode repsFocus;
+  final AnimationController celebrationController;
+  final VoidCallback onSubmitted;
+
+  const _LoggingSetRow({
+    required this.exerciseId,
+    required this.set,
+    required this.marker,
+    required this.isWarmup,
+    required this.isCurrent,
+    required this.isPr,
+    required this.prefill,
+    required this.weightFocus,
+    required this.repsFocus,
+    required this.celebrationController,
+    required this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bloc = context.read<WorkoutSessionBloc>();
+    return SwipeToDelete(
+      dismissKey: ValueKey(
+        isWarmup ? 'warmup_dismiss_${set.id}' : 'set_dismiss_${set.id}',
+      ),
+      borderRadius: BorderRadius.zero,
+      onDismissed: () => bloc.add(
+        DeleteSet(
+          exerciseId: exerciseId,
+          setId: set.id,
+          isWarmup: isWarmup,
+        ),
+      ),
+      child: _Hp(
+        child: PrCelebration(
+          controller: celebrationController,
+          child: EffectiveSetRow(
+            key: ValueKey(isWarmup ? 'warmup_${set.id}' : 'set_${set.id}'),
+            marker: marker,
+            isWarmup: isWarmup,
+            weight: set.weight,
+            reps: set.reps,
+            isLogged: set.isLogged,
+            isCurrent: isCurrent,
+            isPr: isPr,
+            prefillWeight: prefill.weight,
+            prefillReps: prefill.reps,
+            weightFocusNode: weightFocus,
+            repsFocusNode: repsFocus,
+            onSubmitted: onSubmitted,
+            onWeightChanged: (v) => bloc.add(UpdateSetDraft(
+              exerciseId: exerciseId,
+              setId: set.id,
+              weight: v,
+              isWarmup: isWarmup,
+              clearWeight: v == null,
+            )),
+            onRepsChanged: (v) => bloc.add(UpdateSetDraft(
+              exerciseId: exerciseId,
+              setId: set.id,
+              reps: v,
+              isWarmup: isWarmup,
+              clearReps: v == null,
+            )),
+          ),
+        ),
+      ),
     );
   }
 }
