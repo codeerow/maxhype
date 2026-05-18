@@ -16,6 +16,40 @@ class AppToast {
     String message, {
     Duration duration = const Duration(milliseconds: 1800),
     Color? accent,
+  }) =>
+      _present(
+        context,
+        message: message,
+        duration: duration,
+        accent: accent,
+        premium: false,
+      );
+
+  /// Larger, glow-y variant used for celebratory moments
+  /// (workout completed). Wider bubble, longer hold, accent halo.
+  static void showPremium(
+    BuildContext context,
+    String message, {
+    String? icon,
+    Color? accent,
+    Duration duration = const Duration(milliseconds: 2500),
+  }) =>
+      _present(
+        context,
+        message: message,
+        duration: duration,
+        accent: accent,
+        icon: icon,
+        premium: true,
+      );
+
+  static void _present(
+    BuildContext context, {
+    required String message,
+    required Duration duration,
+    required bool premium,
+    Color? accent,
+    String? icon,
   }) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
@@ -27,6 +61,8 @@ class AppToast {
         message: message,
         duration: duration,
         accent: accent,
+        icon: icon,
+        premium: premium,
         onDismissed: () {
           _current?.remove();
           _current = null;
@@ -42,13 +78,17 @@ class _ToastEntry extends StatefulWidget {
   final String message;
   final Duration duration;
   final Color? accent;
+  final String? icon;
+  final bool premium;
   final VoidCallback onDismissed;
 
   const _ToastEntry({
     required this.message,
     required this.duration,
     required this.onDismissed,
+    required this.premium,
     this.accent,
+    this.icon,
   });
 
   @override
@@ -107,18 +147,26 @@ class _ToastEntryState extends State<_ToastEntry>
             child: Material(
               color: Colors.transparent,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.premium ? 22 : 16,
+                  vertical: widget.premium ? 14 : 10,
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.cardBackground.withValues(alpha: 0.96),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(widget.premium ? 24 : 20),
                   border: Border.all(
-                    color: accent.withValues(alpha: 0.35),
-                    width: 1,
+                    color: accent.withValues(
+                      alpha: widget.premium ? 0.7 : 0.35,
+                    ),
+                    width: widget.premium ? 1.5 : 1,
                   ),
                   boxShadow: [
+                    if (widget.premium)
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.45),
+                        blurRadius: 28,
+                        spreadRadius: 1,
+                      ),
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 16,
@@ -126,14 +174,33 @@ class _ToastEntryState extends State<_ToastEntry>
                     ),
                   ],
                 ),
-                child: Text(
-                  widget.message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.icon != null) ...[
+                      Text(
+                        widget.icon!,
+                        style: TextStyle(
+                          fontSize: widget.premium ? 22 : 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Flexible(
+                      child: Text(
+                        widget.message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: widget.premium ? accent : AppTheme.textPrimary,
+                          fontSize: widget.premium ? 16 : 14,
+                          fontWeight: widget.premium
+                              ? FontWeight.w800
+                              : FontWeight.w500,
+                          letterSpacing: widget.premium ? 0.3 : 0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

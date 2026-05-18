@@ -3,6 +3,7 @@ import '../core/haptic_manager.dart';
 import '../core/service_locator.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tap_scale.dart';
+import '../widgets/workout_in_progress_bar.dart';
 import 'home/home_screen.dart';
 import 'history/history_screen.dart';
 
@@ -25,16 +26,26 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: _screens,
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: WorkoutInProgressBar(),
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.cardBackground,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -83,7 +94,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: isActive
@@ -94,7 +105,7 @@ class _MainScaffoldState extends State<MainScaffold> {
         child: AnimatedScale(
           scale: isActive ? 1.02 : 1.0,
           duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
+          curve: Curves.easeOutCubic,
           child: Row(
             children: [
               Icon(
@@ -106,7 +117,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               const SizedBox(width: 8),
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 150),
-                curve: Curves.easeOut,
+                curve: Curves.easeOutCubic,
                 style: TextStyle(
                   color: isActive
                       ? AppTheme.primaryOrange

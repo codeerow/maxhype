@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 
 /// Centralized haptic feedback service.
 ///
@@ -15,9 +18,11 @@ import 'package:flutter/services.dart';
 ///   * [medium]    — confirmation of a meaningful state change (set logged,
 ///                   exercise completed).
 ///   * [success]   — positive completion (workout finished). Stronger than
-///                   [medium], may be a multi-tap pattern in the future.
+///                   [medium].
 ///   * [warning]   — destructive confirmation needed (cancel workout).
 ///   * [error]     — failure / blocked action.
+///   * [strongest] — celebratory: PR achieved, workout completed. The
+///                   loudest tier; uses a multi-tap pattern.
 abstract class HapticManager {
   bool get enabled;
   set enabled(bool value);
@@ -28,10 +33,15 @@ abstract class HapticManager {
   Future<void> success();
   Future<void> warning();
   Future<void> error();
+  Future<void> strongest();
 }
 
 class DefaultHapticManager implements HapticManager {
   bool _enabled = true;
+
+  /// Cached probe for whether the device's vibrator supports custom
+  /// patterns. We only check once.
+  bool? _supportsPatterns;
 
   @override
   bool get enabled => _enabled;
@@ -75,5 +85,37 @@ class DefaultHapticManager implements HapticManager {
   Future<void> error() async {
     if (!_enabled) return;
     await HapticFeedback.heavyImpact();
+  }
+
+  @override
+  Future<void> strongest() async {
+    if (!_enabled) return;
+    if (Platform.isAndroid) {
+      await _strongestAndroid();
+      return;
+    }
+    // iOS: UIKit doesn't expose custom patterns through Flutter's
+    // HapticFeedback, but chained heavy impacts read distinctly louder
+    // than success() alone.
+    await HapticFeedback.heavyImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    await HapticFeedback.heavyImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    await HapticFeedback.selectionClick();
+  }
+
+  Future<void> _strongestAndroid() async {
+    _supportsPatterns ??= await Vibration.hasCustomVibrationsSupport();
+    if (_supportsPatterns!) {
+      // [delay, vibe, gap, vibe, gap, vibe] in ms — a celebratory triple-tap.
+      await Vibration.vibrate(
+        pattern: [0, 60, 50, 60, 50, 120],
+        intensities: [0, 200, 0, 200, 0, 255],
+      );
+    } else {
+      await HapticFeedback.heavyImpact();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      await HapticFeedback.heavyImpact();
+    }
   }
 }

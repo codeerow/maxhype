@@ -7,6 +7,8 @@ import '../repositories/exercise_repository.dart';
 import '../repositories/mock_exercise_repository.dart';
 import '../repositories/workout_session_repository.dart';
 import '../repositories/local_workout_session_repository.dart';
+import '../repositories/personal_record_repository.dart';
+import '../repositories/local_personal_record_repository.dart';
 import '../screens/home/bloc/home_bloc.dart';
 import '../screens/workout_detail/bloc/workout_detail_bloc.dart';
 import '../screens/workout_session/bloc/workout_session_bloc.dart';
@@ -29,7 +31,17 @@ Future<void> setupDependencies() async {
   );
 
   getIt.registerLazySingleton<WorkoutSessionRepository>(
-    () => LocalWorkoutSessionRepository(),
+    () => LocalWorkoutSessionRepository(
+      onArchive: () => getIt<PersonalRecordRepository>().invalidate(),
+    ),
+  );
+
+  // Personal records — derived from the same workout_history.jsonl the
+  // session repository writes to. Cache invalidation is wired through the
+  // session repo's onArchive callback so a freshly finished workout shows
+  // up the next time the user opens the logging screen.
+  getIt.registerLazySingleton<PersonalRecordRepository>(
+    () => LocalPersonalRecordRepository(),
   );
 
   // Shared RouteObserver — wired into MaterialApp.navigatorObservers and
@@ -65,6 +77,7 @@ Future<void> setupDependencies() async {
   getIt.registerLazySingleton<WorkoutSessionBloc>(
     () => WorkoutSessionBloc(
       repository: getIt<WorkoutSessionRepository>(),
+      prRepository: getIt<PersonalRecordRepository>(),
     ),
   );
 }

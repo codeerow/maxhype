@@ -2,11 +2,14 @@ import 'package:flutter/cupertino.dart'
     show CupertinoIcons, CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:progressive_blur/progressive_blur.dart';
 import '../../theme/app_theme.dart';
 import '../../core/bloc_factory.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/fade_top_edge.dart';
+import '../../widgets/liquid_glass_app_bar.dart';
 import '../../widgets/tap_scale.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
@@ -37,57 +40,87 @@ class WorkoutDetailScreen extends StatelessWidget {
         builder: (context, state) {
           return Scaffold(
             backgroundColor: AppTheme.backgroundColor,
-            appBar: _buildAppBar(context),
-            body: switch (state) {
-              WorkoutDetailLoading() => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryOrange,
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: switch (state) {
+                    WorkoutDetailLoading() => const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryOrange,
+                        ),
+                      ),
+                    WorkoutDetailError(:final message) => Center(
+                        child: Text(
+                          'Error: $message',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                    WorkoutDetailSuccess(:final workout) =>
+                      _buildContent(context, workout),
+                  },
+                ),
+                // Glass nav bar floats over the scroll body. Its shader
+                // reads the backdrop directly from the framebuffer, so
+                // the body MUST be painted first (below in the Stack).
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LiquidGlassNavBar(
+                    title: Text(workout.title),
+                    backIcon: CupertinoIcons.back,
+                    onBack: () => Navigator.of(context).pop(),
                   ),
                 ),
-              WorkoutDetailError(:final message) => Center(
-                  child: Text(
-                    'Error: $message',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-              WorkoutDetailSuccess(:final workout) =>
-                _buildContent(context, workout),
-            },
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      leading: TapScale(
-        scaleDown: 0.90,
-        onTap: () => Navigator.of(context).pop(),
-        child: const Center(
-          child: Icon(
-            CupertinoIcons.back,
-            color: AppTheme.textPrimary,
-            size: 26,
-          ),
-        ),
-      ),
-      title: Text(workout.title),
-    );
-  }
-
   Widget _buildContent(BuildContext context, Workout workout) {
+    final statusBar = MediaQuery.of(context).padding.top;
+    final navBottom = statusBar + kToolbarHeight;
+    // Pixel height of the band where the progressive blur ramps from
+    // max (at the top edge) down to zero. Slightly past the nav-bar
+    // bottom so the smear tapers off softly into clear content.
+    final blurBandPx = navBottom + 40;
     return Stack(
       children: [
-        // Main content
-        SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: 100,
-          ),
-          child: Column(
+        // Main content — scrolls underneath the floating glass nav bar.
+        // Wrapped in ProgressiveBlurWidget so the top of the scroll is
+        // smeared by a shader-driven gradient blur (per-pixel sigma
+        // modulation), giving a seamless progression from sharp at the
+        // bottom of the band to fully blurred at the very top. The
+        // built-in BackdropFilter cannot do gradient sigma — masking
+        // it with a ShaderMask silently disables the blur entirely
+        // (Flutter issue #164079).
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Convert the absolute blur-band pixel height into the
+            // [0, 1] coordinate space the shader expects.
+            final stop = (blurBandPx / constraints.maxHeight).clamp(0.0, 1.0);
+            return ProgressiveBlurWidget(
+              sigma: 22,
+              linearGradientBlur: LinearGradientBlur(
+                values: const [1, 0],
+                stops: [0, stop],
+                start: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              child: FadeTopEdge(
+                fullyTransparentTop: 0,
+                fullyOpaqueAt: navBottom + 40,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: navBottom + 8,
+                    bottom: 100,
+                  ),
+                  child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Add Exercise button
@@ -117,14 +150,20 @@ class WorkoutDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
             ],
-          ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-        // Floating bottom button
+        // Floating bottom button — compact 80×32 pill centred along
+        // the screen's horizontal axis.
         Positioned(
           bottom: 24,
-          left: 24,
-          right: 24,
-          child: SafeArea(
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SafeArea(
             child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
               buildWhen: (prev, next) {
                 bool isMine(WorkoutSessionState s) =>
@@ -135,7 +174,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                 final inProgress = sessionState is SessionActive &&
                     sessionState.session.workoutId == workout.id;
                 return TapScale(
-                  scaleDown: 0.96,
+                  scaleDown: 0.94,
                   enableHaptic: true,
                   onTap: () {
                     Navigator.of(context).push(
@@ -147,32 +186,33 @@ class WorkoutDetailScreen extends StatelessWidget {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    width: 220,
+                    height: 52,
                     decoration: BoxDecoration(
-                      color: AppTheme.recoveryGreen,
-                      borderRadius: BorderRadius.circular(30),
+                      color: AppTheme.primaryOrange,
+                      borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.recoveryGreen.withValues(alpha: 0.5),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: AppTheme.primaryOrange.withValues(alpha: 0.45),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        inProgress ? 'Resume Workout' : 'Start Workout',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: Colors.white,
-                        ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      inProgress ? 'Resume Workout' : 'Start Workout',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 );
               },
+              ),
             ),
           ),
         ),
@@ -234,3 +274,5 @@ class WorkoutDetailScreen extends StatelessWidget {
     );
   }
 }
+
+

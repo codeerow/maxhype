@@ -4,7 +4,10 @@ import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/battery_optimization.dart';
+import '../../core/haptic_manager.dart';
 import '../../core/service_locator.dart';
+import '../../main.dart' show MyApp;
 import '../../models/exercise.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/workout_session.dart';
@@ -12,6 +15,7 @@ import '../../models/workout.dart';
 import '../../repositories/exercise_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/animations/animations.dart';
+import '../../widgets/app_toast.dart';
 import '../workout_detail/widgets/exercise_navigation.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
@@ -83,12 +87,35 @@ class _WorkoutSessionView extends StatelessWidget {
               prev is! SessionIdle ||
           (prev is SessionLoading && next is SessionIdle),
       listener: (context, state) {
+        final showFinish = state is SessionFinished;
+        final showCancel = state is SessionCancelled;
         if (state is SessionFinished ||
             state is SessionCancelled ||
             state is SessionIdle) {
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).popUntil((r) => r.isFirst);
           }
+          // Toast on the root overlay so it survives the popUntil above —
+          // the session screen's own overlay is gone by the next frame.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final rootCtx = MyApp.rootNavKey.currentContext;
+            if (rootCtx == null) return;
+            if (showFinish) {
+              AppToast.showPremium(
+                rootCtx,
+                'Workout Completed',
+                icon: '💪',
+                accent: AppTheme.primaryOrange,
+              );
+              getIt<HapticManager>().strongest();
+            } else if (showCancel) {
+              AppToast.show(
+                rootCtx,
+                'Workout Cancelled',
+                accent: AppTheme.recoveryRed,
+              );
+            }
+          });
         }
       },
       builder: (context, state) {
@@ -145,10 +172,33 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     return id == null ? null : _cardKeys[id];
   }
 
+  StreamSubscription<dynamic>? _prSub;
+
   @override
   void initState() {
     super.initState();
     _scheduleScrollToActive();
+    // First-time-on-Android: ask the user to whitelist us from battery
+    // optimization. If they decline, kicks off a foreground service that
+    // keeps us alive for this workout. iOS path is a no-op.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      BatteryOptimization.instance.ensureCovered(context);
+    });
+
+    // Re-render exercise cards when a PR fires so the persistent
+    // "PERSONAL RECORD" pill appears on the right card.
+    _prSub = context.read<WorkoutSessionBloc>().prSignals.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _prSub?.cancel();
+    _scrollTimer?.cancel();
+    getIt<RouteObserver<PageRoute<dynamic>>>().unsubscribe(this);
+    super.dispose();
   }
 
   @override
@@ -174,13 +224,6 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   void didPopNext() {
     // Returning from logging screen — re-anchor on the active card.
     _scheduleScrollToActive();
-  }
-
-  @override
-  void dispose() {
-    _scrollTimer?.cancel();
-    getIt<RouteObserver<PageRoute<dynamic>>>().unsubscribe(this);
-    super.dispose();
   }
 
   /// Defer scroll-to-active until after the Cupertino transition has
@@ -250,17 +293,20 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
               ),
             ],
           ),
-          // Floating Finish button — same shape/shadow as Start Workout on
-          // the Workout Detail screen.
+          // Floating Finish button — compact 80×32 pill centred along
+          // the screen's horizontal axis, matching Start Workout on the
+          // Workout Detail screen.
           Positioned(
             bottom: 24,
-            left: 24,
-            right: 24,
-            child: SafeArea(
-              child: SessionFinishButton(
-                onTap: () => context
-                    .read<WorkoutSessionBloc>()
-                    .add(const FinishWorkout()),
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SafeArea(
+                child: SessionFinishButton(
+                  onTap: () => context
+                      .read<WorkoutSessionBloc>()
+                      .add(const FinishWorkout()),
+                ),
               ),
             ),
           ),
@@ -291,6 +337,9 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
             exercise: ex,
             isActive:
                 session.activeExerciseId == ex.exerciseId && !ex.completed,
+            hasPr: context
+                .read<WorkoutSessionBloc>()
+                .hasFreshPr(ex.exerciseId),
             onTap: () => _openLogging(context, ex),
             onOptions: () => _showOptionsMenu(context, ex),
           ),

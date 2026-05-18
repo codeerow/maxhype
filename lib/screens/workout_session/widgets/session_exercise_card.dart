@@ -25,6 +25,12 @@ import '../../workout_detail/widgets/exercise_card.dart';
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final bool isActive;
+
+  /// True when the user has set a PR for this exercise during the current
+  /// session — drives the persistent orange "PERSONAL RECORD" pill at the
+  /// top of the card.
+  final bool hasPr;
+
   final VoidCallback onTap;
   final VoidCallback onOptions;
 
@@ -34,6 +40,7 @@ class SessionExerciseCard extends StatefulWidget {
     required this.isActive,
     required this.onTap,
     required this.onOptions,
+    this.hasPr = false,
   });
 
   @override
@@ -137,14 +144,22 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
     });
   }
 
-  /// Schedule the soft glow pulse on the active accent bar, delayed until
-  /// after the Cupertino transition has settled.
+  /// Schedule a double soft-glow pulse on the active accent bar, delayed
+  /// until after the Cupertino transition has settled. Two pulses read as
+  /// a confident "I'm here" signal rather than a single quiet blink.
   void _scheduleActivePulse() {
     _activePulseTimer?.cancel();
     _activePulseTimer = Timer(AppDurations.screenSettle, () {
       if (!mounted) return;
-      _glowController.forward(from: 0.0);
+      _playDoublePulse();
     });
+  }
+
+  Future<void> _playDoublePulse() async {
+    if (!mounted) return;
+    await _glowController.forward(from: 0.0);
+    if (!mounted) return;
+    await _glowController.forward(from: 0.0);
   }
 
   @override
@@ -198,6 +213,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
         exercise: catalogExercise,
         subtitleOverride: subtitle,
         leadingAccent: _buildLeadingAccent(),
+        isPrAchieved: widget.hasPr,
         onTap: widget.onTap,
         onOptionsPressed: widget.onOptions,
       ),

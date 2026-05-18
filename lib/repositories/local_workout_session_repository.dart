@@ -10,6 +10,14 @@ import '../models/session/workout_session.dart';
 import 'workout_session_repository.dart';
 
 class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
+  /// Optional callback fired after a finished session has been appended to
+  /// `workout_history.jsonl`. The PR repository wires this to invalidate
+  /// its in-memory cache, so the freshly-archived session is taken into
+  /// account next time `bestFor()` is called.
+  final void Function()? onArchive;
+
+  LocalWorkoutSessionRepository({this.onArchive});
+
   static const _activeFlagKey = 'workout_session.has_active';
   static const _activeFileName = 'workout_session_active.json';
   static const _historyFileName = 'workout_history.jsonl';
@@ -51,6 +59,9 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
   @override
   Future<void> save(WorkoutSession session) async {
     final file = await _activeFile();
+    // Ensure the Documents directory exists — first launch on a freshly
+    // wiped simulator can land here before the OS has materialized it.
+    await file.parent.create(recursive: true);
     final tmp = File('${file.path}.tmp');
     await tmp.writeAsString(jsonEncode(session.toJson()), flush: true);
     await tmp.rename(file.path);
@@ -79,6 +90,7 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
     final file = await _historyFile();
     final line = '${jsonEncode(session.toJson())}\n';
     await file.writeAsString(line, mode: FileMode.append, flush: true);
+    onArchive?.call();
   }
 
   @override

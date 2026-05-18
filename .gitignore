@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 Screenshot*.png
+
+# Claude Code harness runtime state
+.claude/scheduled_tasks.lock

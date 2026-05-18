@@ -58,9 +58,32 @@ dependencies:
   shared_preferences: ^2.3.0
   path_provider: ^2.1.0
 
-  # Audio for rest-timer boxing bell (foreground only in Part 1)
+  # Used to play the boxing bell from inside the app when a rest timer
+  # ends while we're in the foreground. The OS notification covers the
+  # background case but its foreground sound is unreliable on Android
+  # OEMs and silent on the iOS simulator.
   audioplayers: ^6.1.0
   google_fonts: ^8.1.0
+  vibration: ^3.1.8
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.0
+  permission_handler: ^12.0.1
+  flutter_foreground_task: ^9.2.2
+  # Pinned to main HEAD because the published 0.2.0-dev.4 doesn't include
+  # `LiquidGlass.auto`, which is the entry point we use for the app-bar
+  # blur with a runtime fallback.
+  liquid_glass_renderer:
+    git:
+      url: https://github.com/whynotmake-it/flutter_liquid_glass.git
+      path: packages/liquid_glass_renderer
+      ref: ad3bcff22549f17f67bf87a01f80ed1f06cf9a0e
+  # Shader-based progressive (gradient) blur — applies a per-pixel
+  # Gaussian blur whose sigma is modulated by a gradient texture. Used
+  # behind the LiquidGlass nav bar so the top of the scroll content
+  # smears progressively into the bar with no visible seams. The
+  # built-in BackdropFilter + ShaderMask combo cannot do this (the
+  # mask kills the filter's backdrop sample — Flutter #164079).
+  progressive_blur: ^0.0.2
 
 dev_dependencies:
   flutter_test:

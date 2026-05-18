@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/session_audio.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 
@@ -23,7 +22,6 @@ import '../../../widgets/tap_scale.dart';
 class RestTimerCard extends StatefulWidget {
   final DateTime endsAt;
   final int totalSeconds;
-  final VoidCallback onCompleted;
   final VoidCallback onCancel;
 
   /// Shift the timer by this duration (e.g., -15s / +15s). When null, the
@@ -34,7 +32,6 @@ class RestTimerCard extends StatefulWidget {
     super.key,
     required this.endsAt,
     required this.totalSeconds,
-    required this.onCompleted,
     required this.onCancel,
     this.onAdjust,
   });
@@ -68,10 +65,13 @@ class _RestTimerCardState extends State<RestTimerCard>
       if (remaining.inSeconds <= 0 && !_completed) {
         _completed = true;
         _ticker?.cancel();
-        SessionAudio.instance.playRestComplete();
-        _fadeOut.reverse().whenComplete(() {
-          if (mounted) widget.onCompleted();
-        });
+        // The bloc owns the deadline: when its Timer fires it plays the
+        // bell and dispatches CancelRestTimer, which clears
+        // `activeRestEndsAt` and removes this card from the tree. The
+        // card just plays its fade-out animation in the meantime; it
+        // must NOT call onCompleted itself, or it can race ahead of the
+        // bloc's Timer and cancel the bell before it fires.
+        _fadeOut.reverse();
       } else {
         setState(() {});
       }
@@ -115,7 +115,7 @@ class _RestTimerCardState extends State<RestTimerCard>
             color: AppTheme.restCardTint,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppTheme.recoveryGreen.withValues(alpha: 0.25),
+              color: AppTheme.primaryOrange.withValues(alpha: 0.25),
               width: 1,
             ),
           ),
@@ -143,7 +143,7 @@ class _RestTimerCardState extends State<RestTimerCard>
               Text(
                 _format(secs),
                 style: const TextStyle(
-                  color: AppTheme.recoveryGreen,
+                  color: AppTheme.primaryOrange,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -195,13 +195,13 @@ class _AdjustButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: AppTheme.recoveryGreen.withValues(alpha: 0.12),
+          color: AppTheme.primaryOrange.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           label,
           style: const TextStyle(
-            color: AppTheme.recoveryGreen,
+            color: AppTheme.primaryOrange,
             fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,

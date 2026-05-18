@@ -1,32 +1,76 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 
-/// Foreground-only audio for workout session.
-///
-/// Part 1 scope: plays the boxing-bell on rest-timer completion **only when the
-/// app is in the foreground**. Part 2 will add background notifications, a
-/// foreground service on Android, and exact alarms — none of that is here.
-///
-/// The bell asset is loaded from `assets/audio/boxing_bell.mp3` (a tri-bell
-/// "3 short rings" sample). If the asset is missing or the platform isn't
-/// ready, playback is silently skipped so the app still builds and runs.
+/// Plays the boxing-bell sound from inside the app while the user is on
+/// a session screen. Used by `WorkoutSessionBloc` as the foreground bell
+/// source — `RestTimerNotifications` plays the same sample when the app
+/// is backgrounded.
 class SessionAudio {
   SessionAudio._();
   static final instance = SessionAudio._();
 
-  final AudioPlayer _player = AudioPlayer();
-  bool _disabled = false;
+  // One long-lived player. Spawning a fresh AudioPlayer per ring is
+  // unreliable: the native side disposes asynchronously and a quick
+  // second ring can race the previous instance's teardown, producing
+  // silence on Android. A single player kept in ReleaseMode.stop holds
+  // the asset loaded between rings and replays it deterministically.
+  AudioPlayer? _player;
+  Future<void>? _ready;
 
-  Future<void> playRestComplete() async {
-    if (_disabled) return;
-    try {
-      await _player.stop();
-      await _player.play(AssetSource('audio/boxing_bell.mp3'));
-    } catch (_) {
-      // Asset missing or platform not ready — disable for the rest of the
-      // session so we don't spam the log.
-      _disabled = true;
-    }
+  Future<void> _ensureReady() {
+    return _ready ??= _initPlayer();
   }
 
-  Future<void> dispose() async => _player.dispose();
+  Future<void> _initPlayer() async {
+    final p = AudioPlayer();
+    await p.setReleaseMode(ReleaseMode.stop);
+    // Route through the alarm stream on Android (matches the notification
+    // channel's USAGE_ALARM so the bell respects the alarm volume slider
+    // and plays through Do-Not-Disturb) and use the playback category on
+    // iOS so the sample is audible even when the ringer switch is on
+    // silent.
+    await p.setAudioContext(
+      AudioContext(
+        android: const AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: false,
+          contentType: AndroidContentType.sonification,
+          usageType: AndroidUsageType.alarm,
+          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: const {
+            AVAudioSessionOptions.mixWithOthers,
+            AVAudioSessionOptions.duckOthers,
+          },
+        ),
+      ),
+    );
+    await p.setSource(AssetSource('audio/boxing_bell.mp3'));
+    _player = p;
+  }
+
+  Future<void> playRestComplete() async {
+    try {
+      await _ensureReady();
+      final p = _player;
+      if (p == null) return;
+      // stop() returns the player to the initial state; the source stays
+      // loaded thanks to ReleaseMode.stop. seek+resume guarantees we
+      // start from frame zero on every ring even if the previous play
+      // was interrupted mid-sample.
+      await p.stop();
+      await p.seek(Duration.zero);
+      await p.resume();
+    } on Object {
+      // Reset so the next call retries from scratch instead of being
+      // stuck on a broken player.
+      final dead = _player;
+      _player = null;
+      _ready = null;
+      await dead?.dispose();
+    }
+  }
 }

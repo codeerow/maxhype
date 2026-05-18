@@ -26,8 +26,8 @@ class AppTheme {
   /// main screen. Distinct from `recoveryRed` (bright alert red).
   static const Color finishMaroon = Color(0xFF7E1D1D);
 
-  /// Dark-green tinted card used for the rest-timer surface.
-  static const Color restCardTint = Color(0xFF0F2A20);
+  /// Dark-orange tinted card used for the rest-timer surface.
+  static const Color restCardTint = Color(0xFF2A1608);
 
   /// Brighter card tone used to "lift" an active-exercise card.
   static const Color cardBackgroundLifted = Color(0xFF222845);
