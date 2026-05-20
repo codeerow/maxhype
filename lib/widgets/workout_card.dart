@@ -172,17 +172,17 @@ class _InProgressBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppTheme.recoveryGreen.withValues(alpha: 0.18),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: AppTheme.recoveryGreen.withValues(alpha: 0.6),
+          color: AppTheme.primaryOrange.withValues(alpha: 0.6),
           width: 1,
         ),
       ),
       child: const Text(
         'IN PROGRESS',
         style: TextStyle(
-          color: AppTheme.recoveryGreen,
+          color: AppTheme.primaryOrange,
           fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.0,
