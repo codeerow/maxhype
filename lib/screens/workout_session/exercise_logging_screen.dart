@@ -8,7 +8,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/haptic_manager.dart';
 import '../../core/service_locator.dart';
 import '../../models/exercise.dart';
-import '../../models/session/personal_record.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
 import '../../models/session/workout_session.dart';
@@ -27,7 +26,6 @@ import 'widgets/effective_set_row.dart';
 import 'widgets/log_set_button.dart';
 import 'widgets/notes_card.dart';
 import 'widgets/pr_celebration.dart';
-import 'widgets/pr_header.dart';
 import 'widgets/pr_new_label.dart';
 import 'widgets/rest_timer_card.dart';
 import 'widgets/swipe_to_delete.dart';
@@ -185,7 +183,6 @@ class _LoggingViewState extends State<_LoggingView>
             body: SizedBox.shrink(),
           );
         }
-        final bloc = context.read<WorkoutSessionBloc>();
         return FutureBuilder<SessionSet?>(
           future: _historyFuture,
           builder: (context, snapshot) {
@@ -199,9 +196,6 @@ class _LoggingViewState extends State<_LoggingView>
               repsFocusFor: _repsFocusFor,
               celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
-              currentPr: bloc.prFor(widget.exerciseId),
-              previousBest: bloc.previousBestFor(widget.exerciseId),
-              isFreshPr: _prSetIds.isNotEmpty,
             );
           },
         );
@@ -218,9 +212,6 @@ class _LoggingScaffold extends StatefulWidget {
   final FocusNode Function(String key) repsFocusFor;
   final AnimationController Function(String setId) celebrationFor;
   final Set<String> prSetIds;
-  final PersonalRecord? currentPr;
-  final PersonalRecord? previousBest;
-  final bool isFreshPr;
 
   const _LoggingScaffold({
     required this.exercise,
@@ -230,9 +221,6 @@ class _LoggingScaffold extends StatefulWidget {
     required this.repsFocusFor,
     required this.celebrationFor,
     required this.prSetIds,
-    required this.currentPr,
-    required this.previousBest,
-    required this.isFreshPr,
   });
 
   @override
@@ -250,9 +238,6 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   AnimationController Function(String setId) get celebrationFor =>
       widget.celebrationFor;
   Set<String> get prSetIds => widget.prSetIds;
-  PersonalRecord? get currentPr => widget.currentPr;
-  PersonalRecord? get previousBest => widget.previousBest;
-  bool get isFreshPr => widget.isFreshPr;
 
   @override
   Widget build(BuildContext context) {
@@ -287,12 +272,6 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     (restActive ? _kRestCardReserve : 0) + 16,
                   ),
                   children: [
-                    if (currentPr != null)
-                      PrHeader(
-                        pr: currentPr!,
-                        previousBest: previousBest,
-                        isFresh: isFreshPr,
-                      ),
                     ActionChipRow(
                       restSeconds: session.restDurationSeconds,
                       onRestTap: () =>
