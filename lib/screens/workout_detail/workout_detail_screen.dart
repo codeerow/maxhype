@@ -177,6 +177,20 @@ class WorkoutDetailScreen extends StatelessWidget {
                   scaleDown: 0.94,
                   enableHaptic: true,
                   onTap: () {
+                    // Block starting a different workout while another one
+                    // is in progress — Resume on the active workout still
+                    // works because `inProgress` is true in that case.
+                    final cur = context.read<WorkoutSessionBloc>().state;
+                    if (!inProgress &&
+                        cur is SessionActive &&
+                        cur.session.workoutId != workout.id) {
+                      AppToast.show(
+                        context,
+                        'Workout in Progress — finish or cancel your current workout first.',
+                        accent: AppTheme.primaryOrange,
+                      );
+                      return;
+                    }
                     Navigator.of(context).push(
                       CupertinoPageRoute<void>(
                         builder: (_) => inProgress
