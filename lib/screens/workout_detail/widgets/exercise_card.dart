@@ -22,6 +22,11 @@ class ExerciseCard extends StatelessWidget {
   /// active-accent bar / completion checkmark without duplicating layout.
   final Widget? leadingAccent;
 
+  /// When true, renders the persistent "PERSONAL RECORD" pill above the
+  /// title. The title stays vertically centred relative to the thumbnail
+  /// — the pill sits in the whitespace above it without shifting layout.
+  final bool isPrAchieved;
+
   const ExerciseCard({
     super.key,
     required this.exercise,
@@ -29,6 +34,7 @@ class ExerciseCard extends StatelessWidget {
     this.onOptionsPressed,
     this.subtitleOverride,
     this.leadingAccent,
+    this.isPrAchieved = false,
   });
 
   @override
@@ -74,31 +80,44 @@ class ExerciseCard extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
+        // One stack, fixed to the 90px thumbnail height. Title is always
+        // centered; PR pill is anchored to the top of the same column so
+        // it sits in the whitespace above the title without shifting it.
         Expanded(
           child: SizedBox(
             height: 90,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    exercise.name,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            child: Stack(
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        exercise.name,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                if (isPrAchieved)
+                  const Positioned(
+                    left: 0,
+                    top: 0,
+                    child: _PrCardPill(),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
@@ -107,16 +126,12 @@ class ExerciseCard extends StatelessWidget {
           TapScale(
             scaleDown: 0.90,
             onTap: onOptionsPressed,
-            child: Container(
+            child: const SizedBox(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
-                color: AppTheme.cardBackground,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(
+              child: Center(
                 child: Icon(Icons.more_horiz,
-                    color: AppTheme.textSecondary, size: 18),
+                    color: AppTheme.primaryOrange, size: 18),
               ),
             ),
           ),
@@ -132,5 +147,45 @@ class ExerciseCard extends StatelessWidget {
     }
 
     return content;
+  }
+}
+
+/// Compact persistent PR pill rendered above the exercise title when the
+/// user has set a personal record for the exercise during the current
+/// session.
+class _PrCardPill extends StatelessWidget {
+  const _PrCardPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryOrange.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+          width: 1,
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('🔥', style: TextStyle(fontSize: 11)),
+          SizedBox(width: 6),
+          Text(
+            'PERSONAL RECORD',
+            style: TextStyle(
+              color: AppTheme.primaryOrange,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          SizedBox(width: 6),
+          Text('🔥', style: TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
   }
 }

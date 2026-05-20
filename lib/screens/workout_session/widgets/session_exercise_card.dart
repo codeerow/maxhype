@@ -26,6 +26,11 @@ class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final bool isActive;
 
+  /// True when the user has set a PR for this exercise during the current
+  /// session — drives the persistent orange "PERSONAL RECORD" pill at the
+  /// top of the card.
+  final bool hasPr;
+
   final VoidCallback onTap;
   final VoidCallback onOptions;
 
@@ -35,6 +40,7 @@ class SessionExerciseCard extends StatefulWidget {
     required this.isActive,
     required this.onTap,
     required this.onOptions,
+    this.hasPr = false,
   });
 
   @override
@@ -207,6 +213,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
         exercise: catalogExercise,
         subtitleOverride: subtitle,
         leadingAccent: _buildLeadingAccent(),
+        isPrAchieved: widget.hasPr,
         onTap: widget.onTap,
         onOptionsPressed: widget.onOptions,
       ),

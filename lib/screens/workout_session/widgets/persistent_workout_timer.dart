@@ -60,7 +60,7 @@ class _PersistentWorkoutTimerState extends State<PersistentWorkoutTimer> {
         style: TextStyle(
           fontSize: widget.fontSize,
           fontWeight: FontWeight.w700,
-          color: AppTheme.recoveryGreen,
+          color: AppTheme.primaryOrange,
           letterSpacing: 1.2,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),

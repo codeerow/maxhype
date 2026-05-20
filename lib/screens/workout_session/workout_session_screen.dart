@@ -340,6 +340,9 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
             exercise: ex,
             isActive:
                 session.activeExerciseId == ex.exerciseId && !ex.completed,
+            hasPr: context
+                .read<WorkoutSessionBloc>()
+                .hasFreshPr(ex.exerciseId),
             onTap: () => _openLogging(context, ex),
             onOptions: () => _showOptionsMenu(context, ex),
           ),
