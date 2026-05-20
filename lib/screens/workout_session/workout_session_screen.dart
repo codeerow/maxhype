@@ -97,20 +97,23 @@ class _WorkoutSessionView extends StatelessWidget {
           }
           // Toast on the root overlay so it survives the popUntil above —
           // the session screen's own overlay is gone by the next frame.
+          // We grab the OverlayState directly: the root Navigator's
+          // *context* sits above the overlay, so Overlay.of(rootCtx)
+          // returns null and the toast would silently no-op.
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            final rootCtx = MyApp.rootNavKey.currentContext;
-            if (rootCtx == null) return;
+            final overlay = MyApp.rootNavKey.currentState?.overlay;
+            if (overlay == null) return;
             if (showFinish) {
-              AppToast.showPremium(
-                rootCtx,
+              AppToast.showPremiumOnOverlay(
+                overlay,
                 'Workout Completed',
                 icon: '💪',
                 accent: AppTheme.primaryOrange,
               );
               getIt<HapticManager>().strongest();
             } else if (showCancel) {
-              AppToast.show(
-                rootCtx,
+              AppToast.showOnOverlay(
+                overlay,
                 'Workout Cancelled',
                 accent: AppTheme.recoveryRed,
               );

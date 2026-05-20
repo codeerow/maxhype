@@ -53,9 +53,56 @@ class AppToast {
   }) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
+    _insert(overlay,
+        message: message,
+        duration: duration,
+        premium: premium,
+        accent: accent,
+        icon: icon);
+  }
 
+  /// Variant used when the caller has an [OverlayState] directly — needed
+  /// when showing a toast right after popUntil(rootNavigator), where the
+  /// root Navigator's `context` is *above* the overlay, so `Overlay.of`
+  /// returns null.
+  static void showPremiumOnOverlay(
+    OverlayState overlay,
+    String message, {
+    String? icon,
+    Color? accent,
+    Duration duration = const Duration(milliseconds: 2500),
+  }) {
+    _insert(overlay,
+        message: message,
+        duration: duration,
+        premium: true,
+        accent: accent,
+        icon: icon);
+  }
+
+  /// Standard (non-premium) toast on a pre-resolved [OverlayState].
+  static void showOnOverlay(
+    OverlayState overlay,
+    String message, {
+    Color? accent,
+    Duration duration = const Duration(milliseconds: 1800),
+  }) {
+    _insert(overlay,
+        message: message,
+        duration: duration,
+        premium: false,
+        accent: accent);
+  }
+
+  static void _insert(
+    OverlayState overlay, {
+    required String message,
+    required Duration duration,
+    required bool premium,
+    Color? accent,
+    String? icon,
+  }) {
     _current?.remove();
-
     final entry = OverlayEntry(
       builder: (_) => _ToastEntry(
         message: message,
