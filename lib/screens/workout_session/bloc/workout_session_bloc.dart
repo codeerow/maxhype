@@ -60,7 +60,10 @@ class WorkoutSessionBloc
   final _idRng = Random();
 
   /// Per-exercise PR snapshot loaded at session start. Updated in place
-  /// when a logged set beats the previous best.
+  /// when a logged set beats the previous best. Stays null until the user
+  /// logs the very first set ever for an exercise — that first set
+  /// silently becomes the baseline (no celebration), and everything
+  /// after chases it as a normal PR.
   final Map<String, PersonalRecord?> _prByExerciseId = {};
 
   /// Snapshot of the previous best for each exercise that was beaten
@@ -278,8 +281,10 @@ class WorkoutSessionBloc
   }
 
   /// Load best-PR per exercise from history into [_prByExerciseId]. The
-  /// look-up is async per exercise, so we run them in parallel and let the
-  /// UI re-render through `prFor` reads as data lands.
+  /// look-up is async per exercise, so we run them in parallel and let
+  /// the UI re-render through `prFor` reads as data lands. Exercises
+  /// with no completed history stay at null — the first set logged this
+  /// session will establish their baseline (see [_maybeEmitPr]).
   Future<void> _loadPrsFor(WorkoutSession session) async {
     final futures = session.exercises.map((ex) async {
       final pr = await prRepository.bestFor(ex.exerciseId);
@@ -324,22 +329,34 @@ class WorkoutSessionBloc
   }
 
   /// Compare the just-logged set against the cached best for its
-  /// exercise. If it beats the previous PR (or there's no previous PR),
-  /// update the cache and broadcast a `PrAchievedSignal` so the logging
-  /// screen can celebrate.
+  /// exercise and broadcast a `PrAchievedSignal` so the logging screen
+  /// can celebrate.
+  ///
+  /// Baseline rule: if the exercise has no prior completed history *and*
+  /// no PR cached yet, the first logged set becomes the silent baseline.
+  /// Subsequent sets in the same (or later) session then chase that
+  /// baseline as a normal PR. No "NEW PR!!" celebration fires for the
+  /// very first set you ever do.
   void _maybeEmitPr(LogSet event) {
     final existing = _prByExerciseId[event.exerciseId];
-    final beats = existing == null ||
-        existing.isBeatenBy(weight: event.weight, reps: event.reps);
-    if (!beats) return;
+    if (existing == null) {
+      // First-ever logged set for this exercise: stash as the baseline,
+      // do not celebrate.
+      _prByExerciseId[event.exerciseId] = PersonalRecord(
+        exerciseId: event.exerciseId,
+        weight: event.weight,
+        reps: event.reps,
+        achievedAt: DateTime.now(),
+      );
+      return;
+    }
+    if (!existing.isBeatenBy(weight: event.weight, reps: event.reps)) return;
     // Stash the prior best before overwriting so the UI can render
     // "Previous Best" alongside the new "New Best". Only set on the
     // first PR per exercise per session — chained PRs keep the very
     // first "previous" as their baseline so the user always sees what
     // they came in with.
-    if (existing != null) {
-      _prevBestByExerciseId.putIfAbsent(event.exerciseId, () => existing);
-    }
+    _prevBestByExerciseId.putIfAbsent(event.exerciseId, () => existing);
     final fresh = PersonalRecord(
       exerciseId: event.exerciseId,
       weight: event.weight,
