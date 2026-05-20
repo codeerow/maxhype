@@ -13,7 +13,9 @@ class AllTimeCharts extends StatelessWidget {
     // Sort oldest to newest
     final sorted = [...monthlyData].reversed.toList();
 
-    // Build cumulative spots across all workout days, x = global workout index
+    // One point per calendar day across all history (including rest days).
+    // Cumulative value stays flat on rest days and jumps up on workout days
+    // — the same "stair-stepping" silhouette as the History chart.
     final kcalSpots = <FlSpot>[];
     final volumeSpots = <FlSpot>[];
     double cumKcal = 0;
@@ -22,13 +24,11 @@ class AllTimeCharts extends StatelessWidget {
 
     for (final month in sorted) {
       for (final day in month.dailyData) {
-        if (day.isWorkoutDay) {
-          cumKcal += day.kcal;
-          cumVolume += day.volume;
-          kcalSpots.add(FlSpot(i.toDouble(), cumKcal));
-          volumeSpots.add(FlSpot(i.toDouble(), cumVolume));
-          i++;
-        }
+        cumKcal += day.kcal;
+        cumVolume += day.volume;
+        kcalSpots.add(FlSpot(i.toDouble(), cumKcal));
+        volumeSpots.add(FlSpot(i.toDouble(), cumVolume));
+        i++;
       }
     }
 
