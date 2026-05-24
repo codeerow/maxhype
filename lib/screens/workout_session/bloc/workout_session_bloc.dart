@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/battery_optimization.dart';
 import '../../../core/rest_timer_notifications.dart';
 import '../../../core/session_audio.dart';
+import 'rest_bell_coordinator.dart';
 import '../../../models/session/personal_record.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
@@ -35,9 +36,13 @@ class WorkoutSessionBloc
     required this.prRepository,
     RestBell? bell,
     RestNotificationScheduler? scheduler,
-  })  : _bell = bell ?? SessionAudio.instance,
-        _scheduler = scheduler ?? RestTimerNotifications.instance,
+  })  : _scheduler = scheduler ?? RestTimerNotifications.instance,
         super(const SessionIdle()) {
+    _restBell = RestBellCoordinator(
+      bell: bell,
+      scheduler: _scheduler,
+      onDeadlineElapsed: () => add(const CancelRestTimer()),
+    );
     WidgetsBinding.instance.addObserver(this);
     on<StartSession>(_onStartSession);
     on<RestoreSession>(_onRestoreSession);
@@ -60,12 +65,10 @@ class WorkoutSessionBloc
 
   final WorkoutSessionRepository repository;
   final PersonalRecordRepository prRepository;
-  final RestBell _bell;
   final RestNotificationScheduler _scheduler;
+  late final RestBellCoordinator _restBell;
 
   Timer? _persistDebounce;
-  Timer? _restBellTimer;
-  bool _appInForeground = true;
   final _idRng = Random();
 
   /// Historical baseline per exerciseId, loaded once by `_loadPrsFor` from
@@ -229,82 +232,12 @@ class WorkoutSessionBloc
     return '${prefix}_${t}_$r';
   }
 
-  /// Rest deadline ↔ side-effects.
-  ///
-  /// Exactly one bell rings per deadline. The architecture enforces this
-  /// by making sure only one source is armed at any time:
-  ///
-  ///   * **Foreground**: a Dart Timer fires the in-app bell via
-  ///     [SessionAudio]. The OS notification is NOT scheduled — it could
-  ///     race with the in-app timer.
-  ///   * **Background**: the OS notification is the only source. The
-  ///     Dart Timer is cancelled the moment we leave foreground.
-  ///
-  /// Lifecycle transitions ([didChangeAppLifecycleState]) swap the
-  /// source: leaving foreground → schedule notification, cancel timer;
-  /// returning to foreground → cancel notification, re-arm timer.
-  ///
-  /// Deadline already elapsed while we were backgrounded: the OS
-  /// notification has already played, and the re-arm path detects the
-  /// negative remaining and refuses to fire a second bell.
-  void _syncRestNotification(WorkoutSession before, WorkoutSession after) {
-    if (before.activeRestEndsAt == after.activeRestEndsAt) return;
-    final ends = after.activeRestEndsAt;
-    _restBellTimer?.cancel();
-    _restBellTimer = null;
-    if (ends == null) {
-      _scheduler.cancel();
-      return;
-    }
-    if (_appInForeground) {
-      // Foreground owns the bell — no OS notification scheduled.
-      _scheduler.cancel();
-      _armForegroundBell(ends);
-    } else {
-      // Background owns the bell — OS notification handles it.
-      _scheduler.schedule(ends);
-    }
-  }
-
-  void _armForegroundBell(DateTime ends) {
-    _restBellTimer?.cancel();
-    final remaining = ends.difference(clock.now());
-    if (remaining.isNegative) return;
-    _restBellTimer = Timer(remaining, () {
-      _restBellTimer = null;
-      _bell.playRestComplete();
-      // Bloc owns the deadline lifecycle: clear `activeRestEndsAt`
-      // ourselves so the rest card stops rendering. Critically, we do
-      // NOT rely on the widget's `onCompleted` to do this — the widget
-      // ticks on its own 1s clock and can race ahead of this Timer,
-      // dispatching CancelRestTimer (which would cancel _restBellTimer)
-      // before we ever fire. That race is exactly the
-      // "silent-on-logging-screen" bug, since the logging screen is the
-      // only place RestTimerCard is mounted.
-      add(const CancelRestTimer());
-    });
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final foreground = state == AppLifecycleState.resumed;
-    if (foreground == _appInForeground) return;
-    _appInForeground = foreground;
-    final ends = _current?.activeRestEndsAt;
-    if (ends == null) return;
-    if (foreground) {
-      // Returning to foreground: cancel the OS notification, re-arm the
-      // Dart timer. If the deadline elapsed while we were backgrounded,
-      // _armForegroundBell sees a negative remaining and does nothing —
-      // the OS notification already rang.
-      _scheduler.cancel();
-      _armForegroundBell(ends);
-    } else {
-      // Leaving foreground: hand the bell to the OS notification.
-      _restBellTimer?.cancel();
-      _restBellTimer = null;
-      _scheduler.schedule(ends);
-    }
+    _restBell.onLifecycleChange(
+      foreground: state == AppLifecycleState.resumed,
+      currentDeadline: _current?.activeRestEndsAt,
+    );
   }
 
   void _schedulePersist(WorkoutSession session) {
@@ -337,7 +270,7 @@ class WorkoutSessionBloc
     if (cur == null) return null;
     final next = update(cur);
     emit(SessionActive(next));
-    _syncRestNotification(cur, next);
+    _restBell.onDeadlineChange(cur.activeRestEndsAt, next.activeRestEndsAt);
     if (flush) {
       await _flushPersist(next);
     } else {
@@ -705,7 +638,7 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     _persistDebounce?.cancel();
-    await _scheduler.cancel();
+    await _restBell.cancelNotification();
     await BatteryOptimization.instance.stopForegroundService();
     await repository.clearActive();
     emit(const SessionCancelled());
@@ -729,7 +662,7 @@ class WorkoutSessionBloc
       activeExerciseId: null,
     );
     _persistDebounce?.cancel();
-    await _scheduler.cancel();
+    await _restBell.cancelNotification();
     await BatteryOptimization.instance.stopForegroundService();
     await repository.archiveFinished(finished);
     await repository.clearActive();
@@ -754,7 +687,7 @@ class WorkoutSessionBloc
   Future<void> close() {
     WidgetsBinding.instance.removeObserver(this);
     _persistDebounce?.cancel();
-    _restBellTimer?.cancel();
+    _restBell.dispose();
     _prSignals.close();
     return super.close();
   }
