@@ -53,6 +53,10 @@ dependencies:
   # SVG rendering (used directly for cached muscle atlas)
   flutter_svg: ^2.2.0
   collection: ^1.18.0
+  # Lets WorkoutSessionBloc read time via `clock.now()` instead of
+  # `DateTime.now()`, so rest-timer tests can drive the wall clock with
+  # `fakeAsync` (which substitutes `clock` under the hood).
+  clock: ^1.1.1
 
   # Local persistence for active workout session + history
   shared_preferences: ^2.3.0
@@ -96,6 +100,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   very_good_analysis: ^10.2.0
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.5
+  fake_async: ^1.3.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

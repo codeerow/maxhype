@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
@@ -110,65 +111,83 @@ class _ActiveBarState extends State<_ActiveBar>
           baseSpread: 0.5,
           pulseExtraSpread: 0.8,
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            // ClipRRect renders the rounded corners cleanly (antialiased
+            // path clip), so BackdropFilter doesn't bleed beyond the
+            // radius and produce jagged edges. The 1-px orange border is
+            // painted on top via foregroundDecoration so its stroke sits
+            // exactly on the clipped edge.
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  AppTheme.primaryOrange.withValues(alpha: 0.28),
-                  AppTheme.cardBackground,
-                ],
-              ),
-              border: Border.all(
-                color: AppTheme.primaryOrange.withValues(alpha: 0.55),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'WORKOUT IN PROGRESS',
-                        style: TextStyle(
-                          color: AppTheme.primaryOrange,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  foregroundDecoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+                      width: 1,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  _format(DateTime.now().difference(session.startedAt)),
-                  style: const TextStyle(
-                    color: AppTheme.recoveryGreen,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        // Dense, opaque-leaning fill so the page text
+                        // behind the bar doesn't read through.
+                        AppTheme.primaryOrange.withValues(alpha: 0.32),
+                        AppTheme.cardBackground.withValues(alpha: 0.94),
+                      ],
+                    ),
                   ),
+                  child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'WORKOUT IN PROGRESS',
+                            style: TextStyle(
+                              color: AppTheme.primaryOrange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      _format(DateTime.now().difference(session.startedAt)),
+                      style: const TextStyle(
+                        color: AppTheme.primaryOrange,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+                ),
+              ),
             ),
           ),
         ),

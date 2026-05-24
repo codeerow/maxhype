@@ -171,17 +171,24 @@ class WorkoutDetailScreen extends StatelessWidget {
                 return isMine(prev) != isMine(next);
               },
               builder: (context, sessionState) {
-                final inProgress = sessionState is SessionActive &&
-                    sessionState.session.workoutId == workout.id;
                 return TapScale(
                   scaleDown: 0.94,
                   enableHaptic: true,
                   onTap: () {
-                    Navigator.of(context).push(
+                    final cur = context.read<WorkoutSessionBloc>().state;
+                    if (cur is SessionActive &&
+                        cur.session.workoutId != workout.id) {
+                      AppToast.show(
+                        context,
+                        'Workout in Progress — finish or cancel your current workout first.',
+                        accent: AppTheme.primaryOrange,
+                      );
+                      return;
+                    }
+                    Navigator.of(context).pushReplacement(
                       CupertinoPageRoute<void>(
-                        builder: (_) => inProgress
-                            ? WorkoutSessionScreen.restored()
-                            : WorkoutSessionScreen.start(workout: workout),
+                        builder: (_) =>
+                            WorkoutSessionScreen.start(workout: workout),
                       ),
                     );
                   },
@@ -200,9 +207,9 @@ class WorkoutDetailScreen extends StatelessWidget {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      inProgress ? 'Resume Workout' : 'Start Workout',
-                      style: const TextStyle(
+                    child: const Text(
+                      'Start Workout',
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.4,

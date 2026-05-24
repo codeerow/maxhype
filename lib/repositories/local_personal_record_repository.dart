@@ -17,13 +17,24 @@ import 'personal_record_repository.dart';
 /// workout) so a full scan is fine — if it ever becomes a bottleneck
 /// we can switch to an index file.
 class LocalPersonalRecordRepository implements PersonalRecordRepository {
+  /// Override for the directory that holds `workout_history.jsonl`.
+  /// Production wiring leaves this null and falls back to
+  /// `getApplicationDocumentsDirectory`. Tests pass a temp dir so the
+  /// repository can be exercised against a real filesystem without
+  /// mocking the path_provider MethodChannel.
+  final Future<Directory> Function()? _directoryResolver;
+
+  LocalPersonalRecordRepository({Future<Directory> Function()? directoryResolver})
+      : _directoryResolver = directoryResolver;
+
   static const _historyFileName = 'workout_history.jsonl';
 
   Map<String, PersonalRecord>? _cache;
   Future<Map<String, PersonalRecord>>? _inflight;
 
   Future<File> _historyFile() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await (_directoryResolver?.call() ??
+        getApplicationDocumentsDirectory());
     return File('${dir.path}/$_historyFileName');
   }
 

@@ -80,44 +80,8 @@ class _WorkoutSessionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<WorkoutSessionBloc, WorkoutSessionState>(
-      listenWhen: (prev, next) =>
-          (next is SessionFinished ||
-                  next is SessionCancelled ||
-                  next is SessionIdle) &&
-              prev is! SessionIdle ||
-          (prev is SessionLoading && next is SessionIdle),
-      listener: (context, state) {
-        final showFinish = state is SessionFinished;
-        final showCancel = state is SessionCancelled;
-        if (state is SessionFinished ||
-            state is SessionCancelled ||
-            state is SessionIdle) {
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).popUntil((r) => r.isFirst);
-          }
-          // Toast on the root overlay so it survives the popUntil above —
-          // the session screen's own overlay is gone by the next frame.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final rootCtx = MyApp.rootNavKey.currentContext;
-            if (rootCtx == null) return;
-            if (showFinish) {
-              AppToast.showPremium(
-                rootCtx,
-                'Workout Completed',
-                icon: '💪',
-                accent: AppTheme.primaryOrange,
-              );
-              getIt<HapticManager>().strongest();
-            } else if (showCancel) {
-              AppToast.show(
-                rootCtx,
-                'Workout Cancelled',
-                accent: AppTheme.recoveryRed,
-              );
-            }
-          });
-        }
-      },
+      listenWhen: _shouldDismissSession,
+      listener: _onSessionDismissed,
       builder: (context, state) {
         if (state is SessionActive) {
           return _ActiveSessionScaffold(state: state);
@@ -139,6 +103,57 @@ class _WorkoutSessionView extends StatelessWidget {
       },
     );
   }
+}
+
+/// True for the one-shot transition that means "the session screen
+/// should pop and, if applicable, show a finish/cancel toast".
+///
+/// Three legitimate sources:
+///  - Finish: Active → Finishing → Finished → Idle
+///  - Cancel: Active → Cancelled → Idle
+///  - Restore-with-nothing: Loading → Idle
+///
+/// We fire on the *first* terminal state of each flow (Finished /
+/// Cancelled), so the trailing Idle is ignored and the listener runs
+/// once per dismiss. The Loading→Idle case has no Finished/Cancelled
+/// to ride on, so we fire on Idle there.
+bool _shouldDismissSession(
+  WorkoutSessionState prev,
+  WorkoutSessionState next,
+) {
+  if (next is SessionFinished || next is SessionCancelled) return true;
+  if (next is SessionIdle && prev is SessionLoading) return true;
+  return false;
+}
+
+void _onSessionDismissed(BuildContext context, WorkoutSessionState state) {
+  if (Navigator.of(context).canPop()) {
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+  // Toast on the root overlay so it survives the popUntil above —
+  // the session screen's own overlay is gone by the next frame.
+  // We grab the OverlayState directly: the root Navigator's *context*
+  // sits above the overlay, so Overlay.of(rootCtx) returns null and
+  // the toast would silently no-op.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final overlay = MyApp.rootNavKey.currentState?.overlay;
+    if (overlay == null) return;
+    if (state is SessionFinished) {
+      AppToast.showPremiumOnOverlay(
+        overlay,
+        'Workout Completed',
+        icon: '💪',
+        accent: AppTheme.primaryOrange,
+      );
+      getIt<HapticManager>().strongest();
+    } else if (state is SessionCancelled) {
+      AppToast.showOnOverlay(
+        overlay,
+        'Workout Cancelled',
+        accent: AppTheme.recoveryRed,
+      );
+    }
+  });
 }
 
 class _ActiveSessionScaffold extends StatefulWidget {

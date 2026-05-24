@@ -126,16 +126,12 @@ class ExerciseCard extends StatelessWidget {
           TapScale(
             scaleDown: 0.90,
             onTap: onOptionsPressed,
-            child: Container(
+            child: const SizedBox(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
-                color: AppTheme.cardBackground,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(
+              child: Center(
                 child: Icon(Icons.more_horiz,
-                    color: AppTheme.textSecondary, size: 18),
+                    color: AppTheme.primaryOrange, size: 18),
               ),
             ),
           ),

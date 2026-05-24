@@ -16,19 +16,52 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
   /// account next time `bestFor()` is called.
   final void Function()? onArchive;
 
-  LocalWorkoutSessionRepository({this.onArchive});
+  /// Override for the directory that holds the active-session file and
+  /// `workout_history.jsonl`. Production wiring leaves this null and
+  /// falls back to `getApplicationDocumentsDirectory`. Tests pass a temp
+  /// dir so the repository can be exercised against a real filesystem
+  /// without mocking the path_provider MethodChannel.
+  final Future<Directory> Function()? _directoryResolver;
+
+  LocalWorkoutSessionRepository({
+    this.onArchive,
+    Future<Directory> Function()? directoryResolver,
+  }) : _directoryResolver = directoryResolver;
 
   static const _activeFlagKey = 'workout_session.has_active';
   static const _activeFileName = 'workout_session_active.json';
   static const _historyFileName = 'workout_history.jsonl';
 
+  /// Serializes filesystem mutations (`save`, `clearActive`,
+  /// `archiveFinished`) so concurrent callers don't race on the
+  /// write-temp-then-rename dance — without this, two `save` calls in
+  /// flight clobber each other's `.tmp` and the second rename throws
+  /// `PathNotFoundException`. New writes are chained behind whatever the
+  /// previous write is doing.
+  Future<void> _writeLock = Future.value();
+
+  Future<T> _enqueueWrite<T>(Future<T> Function() task) {
+    final completer = Completer<T>();
+    _writeLock = _writeLock.then((_) async {
+      try {
+        completer.complete(await task());
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
+
+  Future<Directory> _dir() async =>
+      _directoryResolver?.call() ?? getApplicationDocumentsDirectory();
+
   Future<File> _activeFile() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _dir();
     return File('${dir.path}/$_activeFileName');
   }
 
   Future<File> _historyFile() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _dir();
     return File('${dir.path}/$_historyFileName');
   }
 
@@ -57,41 +90,41 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
   }
 
   @override
-  Future<void> save(WorkoutSession session) async {
-    final file = await _activeFile();
-    // Ensure the Documents directory exists — first launch on a freshly
-    // wiped simulator can land here before the OS has materialized it.
-    await file.parent.create(recursive: true);
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(jsonEncode(session.toJson()), flush: true);
-    await tmp.rename(file.path);
+  Future<void> save(WorkoutSession session) => _enqueueWrite(() async {
+        final file = await _activeFile();
+        // Ensure the Documents directory exists — first launch on a freshly
+        // wiped simulator can land here before the OS has materialized it.
+        await file.parent.create(recursive: true);
+        final tmp = File('${file.path}.tmp');
+        await tmp.writeAsString(jsonEncode(session.toJson()), flush: true);
+        await tmp.rename(file.path);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_activeFlagKey, true);
-  }
-
-  @override
-  Future<void> clearActive() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_activeFlagKey, false);
-
-    final file = await _activeFile();
-    if (file.existsSync()) {
-      try {
-        await file.delete();
-      } on FileSystemException {
-        // Best-effort cleanup; tolerate platform-level delete failures.
-      }
-    }
-  }
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_activeFlagKey, true);
+      });
 
   @override
-  Future<void> archiveFinished(WorkoutSession session) async {
-    final file = await _historyFile();
-    final line = '${jsonEncode(session.toJson())}\n';
-    await file.writeAsString(line, mode: FileMode.append, flush: true);
-    onArchive?.call();
-  }
+  Future<void> clearActive() => _enqueueWrite(() async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_activeFlagKey, false);
+
+        final file = await _activeFile();
+        if (file.existsSync()) {
+          try {
+            await file.delete();
+          } on FileSystemException {
+            // Best-effort cleanup; tolerate platform-level delete failures.
+          }
+        }
+      });
+
+  @override
+  Future<void> archiveFinished(WorkoutSession session) => _enqueueWrite(() async {
+        final file = await _historyFile();
+        final line = '${jsonEncode(session.toJson())}\n';
+        await file.writeAsString(line, mode: FileMode.append, flush: true);
+        onArchive?.call();
+      });
 
   @override
   Future<SessionSet?> lastLogFor(String exerciseId) async {

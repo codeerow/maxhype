@@ -28,37 +28,42 @@ class AddSetButton extends StatelessWidget {
         onTap: onAddOne,
         // Edge-to-edge outlined pill, ~44 tall — sits across the full
         // width of the row beneath the last effective set.
-        child: Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryOrange.withValues(alpha: 0.08),
-            border: Border.all(
-              color: AppTheme.primaryOrange.withValues(alpha: 0.45),
-              width: 1.2,
-            ),
-            borderRadius: BorderRadius.circular(22),
+        child: CustomPaint(
+          painter: _DashedBorderPainter(
+            color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+            strokeWidth: 1,
+            radius: 22,
+            dashLength: 5,
+            gapLength: 4,
           ),
-          alignment: Alignment.center,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add,
-                color: AppTheme.primaryOrange,
-                size: 18,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Add Set',
-                style: TextStyle(
-                  color: AppTheme.primaryOrange,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryOrange.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            alignment: Alignment.center,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 18,
                 ),
-              ),
-            ],
+                SizedBox(width: 8),
+                Text(
+                  'Add Set',
+                  style: TextStyle(
+                    color: AppTheme.primaryOrange,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -87,4 +92,52 @@ class AddSetButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double radius;
+  final double dashLength;
+  final double gapLength;
+
+  const _DashedBorderPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.radius,
+    required this.dashLength,
+    required this.gapLength,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    final path = Path()..addRRect(rrect);
+
+    final stride = dashLength + gapLength;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = (distance + dashLength).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += stride;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter old) =>
+      old.color != color ||
+      old.strokeWidth != strokeWidth ||
+      old.radius != radius ||
+      old.dashLength != dashLength ||
+      old.gapLength != gapLength;
 }
