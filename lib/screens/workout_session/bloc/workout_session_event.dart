@@ -120,3 +120,10 @@ class CancelWorkout extends WorkoutSessionEvent {
 class FinishWorkout extends WorkoutSessionEvent {
   const FinishWorkout();
 }
+
+/// Internal: emitted by the bloc itself when the async PR-cache load
+/// (`_loadPrsFor`) finishes, so UI bound via BlocConsumer rebuilds and
+/// the PR header shows up without waiting for the next user action.
+class PrCacheLoaded extends WorkoutSessionEvent {
+  const PrCacheLoaded();
+}

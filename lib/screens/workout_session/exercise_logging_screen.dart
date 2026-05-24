@@ -107,7 +107,7 @@ class _LoggingViewState extends State<_LoggingView>
         ),
       );
 
-  StreamSubscription<PrAchievedSignal>? _prSub;
+  StreamSubscription<PrSignal>? _prSub;
 
   @override
   void initState() {
@@ -116,7 +116,16 @@ class _LoggingViewState extends State<_LoggingView>
         getIt<WorkoutSessionRepository>().lastLogFor(widget.exerciseId);
 
     final bloc = context.read<WorkoutSessionBloc>();
-    _prSub = bloc.prSignals.listen(_onPrAchieved);
+    _prSub = bloc.prSignals.listen(_onPrSignal);
+  }
+
+  void _onPrSignal(PrSignal signal) {
+    switch (signal) {
+      case PrAchievedSignal():
+        _onPrAchieved(signal);
+      case PrRevokedSignal():
+        _onPrRevoked(signal);
+    }
   }
 
   void _onPrAchieved(PrAchievedSignal signal) {
@@ -126,6 +135,16 @@ class _LoggingViewState extends State<_LoggingView>
     celebrationFor(signal.setId).forward(from: 0);
     getIt<HapticManager>().strongest();
     PrNewLabel.show(context);
+  }
+
+  void _onPrRevoked(PrRevokedSignal signal) {
+    if (signal.exerciseId != widget.exerciseId) return;
+    if (!mounted) return;
+    if (!_prSetIds.contains(signal.setId)) return;
+    setState(() => _prSetIds.remove(signal.setId));
+    // Park the celebration controller back to 0 so any future re-PR on a
+    // different set doesn't share an already-completed controller.
+    _celebrationCtrls[signal.setId]?.value = 0;
   }
 
   @override
