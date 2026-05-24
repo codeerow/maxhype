@@ -19,7 +19,8 @@
       "Read(//Users/romanpozdnyakov/.pub-cache/hosted/pub.dev/flutter_body_atlas-0.1.4/lib/**)",
       "Bash(cat:*)",
       "Bash(flutter analyze:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(flutter test *)"
     ],
     "deny": [],
     "ask": []
