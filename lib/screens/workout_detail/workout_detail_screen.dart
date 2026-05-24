@@ -171,18 +171,12 @@ class WorkoutDetailScreen extends StatelessWidget {
                 return isMine(prev) != isMine(next);
               },
               builder: (context, sessionState) {
-                final inProgress = sessionState is SessionActive &&
-                    sessionState.session.workoutId == workout.id;
                 return TapScale(
                   scaleDown: 0.94,
                   enableHaptic: true,
                   onTap: () {
-                    // Block starting a different workout while another one
-                    // is in progress — Resume on the active workout still
-                    // works because `inProgress` is true in that case.
                     final cur = context.read<WorkoutSessionBloc>().state;
-                    if (!inProgress &&
-                        cur is SessionActive &&
+                    if (cur is SessionActive &&
                         cur.session.workoutId != workout.id) {
                       AppToast.show(
                         context,
@@ -191,11 +185,10 @@ class WorkoutDetailScreen extends StatelessWidget {
                       );
                       return;
                     }
-                    Navigator.of(context).push(
+                    Navigator.of(context).pushReplacement(
                       CupertinoPageRoute<void>(
-                        builder: (_) => inProgress
-                            ? WorkoutSessionScreen.restored()
-                            : WorkoutSessionScreen.start(workout: workout),
+                        builder: (_) =>
+                            WorkoutSessionScreen.start(workout: workout),
                       ),
                     );
                   },
@@ -214,9 +207,9 @@ class WorkoutDetailScreen extends StatelessWidget {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      inProgress ? 'Resume Workout' : 'Start Workout',
-                      style: const TextStyle(
+                    child: const Text(
+                      'Start Workout',
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.4,
