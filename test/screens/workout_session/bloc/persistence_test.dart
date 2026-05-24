@@ -1,6 +1,5 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maxhype/models/session/workout_session.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_bloc.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_event.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_state.dart';

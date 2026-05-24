@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maxhype/models/session/workout_session.dart';
 import 'package:maxhype/screens/workout_session/bloc/pr_signal.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_bloc.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_event.dart';
@@ -33,7 +34,7 @@ void main() {
   /// platform-touching code paths in StartSession (notification permission
   /// prompt). We wait for `_loadPrsFor` to settle by pumping the event
   /// queue — the bloc fires PrCacheLoaded back into itself on completion.
-  Future<void> restoreWith(session) async {
+  Future<void> restoreWith(WorkoutSession session) async {
     when(() => repo.loadActive()).thenAnswer((_) async => session);
     bloc.add(const RestoreSession());
     await bloc.stream.firstWhere((s) => s is SessionActive);
