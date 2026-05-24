@@ -69,6 +69,46 @@ void main() {
       await sub.cancel();
     });
 
+    test(
+      'silent baseline triggers a second SessionActive re-emit '
+      '(so PrHeader rebuilds with the just-installed head)',
+      () async {
+        // Regression: without the re-emit, the very first LogSet of the
+        // session leaves the UI rendered against state-before-baseline,
+        // so PrHeader (gated on `currentPr != null`) stays hidden until
+        // some unrelated event (e.g. cancelling the rest timer) triggers
+        // another emit.
+        await restoreWith(makeSession());
+
+        final emits = <WorkoutSessionState>[];
+        final sub = bloc.stream.listen(emits.add);
+
+        bloc.add(const LogSet(
+          exerciseId: 'ex1',
+          setId: 'set_a',
+          weight: 100,
+          reps: 5,
+        ));
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        final active = emits.whereType<SessionActive>().toList();
+        expect(
+          active.length,
+          greaterThanOrEqualTo(2),
+          reason:
+              '_mutate emits once (head still null), then _maybeEmitPr '
+              'must dispatch PrCacheLoaded so the builder reruns and '
+              'PrHeader can finally render',
+        );
+        // And the head must be set by the time the last emit reaches
+        // listeners — otherwise the rebuild would still see currentPr=null.
+        expect(bloc.prFor('ex1')?.weight, 100);
+
+        await sub.cancel();
+      },
+    );
+
     test('second set worse than baseline emits no signal and keeps head',
         () async {
       await restoreWith(makeSession());

@@ -451,6 +451,10 @@ class WorkoutSessionBloc
       );
       _prById[entry.id] = entry;
       _prHeadByExerciseId[event.exerciseId] = entry.id;
+      // The bloc state we emitted from _onLogSet was rendered while
+      // head was still null — so PrHeader was filtered out by its
+      // `currentPr != null` guard. Re-emit now to let it appear.
+      add(const PrCacheLoaded());
       return;
     }
     final existing = _toRecord(head)!;
