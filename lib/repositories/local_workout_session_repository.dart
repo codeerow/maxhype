@@ -16,7 +16,17 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
   /// account next time `bestFor()` is called.
   final void Function()? onArchive;
 
-  LocalWorkoutSessionRepository({this.onArchive});
+  /// Override for the directory that holds the active-session file and
+  /// `workout_history.jsonl`. Production wiring leaves this null and
+  /// falls back to `getApplicationDocumentsDirectory`. Tests pass a temp
+  /// dir so the repository can be exercised against a real filesystem
+  /// without mocking the path_provider MethodChannel.
+  final Future<Directory> Function()? _directoryResolver;
+
+  LocalWorkoutSessionRepository({
+    this.onArchive,
+    Future<Directory> Function()? directoryResolver,
+  }) : _directoryResolver = directoryResolver;
 
   static const _activeFlagKey = 'workout_session.has_active';
   static const _activeFileName = 'workout_session_active.json';
@@ -42,13 +52,16 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
     return completer.future;
   }
 
+  Future<Directory> _dir() async =>
+      _directoryResolver?.call() ?? getApplicationDocumentsDirectory();
+
   Future<File> _activeFile() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _dir();
     return File('${dir.path}/$_activeFileName');
   }
 
   Future<File> _historyFile() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _dir();
     return File('${dir.path}/$_historyFileName');
   }
 

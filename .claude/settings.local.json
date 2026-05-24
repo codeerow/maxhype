@@ -20,7 +20,8 @@
       "Bash(cat:*)",
       "Bash(flutter analyze:*)",
       "Bash(git:*)",
-      "Bash(flutter test *)"
+      "Bash(flutter test *)",
+      "Bash(flutter pub *)"
     ],
     "deny": [],
     "ask": []
