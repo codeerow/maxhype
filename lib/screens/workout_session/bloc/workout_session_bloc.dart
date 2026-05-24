@@ -10,7 +10,6 @@ import '../../../core/battery_optimization.dart';
 import '../../../core/rest_timer_notifications.dart';
 import '../../../core/session_audio.dart';
 import '../../../models/session/personal_record.dart';
-import '../../../models/session/pr_entry.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
 import '../../../models/session/workout_session.dart';
@@ -69,22 +68,30 @@ class WorkoutSessionBloc
   bool _appInForeground = true;
   final _idRng = Random();
 
-  /// Flat store of every PR seen in this session, keyed by entry id.
-  /// Entries chain via [PrEntry.previousId] back to the baseline loaded
-  /// from history. Old entries are kept around even after a roll-back —
-  /// they're cheap and the session is short-lived.
-  final Map<String, PrEntry> _prById = {};
+  /// Historical baseline per exerciseId, loaded once by `_loadPrsFor` from
+  /// `prRepository.bestFor`. Survives any session mutation — only ever
+  /// replaced when the cache loads or `_loadPrsFor` runs again.
+  ///
+  /// A `null` *value* (present key) means "history was loaded and there
+  /// is no prior PR". A missing key means the cache hasn't loaded yet.
+  final Map<String, PersonalRecord?> _historical = {};
 
-  /// Head PR entry id per exercise. Following [PrEntry.previousId] from
-  /// here walks back through the session's PR history for that exercise.
-  /// Missing key means the cache hasn't loaded yet or there's no history.
-  final Map<String, String> _prHeadByExerciseId = {};
+  /// Last head we emitted to UI / signals per exerciseId. The
+  /// recompute pass diffs against this to decide whether to fire
+  /// `PrAchievedSignal` / `PrRevokedSignal` and to spot a no-op early.
+  ///
+  /// Stores the source set id (or `_baselineSetId` for historical) so
+  /// we can tell PR-from-live-set from PR-from-history.
+  final Map<String, _Head?> _lastHead = {};
 
-  /// True when the head PR for [exerciseId] was produced by a set in
-  /// the current session (i.e. head has a non-null [PrEntry.setId]).
+  /// Sentinel for "head is the historical baseline" (no live set).
+  static const String _baselineSetId = '__baseline__';
+
+  /// True when the current head for [exerciseId] was produced by a
+  /// live set in this session (not by the historical baseline).
   bool hasFreshPr(String exerciseId) {
-    final head = _headFor(exerciseId);
-    return head != null && head.setId != null;
+    final head = _lastHead[exerciseId];
+    return head != null && head.setId != _baselineSetId;
   }
 
   /// Side-channel for PR life-cycle events. Subscribers (logging
@@ -94,41 +101,126 @@ class WorkoutSessionBloc
 
   Stream<PrSignal> get prSignals => _prSignals.stream;
 
-  PrEntry? _headFor(String exerciseId) {
-    final id = _prHeadByExerciseId[exerciseId];
-    return id == null ? null : _prById[id];
+  /// Current best for [exerciseId]: max of historical baseline and every
+  /// logged effective set on the exercise (warmups excluded). Null when
+  /// neither source has a value.
+  PersonalRecord? prFor(String exerciseId) {
+    final head = _lastHead[exerciseId];
+    return head?.record;
   }
 
-  PersonalRecord? _toRecord(PrEntry? entry) {
-    if (entry == null) return null;
-    return PersonalRecord(
-      exerciseId: entry.exerciseId,
-      weight: entry.weight,
-      reps: entry.reps,
-      achievedAt: entry.achievedAt,
-    );
-  }
-
-  /// Current best for [exerciseId]. Null when the cache hasn't loaded
-  /// yet or the exercise has no history.
-  PersonalRecord? prFor(String exerciseId) => _toRecord(_headFor(exerciseId));
-
-  /// Best at the moment we started the current session (or before the
-  /// most recent PR overwrite this session). Used to render "Previous
-  /// Best" under the "New Best" line. Walks the PR chain to the very
-  /// first non-session entry (baseline) so chained session PRs always
-  /// compare against the value the user came in with.
+  /// "Previous Best" for the PR header — the runner-up so users see what
+  /// the new head just beat. Returns the second-highest record among
+  /// `[historical, ...loggedSets]`. Null when there is no runner-up
+  /// (e.g. the head IS the only known record).
   PersonalRecord? previousBestFor(String exerciseId) {
-    final head = _headFor(exerciseId);
-    if (head == null || head.setId == null) return null;
-    var cur = head;
-    while (cur.previousId != null) {
-      final prev = _prById[cur.previousId];
-      if (prev == null) return null;
-      if (prev.setId == null) return _toRecord(prev);
-      cur = prev;
+    final session = _current;
+    if (session == null) return null;
+    final ex = session.exercises
+        .firstWhereOrNull((e) => e.exerciseId == exerciseId);
+    if (ex == null) return null;
+    final ranked = _rankedRecordsFor(exerciseId, ex);
+    if (ranked.length < 2) return null;
+    return ranked[1].record;
+  }
+
+  /// Build the full ranked list of candidate records for [exerciseId]:
+  /// historical baseline (if any) plus one entry per logged effective
+  /// set, sorted by `PersonalRecord` ordering (heaviest weight, reps
+  /// tie-break). Used to compute head and runner-up in a single pass.
+  List<_RankedRecord> _rankedRecordsFor(String exerciseId, SessionExercise ex) {
+    final out = <_RankedRecord>[];
+    final base = _historical[exerciseId];
+    if (base != null) {
+      out.add(_RankedRecord(setId: _baselineSetId, record: base));
     }
-    return null;
+    for (final s in ex.sets) {
+      if (!s.isLogged || s.weight == null || s.reps == null) continue;
+      out.add(_RankedRecord(
+        setId: s.id,
+        record: PersonalRecord(
+          exerciseId: exerciseId,
+          weight: s.weight!,
+          reps: s.reps!,
+          achievedAt: s.loggedAt!,
+        ),
+      ));
+    }
+    out.sort(_compareRecordsDesc);
+    return out;
+  }
+
+  /// Recompute the PR head for [exerciseId] from the current session,
+  /// diff against the last emitted head, and broadcast signals on
+  /// change. Idempotent — a no-op when nothing moved.
+  void _recomputeFor(String exerciseId) {
+    final session = _current;
+    if (session == null) return;
+    final ex = session.exercises
+        .firstWhereOrNull((e) => e.exerciseId == exerciseId);
+    if (ex == null) {
+      // Exercise gone (DeleteExercise / ReplaceExercise) — drop head.
+      // No revoke signal: the row itself is gone, nothing to un-paint.
+      _lastHead.remove(exerciseId);
+      return;
+    }
+    final ranked = _rankedRecordsFor(exerciseId, ex);
+    final newHead = ranked.isEmpty ? null : _Head.from(ranked.first);
+    final oldHead = _lastHead[exerciseId];
+
+    if (_headsEqual(oldHead, newHead)) return;
+    _lastHead[exerciseId] = newHead;
+
+    // Revoke first when the old head was a live set and either it's
+    // gone or has been displaced. The set may still exist (just no
+    // longer head) — UI still needs to drop its PR pill.
+    if (oldHead != null && oldHead.setId != _baselineSetId) {
+      _prSignals.add(PrRevokedSignal(
+        exerciseId: exerciseId,
+        setId: oldHead.setId,
+      ));
+    }
+    // Achieve only when the new head is *strictly better* than the old:
+    //   - new head must exist and be a live set,
+    //   - the old head must have existed (silent-baseline rule when oldHead == null),
+    //   - and oldHead.record must actually be beaten by newHead.record.
+    // This guards against celebrating a regression (e.g. user deletes
+    // their 110-set; head falls back to a still-live 100-set — that's
+    // a revoke, not an achievement).
+    if (newHead != null &&
+        newHead.setId != _baselineSetId &&
+        oldHead != null &&
+        oldHead.record.isBeatenBy(
+          weight: newHead.record.weight,
+          reps: newHead.record.reps,
+        )) {
+      _prSignals.add(PrAchievedSignal(
+        exerciseId: exerciseId,
+        setId: newHead.setId,
+        weight: newHead.record.weight,
+        reps: newHead.record.reps,
+      ));
+    }
+  }
+
+  static int _compareRecordsDesc(_RankedRecord a, _RankedRecord b) {
+    if (a.record.weight != b.record.weight) {
+      return b.record.weight.compareTo(a.record.weight);
+    }
+    if (a.record.reps != b.record.reps) {
+      return b.record.reps.compareTo(a.record.reps);
+    }
+    // Final tie-break: newer achievement wins, so chronologically the
+    // "latest" equal-best set is treated as head.
+    return b.record.achievedAt.compareTo(a.record.achievedAt);
+  }
+
+  static bool _headsEqual(_Head? a, _Head? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    return a.setId == b.setId &&
+        a.record.weight == b.record.weight &&
+        a.record.reps == b.record.reps;
   }
 
   String _newId([String prefix = 'id']) {
@@ -315,40 +407,15 @@ class WorkoutSessionBloc
     unawaited(_loadPrsFor(cleaned));
   }
 
-  /// Load best-PR per exercise from history into [_prById]. The look-up
-  /// is async per exercise, so we run them in parallel. Exercises with
-  /// no completed history leave the head unset — the first set logged
-  /// this session establishes their baseline (see [_maybeEmitPr]).
-  ///
-  /// If the user logs a set before this finishes, [_maybeEmitPr] may
-  /// have already installed a session-PR head; we splice the historical
-  /// baseline in at the tail of the chain rather than overwriting it,
-  /// so "Previous Best" keeps pointing at what the user came in with.
+  /// Load historical baseline-PR per exercise from `prRepository` into
+  /// [_historical]. Looked up in parallel — they're independent. After
+  /// every exercise resolves we recompute its head so the UI rebuilds
+  /// with the freshly-loaded baseline.
   Future<void> _loadPrsFor(WorkoutSession session) async {
     final futures = session.exercises.map((ex) async {
       final pr = await prRepository.bestFor(ex.exerciseId);
-      if (pr == null) return;
-      final baseline = PrEntry(
-        id: _newId('pr'),
-        exerciseId: ex.exerciseId,
-        setId: null, // baseline from history — no live set in this session
-        weight: pr.weight,
-        reps: pr.reps,
-        achievedAt: pr.achievedAt,
-        previousId: null,
-      );
-      _prById[baseline.id] = baseline;
-
-      final existingHeadId = _prHeadByExerciseId[ex.exerciseId];
-      if (existingHeadId == null) {
-        _prHeadByExerciseId[ex.exerciseId] = baseline.id;
-      } else {
-        // Race: the user already logged a set and we installed a session
-        // baseline-from-first-set. Walk to the chain's tail and splice
-        // the historical baseline in below — so previousBestFor() finds
-        // the real prior best instead of "first set logged this session".
-        _spliceTailBaseline(existingHeadId, baseline.id);
-      }
+      _historical[ex.exerciseId] = pr;
+      _recomputeFor(ex.exerciseId);
     });
     await Future.wait(futures);
     // Tickle BlocConsumer subscribers so PrHeader rebuilds and picks
@@ -363,32 +430,6 @@ class WorkoutSessionBloc
   ) {
     final cur = _current;
     if (cur != null) emit(SessionActive(cur));
-  }
-
-  /// Walk the chain starting at [headId] to the entry whose
-  /// `previousId == null`, then point it at [baselineId] so the
-  /// historical baseline becomes the chain's new root. No-op if the
-  /// tail is already the same node as [baselineId].
-  void _spliceTailBaseline(String headId, String baselineId) {
-    var curId = headId;
-    while (true) {
-      final entry = _prById[curId];
-      if (entry == null) return;
-      if (entry.id == baselineId) return;
-      if (entry.previousId == null) {
-        _prById[curId] = PrEntry(
-          id: entry.id,
-          exerciseId: entry.exerciseId,
-          setId: entry.setId,
-          weight: entry.weight,
-          reps: entry.reps,
-          achievedAt: entry.achievedAt,
-          previousId: baselineId,
-        );
-        return;
-      }
-      curId = entry.previousId!;
-    }
   }
 
   Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) async {
@@ -418,102 +459,33 @@ class WorkoutSessionBloc
       return next.copyWith(activeExerciseId: event.exerciseId);
     }, flush: true);
 
-    // PR check happens after the state mutation: warmups don't count
-    // (they're light-weight prep), so only effective sets are eligible.
+    // Warmups never participate in PR computation — _recomputeFor only
+    // reads effective sets — so we can skip the call when isWarmup.
     if (!event.isWarmup) {
-      _maybeEmitPr(event);
-    }
-  }
-
-  /// Compare the just-logged set against the cached best for its
-  /// exercise and broadcast a `PrAchievedSignal` so the logging screen
-  /// can celebrate.
-  ///
-  /// Baseline rule: if the exercise has no prior completed history *and*
-  /// no PR cached yet, the first logged set becomes the silent baseline.
-  /// Subsequent sets in the same (or later) session then chase that
-  /// baseline as a normal PR. No "NEW PR!!" celebration fires for the
-  /// very first set you ever do.
-  void _maybeEmitPr(LogSet event) {
-    final head = _headFor(event.exerciseId);
-    if (head == null) {
-      // First-ever logged set for this exercise: stash as the baseline,
-      // do not celebrate. setId is non-null so a delete of this exact set
-      // will revoke it cleanly.
-      final entry = PrEntry(
-        id: _newId('pr'),
-        exerciseId: event.exerciseId,
-        setId: event.setId,
-        weight: event.weight,
-        reps: event.reps,
-        achievedAt: DateTime.now(),
-        previousId: null,
-      );
-      _prById[entry.id] = entry;
-      _prHeadByExerciseId[event.exerciseId] = entry.id;
-      // The bloc state we emitted from _onLogSet was rendered while
-      // head was still null — so PrHeader was filtered out by its
-      // `currentPr != null` guard. Re-emit now to let it appear.
-      add(const PrCacheLoaded());
-      return;
-    }
-    final existing = _toRecord(head)!;
-    if (!existing.isBeatenBy(weight: event.weight, reps: event.reps)) return;
-    final fresh = PrEntry(
-      id: _newId('pr'),
-      exerciseId: event.exerciseId,
-      setId: event.setId,
-      weight: event.weight,
-      reps: event.reps,
-      achievedAt: DateTime.now(),
-      previousId: head.id,
-    );
-    _prById[fresh.id] = fresh;
-    _prHeadByExerciseId[event.exerciseId] = fresh.id;
-    _prSignals.add(
-      PrAchievedSignal(
-        exerciseId: event.exerciseId,
-        setId: event.setId,
-        weight: event.weight,
-        reps: event.reps,
-      ),
-    );
-  }
-
-  /// Walk the PR chain for [exerciseId] starting at the current head
-  /// and drop every entry whose [PrEntry.setId] is no longer present in
-  /// [liveSetIds]. The first surviving entry becomes the new head.
-  /// Emits one [PrRevokedSignal] per revoked entry.
-  void _rollBackPrChain(String exerciseId, Set<String> liveSetIds) {
-    var headId = _prHeadByExerciseId[exerciseId];
-    final revokedSetIds = <String>[];
-    while (headId != null) {
-      final entry = _prById[headId];
-      if (entry == null) break;
-      // Baseline (no setId) always survives; otherwise the set must still
-      // exist on the exercise.
-      if (entry.setId == null || liveSetIds.contains(entry.setId)) break;
-      revokedSetIds.add(entry.setId!);
-      headId = entry.previousId;
-    }
-    if (revokedSetIds.isEmpty) return;
-    if (headId == null) {
-      _prHeadByExerciseId.remove(exerciseId);
-    } else {
-      _prHeadByExerciseId[exerciseId] = headId;
-    }
-    for (final setId in revokedSetIds) {
-      _prSignals.add(
-        PrRevokedSignal(exerciseId: exerciseId, setId: setId),
-      );
+      // Head was null before this set went in: the new head exists but
+      // there's no prior to compare against, so _recomputeFor stays
+      // silent (correct — silent-baseline rule). Re-emit SessionActive
+      // anyway so PrHeader (gated on `currentPr != null`) appears.
+      final hadHeadBefore = _lastHead[event.exerciseId] != null;
+      _recomputeFor(event.exerciseId);
+      if (!hadHeadBefore && _lastHead[event.exerciseId] != null) {
+        add(const PrCacheLoaded());
+      }
     }
   }
 
   Future<void> _onUpdateSetDraft(
     UpdateSetDraft event,
     Emitter<WorkoutSessionState> emit,
-  ) {
-    return _mutate(emit, (cur) {
+  ) async {
+    final cur = _current;
+    final beforeSet = cur?.exercises
+        .firstWhereOrNull((e) => e.exerciseId == event.exerciseId)
+        ?.sets
+        .firstWhereOrNull((s) => s.id == event.setId);
+    final wasLogged = beforeSet?.isLogged ?? false;
+
+    await _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
         SessionSet apply(SessionSet s) {
           return s.copyWith(
@@ -532,6 +504,13 @@ class WorkoutSessionBloc
         return ex.copyWith(sets: newSets);
       });
     });
+
+    // Editing an already-logged effective set changes its contribution
+    // to the PR ranking — recompute. Drafts on unlogged sets or on the
+    // warmup row never enter the ranking, so we skip the work there.
+    if (!event.isWarmup && wasLogged) {
+      _recomputeFor(event.exerciseId);
+    }
   }
 
   Future<void> _onMarkExerciseDone(
@@ -589,11 +568,7 @@ class WorkoutSessionBloc
       });
     });
     if (next != null && !event.isWarmup) {
-      final ex = next.exercises
-          .where((e) => e.exerciseId == event.exerciseId)
-          .firstOrNull;
-      final liveSetIds = ex?.sets.map((s) => s.id).toSet() ?? <String>{};
-      _rollBackPrChain(event.exerciseId, liveSetIds);
+      _recomputeFor(event.exerciseId);
     }
     if (!autoComplete || next == null) return;
     await _mutate(emit, (cur) {
@@ -620,18 +595,17 @@ class WorkoutSessionBloc
             : cur.activeExerciseId,
       );
     });
-    // The exercise card is gone — drop the head pointer so a future
-    // re-add (via Replace, say) doesn't resurrect stale PR state. The
-    // entries themselves stay in _prById; they're cheap and the session
-    // is short-lived.
-    _prHeadByExerciseId.remove(event.exerciseId);
+    // The exercise card is gone — drop the head & historical baseline
+    // so a future re-add (via Replace, say) doesn't resurrect stale state.
+    _historical.remove(event.exerciseId);
+    _lastHead.remove(event.exerciseId);
   }
 
   Future<void> _onReplaceExercise(
     ReplaceExercise event,
     Emitter<WorkoutSessionState> emit,
-  ) {
-    return _mutate(emit, (cur) {
+  ) async {
+    await _mutate(emit, (cur) {
       final newEx = event.newExercise;
       final newList = cur.exercises.map((ex) {
         if (ex.exerciseId != event.oldExerciseId) return ex;
@@ -659,6 +633,15 @@ class WorkoutSessionBloc
             : cur.activeExerciseId,
       );
     });
+    // The old exerciseId is gone — drop its state. The new id starts
+    // fresh; its first logged set will become the silent baseline.
+    _historical.remove(event.oldExerciseId);
+    _lastHead.remove(event.oldExerciseId);
+    // Load historical baseline for the new id (may be non-null if the
+    // user did this exercise before in a prior session) and recompute.
+    final newPr = await prRepository.bestFor(event.newExercise.id);
+    _historical[event.newExercise.id] = newPr;
+    _recomputeFor(event.newExercise.id);
   }
 
   Future<void> _onUpdateNotes(
@@ -775,4 +758,27 @@ class WorkoutSessionBloc
     _prSignals.close();
     return super.close();
   }
+}
+
+/// Snapshot of "the current head" used to diff between recomputes and
+/// decide whether a signal should fire. [setId] is `_baselineSetId`
+/// when the head is the historical baseline.
+class _Head {
+  final String setId;
+  final PersonalRecord record;
+
+  const _Head({required this.setId, required this.record});
+
+  factory _Head.from(_RankedRecord r) =>
+      _Head(setId: r.setId, record: r.record);
+}
+
+/// One candidate record in the per-exercise ranking. The setId is the
+/// live SessionSet id, or `WorkoutSessionBloc._baselineSetId` when it
+/// stands in for the historical baseline.
+class _RankedRecord {
+  final String setId;
+  final PersonalRecord record;
+
+  const _RankedRecord({required this.setId, required this.record});
 }

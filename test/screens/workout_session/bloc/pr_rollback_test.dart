@@ -117,11 +117,11 @@ void main() {
     await sub.cancel();
   });
 
-  test('deleting head AND its predecessor walks past both and removes head',
+  test('deleting head with multiple predecessors falls back to next-best live',
       () async {
     await restoreThreeSetSession();
 
-    // Build a chain: set_a baseline(100) → set_b(110) → set_c(120).
+    // Sets: set_a(100), set_b(110), set_c(120). Head is set_c.
     bloc.add(const LogSet(
         exerciseId: 'ex1', setId: 'set_a', weight: 100, reps: 5));
     await Future<void>.delayed(Duration.zero);
@@ -136,22 +136,25 @@ void main() {
     final signals = <PrSignal>[];
     final sub = bloc.prSignals.listen(signals.add);
 
-    // Delete set_b first (NOT the head; chain stays head=set_c, prev=set_a).
+    // Delete set_b (NOT the head; head stays at set_c).
     bloc.add(const DeleteSet(exerciseId: 'ex1', setId: 'set_b'));
     await Future<void>.delayed(Duration.zero);
     expect(bloc.prFor('ex1')?.weight, 120,
         reason: 'deleting non-head does not roll back head');
     expect(signals.whereType<PrRevokedSignal>(), isEmpty);
 
-    // Now delete set_c (head). _rollBackPrChain skips set_b (no longer
-    // live) and lands on set_a, which is still in the exercise.
+    // Now delete set_c (head). Ranking recomputes from live sets;
+    // set_b is gone, so head falls to set_a(100).
     bloc.add(const DeleteSet(exerciseId: 'ex1', setId: 'set_c'));
     await Future<void>.delayed(Duration.zero);
 
     expect(bloc.prFor('ex1')?.weight, 100,
-        reason: 'rollback walks past dead set_b to live set_a');
-    // Both dead entries (set_c, set_b) revoked in one rollback pass.
-    expect(signals.whereType<PrRevokedSignal>().length, 2);
+        reason: 'next-best live set takes over');
+    // Each recompute emits at most one revoke (the old head's setId).
+    // Variant B semantics: we don't "walk" a chain — we just diff old
+    // head vs. new head per mutation.
+    expect(signals.whereType<PrRevokedSignal>().length, 1);
+    expect(signals.whereType<PrRevokedSignal>().single.setId, 'set_c');
 
     await sub.cancel();
   });

@@ -158,18 +158,24 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      expect(signals, hasLength(1));
-      expect(signals.single, isA<PrAchievedSignal>());
-      final sig = signals.single as PrAchievedSignal;
-      expect(sig.exerciseId, 'ex1');
-      expect(sig.setId, 'set_b');
-      expect(sig.weight, 105);
+      // Head moved from set_a to set_b → UI needs both signals: drop the
+      // PR pill from set_a, paint it on set_b.
+      expect(signals, hasLength(2));
+      final revoked =
+          signals.whereType<PrRevokedSignal>().single;
+      expect(revoked.exerciseId, 'ex1');
+      expect(revoked.setId, 'set_a');
+      final achieved =
+          signals.whereType<PrAchievedSignal>().single;
+      expect(achieved.exerciseId, 'ex1');
+      expect(achieved.setId, 'set_b');
+      expect(achieved.weight, 105);
 
       expect(bloc.prFor('ex1')?.weight, 105);
-      // Previous best in same session is the just-overwritten session entry
-      // — but previousBestFor walks all the way to a baseline with setId == null,
-      // which doesn't exist here. So it returns null.
-      expect(bloc.previousBestFor('ex1'), isNull);
+      // Previous best = runner-up of [set_a(100), set_b(105)] → set_a(100).
+      // Variant C semantics: "what the new head just beat" instead of
+      // "what we came in with from history".
+      expect(bloc.previousBestFor('ex1')?.weight, 100);
 
       await sub.cancel();
     });

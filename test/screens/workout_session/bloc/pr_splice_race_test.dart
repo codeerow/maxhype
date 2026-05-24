@@ -177,10 +177,13 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(bloc.prFor('ex1')?.weight, 110);
+      // Variant C: previousBest = runner-up among [historical(80),
+      // set_a(100), set_b(110)] → set_a(100). The historical baseline
+      // is in the ranking but is no longer the runner-up.
       expect(
         bloc.previousBestFor('ex1')?.weight,
-        80,
-        reason: 'walk to root of chain — must land at historical baseline',
+        100,
+        reason: 'runner-up is set_a; historical 80 sits below it',
       );
 
       await sub.cancel();
