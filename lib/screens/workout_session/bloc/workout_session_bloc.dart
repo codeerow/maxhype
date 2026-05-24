@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,7 +34,11 @@ class WorkoutSessionBloc
   WorkoutSessionBloc({
     required this.repository,
     required this.prRepository,
-  }) : super(const SessionIdle()) {
+    RestBell? bell,
+    RestNotificationScheduler? scheduler,
+  })  : _bell = bell ?? SessionAudio.instance,
+        _scheduler = scheduler ?? RestTimerNotifications.instance,
+        super(const SessionIdle()) {
     WidgetsBinding.instance.addObserver(this);
     on<StartSession>(_onStartSession);
     on<RestoreSession>(_onRestoreSession);
@@ -56,6 +61,8 @@ class WorkoutSessionBloc
 
   final WorkoutSessionRepository repository;
   final PersonalRecordRepository prRepository;
+  final RestBell _bell;
+  final RestNotificationScheduler _scheduler;
 
   Timer? _persistDebounce;
   Timer? _restBellTimer;
@@ -154,26 +161,26 @@ class WorkoutSessionBloc
     _restBellTimer?.cancel();
     _restBellTimer = null;
     if (ends == null) {
-      RestTimerNotifications.instance.cancel();
+      _scheduler.cancel();
       return;
     }
     if (_appInForeground) {
       // Foreground owns the bell — no OS notification scheduled.
-      RestTimerNotifications.instance.cancel();
+      _scheduler.cancel();
       _armForegroundBell(ends);
     } else {
       // Background owns the bell — OS notification handles it.
-      RestTimerNotifications.instance.schedule(ends);
+      _scheduler.schedule(ends);
     }
   }
 
   void _armForegroundBell(DateTime ends) {
     _restBellTimer?.cancel();
-    final remaining = ends.difference(DateTime.now());
+    final remaining = ends.difference(clock.now());
     if (remaining.isNegative) return;
     _restBellTimer = Timer(remaining, () {
       _restBellTimer = null;
-      SessionAudio.instance.playRestComplete();
+      _bell.playRestComplete();
       // Bloc owns the deadline lifecycle: clear `activeRestEndsAt`
       // ourselves so the rest card stops rendering. Critically, we do
       // NOT rely on the widget's `onCompleted` to do this — the widget
@@ -198,13 +205,13 @@ class WorkoutSessionBloc
       // Dart timer. If the deadline elapsed while we were backgrounded,
       // _armForegroundBell sees a negative remaining and does nothing —
       // the OS notification already rang.
-      RestTimerNotifications.instance.cancel();
+      _scheduler.cancel();
       _armForegroundBell(ends);
     } else {
       // Leaving foreground: hand the bell to the OS notification.
       _restBellTimer?.cancel();
       _restBellTimer = null;
-      RestTimerNotifications.instance.schedule(ends);
+      _scheduler.schedule(ends);
     }
   }
 
@@ -286,7 +293,7 @@ class WorkoutSessionBloc
     // Best-effort: ask for notification permission when the user starts
     // their first workout. If they say no, the foreground rest-timer card
     // still works, just no background bell.
-    unawaited(RestTimerNotifications.instance.requestPermission());
+    unawaited(_scheduler.requestPermission());
   }
 
   Future<void> _onRestoreSession(
@@ -301,7 +308,7 @@ class WorkoutSessionBloc
     }
     // Drop expired rest-end if past.
     final cleaned = (restored.activeRestEndsAt != null &&
-            restored.activeRestEndsAt!.isBefore(DateTime.now()))
+            restored.activeRestEndsAt!.isBefore(clock.now()))
         ? restored.copyWith(activeRestEndsAt: null)
         : restored;
     emit(SessionActive(cleaned));
@@ -677,7 +684,7 @@ class WorkoutSessionBloc
       // (default 120s). Single source of truth lives on the session model.
       final dur = event.duration ?? Duration(seconds: cur.restDurationSeconds);
       return cur.copyWith(
-        activeRestEndsAt: DateTime.now().add(dur),
+        activeRestEndsAt: clock.now().add(dur),
         restDurationSeconds: dur.inSeconds,
       );
     });
@@ -699,7 +706,7 @@ class WorkoutSessionBloc
       if (ends == null) return cur; // no active timer to adjust
       final shifted = ends.add(event.delta);
       // If the user trimmed the timer past zero, cancel cleanly.
-      if (shifted.isBefore(DateTime.now())) {
+      if (shifted.isBefore(clock.now())) {
         return cur.copyWith(activeRestEndsAt: null);
       }
       return cur.copyWith(activeRestEndsAt: shifted);
@@ -711,7 +718,7 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     _persistDebounce?.cancel();
-    await RestTimerNotifications.instance.cancel();
+    await _scheduler.cancel();
     await BatteryOptimization.instance.stopForegroundService();
     await repository.clearActive();
     emit(const SessionCancelled());
@@ -735,7 +742,7 @@ class WorkoutSessionBloc
       activeExerciseId: null,
     );
     _persistDebounce?.cancel();
-    await RestTimerNotifications.instance.cancel();
+    await _scheduler.cancel();
     await BatteryOptimization.instance.stopForegroundService();
     await repository.archiveFinished(finished);
     await repository.clearActive();

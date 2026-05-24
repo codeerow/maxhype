@@ -2,11 +2,19 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 
+/// Foreground rest-timer bell. `WorkoutSessionBloc` depends on this
+/// interface rather than [SessionAudio] directly so tests can supply a
+/// fake bell that records rings without touching the audio plugin.
+// ignore: one_member_abstracts
+abstract class RestBell {
+  Future<void> playRestComplete();
+}
+
 /// Plays the boxing-bell sound from inside the app while the user is on
 /// a session screen. Used by `WorkoutSessionBloc` as the foreground bell
 /// source — `RestTimerNotifications` plays the same sample when the app
 /// is backgrounded.
-class SessionAudio {
+class SessionAudio implements RestBell {
   SessionAudio._();
   static final instance = SessionAudio._();
 
@@ -52,6 +60,7 @@ class SessionAudio {
     _player = p;
   }
 
+  @override
   Future<void> playRestComplete() async {
     try {
       await _ensureReady();

@@ -4,6 +4,16 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+/// Background rest-timer bell. `WorkoutSessionBloc` depends on this
+/// interface rather than [RestTimerNotifications] directly so tests can
+/// supply a fake scheduler that records schedule/cancel calls without
+/// touching the local-notifications plugin.
+abstract class RestNotificationScheduler {
+  Future<void> schedule(DateTime endsAt);
+  Future<void> cancel();
+  Future<bool> requestPermission();
+}
+
 /// Schedules a wall-clock notification that fires when the rest timer
 /// runs out. Survives app backgrounding and process kill — on Android via
 /// AlarmManager exact alarms, on iOS via UNUserNotificationCenter.
@@ -15,7 +25,7 @@ import 'package:timezone/timezone.dart' as tz;
 /// Android binds the sound at *channel creation* time. The channel id is
 /// versioned (`rest_timer_v2`) so devices that already created the v1
 /// silent channel get a fresh one with the bell attached.
-class RestTimerNotifications {
+class RestTimerNotifications implements RestNotificationScheduler {
   RestTimerNotifications._();
   static final instance = RestTimerNotifications._();
 
@@ -99,6 +109,7 @@ class RestTimerNotifications {
   /// Ask the user for notification permission. Returns whether the
   /// permission is granted (true) or denied (false). Safe to call
   /// repeatedly — the OS shows the dialog only once.
+  @override
   Future<bool> requestPermission() async {
     await init();
     if (Platform.isIOS) {
@@ -120,6 +131,7 @@ class RestTimerNotifications {
 
   /// Schedule (or replace) the rest-end notification for [endsAt]. If the
   /// timer is already past, fires immediately.
+  @override
   Future<void> schedule(DateTime endsAt) async {
     await init();
     final when = endsAt.isAfter(DateTime.now())
@@ -161,6 +173,7 @@ class RestTimerNotifications {
   }
 
   /// Cancel the scheduled rest notification, if any.
+  @override
   Future<void> cancel() async {
     if (!_initialized) return;
     await _plugin.cancel(id: _notificationId);
