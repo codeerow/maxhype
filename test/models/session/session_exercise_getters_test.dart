@@ -223,4 +223,54 @@ void main() {
       expect(ex.isOnFinalEffectiveSet, isTrue);
     });
   });
+
+  group('isAwaitingDoneConfirmation', () {
+    test('true when every effective set is logged and not yet completed', () {
+      expect(
+        _ex(n: 3, loggedIndices: [0, 1, 2]).isAwaitingDoneConfirmation,
+        isTrue,
+      );
+    });
+
+    test('false when at least one effective set is still unlogged', () {
+      expect(
+        _ex(n: 3, loggedIndices: [0, 1]).isAwaitingDoneConfirmation,
+        isFalse,
+      );
+    });
+
+    test('false once the exercise is marked completed', () {
+      expect(
+        _ex(n: 2, loggedIndices: [0, 1], completed: true)
+            .isAwaitingDoneConfirmation,
+        isFalse,
+      );
+    });
+
+    test('pending warmup blocks the awaiting-Done state', () {
+      // Otherwise the bottom button would flip to "Done" while the warmup
+      // row is still unsatisfied — same UX regression isOnFinalEffectiveSet
+      // already guards against.
+      final ex = _ex(
+        n: 2,
+        loggedIndices: [0, 1],
+        warmup: _warmup(logged: false),
+      );
+      expect(ex.isAwaitingDoneConfirmation, isFalse);
+    });
+
+    test('logged warmup permits the awaiting-Done state', () {
+      final ex = _ex(
+        n: 2,
+        loggedIndices: [0, 1],
+        warmup: _warmup(logged: true),
+      );
+      expect(ex.isAwaitingDoneConfirmation, isTrue);
+    });
+
+    test('empty effective sets cannot be in awaiting-Done state', () {
+      // isAllSetsLogged is false on empty lists, so this should propagate.
+      expect(_ex(n: 0).isAwaitingDoneConfirmation, isFalse);
+    });
+  });
 }

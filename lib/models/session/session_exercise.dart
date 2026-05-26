@@ -66,12 +66,21 @@ class SessionExercise {
   /// True when [currentTarget] is the warmup row.
   bool get isCurrentTargetWarmup => hasWarmupPending;
 
-  /// True when the next Log-Set tap will mark the whole exercise done —
-  /// exactly one effective set remains and warmup is satisfied.
+  /// True when the next Log-Set tap will land on the last unlogged
+  /// effective set. The button still logs that set; it does NOT mark the
+  /// exercise done — that requires a separate Done tap (see
+  /// [isAwaitingDoneConfirmation]).
   bool get isOnFinalEffectiveSet {
     if (hasWarmupPending) return false;
     return sets.where((s) => !s.isLogged).length == 1;
   }
+
+  /// True when every effective set is logged, warmup is satisfied, and
+  /// the exercise is not yet marked complete. In this state the bottom
+  /// button shows "Done" and the next tap dispatches MarkExerciseDone
+  /// (no further LogSet to fire).
+  bool get isAwaitingDoneConfirmation =>
+      !completed && !hasWarmupPending && isAllSetsLogged;
 
   // ----- copyWith / serialization -----
 

@@ -5,19 +5,19 @@ import '../../../widgets/tap_scale.dart';
 
 class LogSetButton extends StatelessWidget {
   final bool enabled;
-  final bool isFinalSet;
+  final bool isAwaitingDoneConfirmation;
   final VoidCallback onTap;
 
   const LogSetButton({
     super.key,
     required this.enabled,
-    required this.isFinalSet,
+    required this.isAwaitingDoneConfirmation,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final label = isFinalSet ? 'Done' : 'Log Set';
+    final label = isAwaitingDoneConfirmation ? 'Done' : 'Log Set';
     return SafeArea(
       top: false,
       child: Padding(
