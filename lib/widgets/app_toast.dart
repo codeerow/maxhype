@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Lightweight iOS-style top banner used in place of Material SnackBar.
+/// Lightweight bottom banner used in place of Material SnackBar.
 ///
-/// `AppToast.show(context, 'message')` overlays a translucent pill at the
-/// top of the screen for a couple of seconds. No haptic, no actions —
-/// purely informational. For destructive confirmations use a
+/// `AppToast.show(context, 'message')` overlays a pill at the bottom of
+/// the screen for a couple of seconds. No haptic, no actions — purely
+/// informational. The premium variant uses a solid orange bubble with
+/// black text and is reserved for workout-flow feedback (completed,
+/// cancelled, validation). For destructive confirmations use a
 /// CupertinoAlertDialog.
 class AppToast {
   static OverlayEntry? _current;
@@ -173,11 +175,11 @@ class _ToastEntryState extends State<_ToastEntry>
     final media = MediaQuery.of(context);
     final accent = widget.accent ?? AppTheme.recoveryGreen;
     return Positioned(
-      top: media.padding.top + 8,
+      bottom: media.padding.bottom + 24,
       left: 16,
       right: 16,
       child: SafeArea(
-        bottom: false,
+        top: false,
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
@@ -185,7 +187,7 @@ class _ToastEntryState extends State<_ToastEntry>
             return Opacity(
               opacity: t,
               child: Transform.translate(
-                offset: Offset(0, -12 * (1 - t)),
+                offset: Offset(0, 12 * (1 - t)),
                 child: child,
               ),
             );
@@ -199,19 +201,21 @@ class _ToastEntryState extends State<_ToastEntry>
                   vertical: widget.premium ? 14 : 10,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.cardBackground.withValues(alpha: 0.96),
+                  color: widget.premium
+                      ? accent
+                      : AppTheme.cardBackground.withValues(alpha: 0.96),
                   borderRadius: BorderRadius.circular(widget.premium ? 24 : 20),
-                  border: Border.all(
-                    color: accent.withValues(
-                      alpha: widget.premium ? 0.7 : 0.35,
-                    ),
-                    width: widget.premium ? 1.5 : 1,
-                  ),
+                  border: widget.premium
+                      ? null
+                      : Border.all(
+                          color: accent.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
                   boxShadow: [
                     if (widget.premium)
                       BoxShadow(
-                        color: accent.withValues(alpha: 0.45),
-                        blurRadius: 28,
+                        color: accent.withValues(alpha: 0.35),
+                        blurRadius: 24,
                         spreadRadius: 1,
                       ),
                     BoxShadow(
@@ -238,7 +242,9 @@ class _ToastEntryState extends State<_ToastEntry>
                         widget.message,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: widget.premium ? accent : AppTheme.textPrimary,
+                          color: widget.premium
+                              ? Colors.black
+                              : AppTheme.textPrimary,
                           fontSize: widget.premium ? 16 : 14,
                           fontWeight: widget.premium
                               ? FontWeight.w800

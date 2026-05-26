@@ -147,10 +147,10 @@ void _onSessionDismissed(BuildContext context, WorkoutSessionState state) {
       );
       getIt<HapticManager>().strongest();
     } else if (state is SessionCancelled) {
-      AppToast.showOnOverlay(
+      AppToast.showPremiumOnOverlay(
         overlay,
         'Workout Cancelled',
-        accent: AppTheme.recoveryRed,
+        accent: AppTheme.primaryOrange,
       );
     }
   });
