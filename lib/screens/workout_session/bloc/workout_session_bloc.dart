@@ -668,6 +668,20 @@ class WorkoutSessionBloc
       emit(const SessionIdle());
       return;
     }
+
+    // Guard against finishing a workout with zero logged sets across all
+    // exercises. Archiving such a session would pollute the history file
+    // (and therefore the PR baseline scan) with an empty completion.
+    // Bounce back to SessionActive so the screen stays put while the UI
+    // shows a validation toast.
+    final hasAnyLoggedSet =
+        cur.exercises.any((ex) => ex.hasAnyLoggedSet);
+    if (!hasAnyLoggedSet) {
+      emit(const SessionFinishBlockedEmpty());
+      emit(SessionActive(cur));
+      return;
+    }
+
     emit(const SessionFinishing());
     final finished = cur.copyWith(
       status: SessionStatus.finished,

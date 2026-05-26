@@ -34,3 +34,13 @@ class SessionFinished extends WorkoutSessionState {
 class SessionCancelled extends WorkoutSessionState {
   const SessionCancelled();
 }
+
+/// Transient state emitted when FinishWorkout is dispatched but the
+/// session has no logged sets across any exercise. Save is suppressed,
+/// the active session is preserved, and the UI is expected to show a
+/// validation toast. The bloc immediately re-emits SessionActive after
+/// this so subscribers can react to the transition without the session
+/// state staying stuck.
+class SessionFinishBlockedEmpty extends WorkoutSessionState {
+  const SessionFinishBlockedEmpty();
+}

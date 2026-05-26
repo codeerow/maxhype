@@ -45,6 +45,20 @@ void main() {
     await Future<void>.delayed(Duration.zero);
   }
 
+  /// FinishWorkout now refuses to archive a session with zero logged
+  /// sets — that would write empty entries into the history file and
+  /// pollute the PR baseline scan. Tests that exercise the happy-path
+  /// finish flow need at least one logged set before dispatching it.
+  Future<void> logOneSet() async {
+    bloc.add(const LogSet(
+      exerciseId: 'ex1',
+      setId: 'set_a',
+      weight: 50,
+      reps: 5,
+    ));
+    await Future<void>.delayed(Duration.zero);
+  }
+
   group('CancelWorkout', () {
     test('emits SessionCancelled then SessionIdle', () async {
       await restoreActive();
@@ -109,6 +123,7 @@ void main() {
   group('FinishWorkout', () {
     test('emits SessionFinishing → SessionFinished → SessionIdle', () async {
       await restoreActive();
+      await logOneSet();
 
       final emits = <WorkoutSessionState>[];
       final sub = bloc.stream.listen(emits.add);
@@ -131,6 +146,7 @@ void main() {
     test('archives a session marked finished with non-null finishedAt',
         () async {
       await restoreActive();
+      await logOneSet();
       final captured = <WorkoutSession>[];
       when(() => repo.archiveFinished(any())).thenAnswer((inv) async {
         captured.add(inv.positionalArguments.single as WorkoutSession);
@@ -150,6 +166,7 @@ void main() {
 
     test('clears active storage and cancels the OS notification', () async {
       await restoreActive();
+      await logOneSet();
       scheduler.cancels = 0;
 
       bloc.add(const FinishWorkout());
@@ -163,6 +180,7 @@ void main() {
     test('archive happens BEFORE clearActive (history must persist first)',
         () async {
       await restoreActive();
+      await logOneSet();
 
       final order = <String>[];
       when(() => repo.archiveFinished(any())).thenAnswer((_) async {
@@ -203,6 +221,7 @@ void main() {
     test('drops the pending persist debounce — no save fires after finish',
         () async {
       await restoreActive();
+      await logOneSet();
       clearInteractions(repo);
       when(() => repo.archiveFinished(any())).thenAnswer((_) async {});
       when(() => repo.clearActive()).thenAnswer((_) async {});
@@ -220,5 +239,88 @@ void main() {
       verifyNever(() => repo.save(any()));
       verify(() => repo.archiveFinished(any())).called(1);
     });
+  });
+
+  group('FinishWorkout zero-set guard', () {
+    test(
+      'with no logged sets emits SessionFinishBlockedEmpty, '
+      'then bounces back to SessionActive — does not archive or clear',
+      () async {
+        await restoreActive();
+
+        final emits = <WorkoutSessionState>[];
+        final sub = bloc.stream.listen(emits.add);
+
+        bloc.add(const FinishWorkout());
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          emits.whereType<SessionFinishBlockedEmpty>(),
+          hasLength(1),
+          reason: 'guard must announce the block exactly once',
+        );
+        // The guard must NOT push the session through the finish flow.
+        expect(emits.whereType<SessionFinishing>(), isEmpty);
+        expect(emits.whereType<SessionFinished>(), isEmpty);
+        // And the screen has to stay on a valid SessionActive so the
+        // user can keep logging.
+        expect(emits.last, isA<SessionActive>());
+
+        verifyNever(() => repo.archiveFinished(any()));
+        verifyNever(() => repo.clearActive());
+
+        await sub.cancel();
+      },
+    );
+
+    test(
+      'a single logged set is enough to clear the guard and finish normally',
+      () async {
+        await restoreActive();
+        await logOneSet();
+
+        bloc.add(const FinishWorkout());
+        await Future<void>.delayed(Duration.zero);
+
+        verify(() => repo.archiveFinished(any())).called(1);
+        verify(() => repo.clearActive()).called(1);
+      },
+    );
+
+    test(
+      'a logged warmup also clears the guard '
+      '(warmups count as evidence the user worked the exercise)',
+      () async {
+        when(() => repo.loadActive()).thenAnswer(
+          (_) async => makeSession(
+            exercises: [
+              makeExercise(
+                exerciseId: 'ex1',
+                setIds: ['set_a', 'set_b'],
+                withWarmup: true,
+              ),
+            ],
+          ),
+        );
+        bloc.add(const RestoreSession());
+        await bloc.stream.firstWhere((s) => s is SessionActive);
+        await Future<void>.delayed(Duration.zero);
+
+        // Log only the warmup — no effective sets.
+        bloc.add(const LogSet(
+          exerciseId: 'ex1',
+          setId: 'warmup_a',
+          weight: 40,
+          reps: 10,
+          isWarmup: true,
+        ));
+        await Future<void>.delayed(Duration.zero);
+
+        bloc.add(const FinishWorkout());
+        await Future<void>.delayed(Duration.zero);
+
+        verify(() => repo.archiveFinished(any())).called(1);
+      },
+    );
   });
 }

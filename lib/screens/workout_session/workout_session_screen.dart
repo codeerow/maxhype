@@ -265,6 +265,21 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   @override
   Widget build(BuildContext context) {
     final session = widget.state.session;
+    return BlocListener<WorkoutSessionBloc, WorkoutSessionState>(
+      listenWhen: (_, next) => next is SessionFinishBlockedEmpty,
+      listener: (context, _) {
+        AppToast.showPremium(
+          context,
+          'Complete at least one set first',
+          accent: AppTheme.primaryOrange,
+        );
+        getIt<HapticManager>().medium();
+      },
+      child: _buildScaffold(context, session),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, WorkoutSession session) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: SessionAppBar(
