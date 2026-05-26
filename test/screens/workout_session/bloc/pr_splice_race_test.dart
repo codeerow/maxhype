@@ -168,8 +168,11 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      // set_b beat set_a — one PR signal expected so far.
-      expect(signals.whereType<PrAchievedSignal>(), hasLength(1));
+      // Workout-level rule: while history hasn't loaded yet, _historical
+      // doesn't contain a baseline entry, so no PR signal can fire —
+      // we don't know whether this is the user's first workout for the
+      // exercise or not. Head still moves under the hood for PrHeader.
+      expect(signals, isEmpty);
       expect(bloc.prFor('ex1')?.weight, 110);
 
       gate.complete();
@@ -185,6 +188,12 @@ void main() {
         100,
         reason: 'runner-up is set_a; historical 80 sits below it',
       );
+
+      // After the late splice, no new signal should fire either — head
+      // is still set_b, so _recomputeFor sees no change. The PR pill on
+      // set_b will only ever appear if the user logs another beat in
+      // *this* session after the splice.
+      expect(signals, isEmpty);
 
       await sub.cancel();
     },

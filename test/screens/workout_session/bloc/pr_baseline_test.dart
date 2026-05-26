@@ -136,8 +136,15 @@ void main() {
       await sub.cancel();
     });
 
-    test('second set beating baseline emits PrAchievedSignal and updates head',
+    test(
+        'second set beating first set still emits NO PrAchievedSignal '
+        '(workout-level baseline: the whole first workout is silent)',
         () async {
+      // Workout-level rule: PR animations are suppressed for the whole
+      // first-ever workout for an exercise. The head still moves as the
+      // user logs heavier sets — PrHeader keeps showing the current best
+      // — but no PrAchieved/Revoked signals fire because there is no
+      // historical baseline to celebrate beating.
       await restoreWith(makeSession());
       bloc.add(const LogSet(
         exerciseId: 'ex1',
@@ -158,24 +165,44 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      // Head moved from set_a to set_b → UI needs both signals: drop the
-      // PR pill from set_a, paint it on set_b.
-      expect(signals, hasLength(2));
-      final revoked =
-          signals.whereType<PrRevokedSignal>().single;
-      expect(revoked.exerciseId, 'ex1');
-      expect(revoked.setId, 'set_a');
-      final achieved =
-          signals.whereType<PrAchievedSignal>().single;
-      expect(achieved.exerciseId, 'ex1');
-      expect(achieved.setId, 'set_b');
-      expect(achieved.weight, 105);
-
+      expect(signals, isEmpty);
+      // Head still moves under the hood so PrHeader stays accurate.
       expect(bloc.prFor('ex1')?.weight, 105);
       // Previous best = runner-up of [set_a(100), set_b(105)] → set_a(100).
-      // Variant C semantics: "what the new head just beat" instead of
-      // "what we came in with from history".
       expect(bloc.previousBestFor('ex1')?.weight, 100);
+
+      await sub.cancel();
+    });
+  });
+
+  group('PR baseline (no history) — repeat beats stay silent', () {
+    test('three escalating sets in the first workout fire nothing', () async {
+      await restoreWith(
+        makeSession(
+          exercises: [
+            makeExercise(
+              exerciseId: 'ex1',
+              setIds: ['set_a', 'set_b', 'set_c'],
+            ),
+          ],
+        ),
+      );
+
+      final signals = <PrSignal>[];
+      final sub = bloc.prSignals.listen(signals.add);
+
+      bloc.add(const LogSet(
+          exerciseId: 'ex1', setId: 'set_a', weight: 100, reps: 5));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const LogSet(
+          exerciseId: 'ex1', setId: 'set_b', weight: 105, reps: 5));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const LogSet(
+          exerciseId: 'ex1', setId: 'set_c', weight: 110, reps: 5));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(signals, isEmpty);
+      expect(bloc.prFor('ex1')?.weight, 110);
 
       await sub.cancel();
     });
@@ -228,6 +255,53 @@ void main() {
       // hasFreshPr false).
       expect(bloc.prFor('ex1')?.weight, 100);
       expect(bloc.hasFreshPr('ex1'), isFalse);
+
+      await sub.cancel();
+    });
+
+    test(
+        'a second beat within the same session also fires a signal '
+        '(repeat PRs in one workout are allowed once a historical baseline exists)',
+        () async {
+      // Confirmed product behaviour: once the user has a prior completed
+      // workout for the exercise, every fresh PR within the next session
+      // animates — including a second beat after an already-celebrated
+      // first one. PR celebrations are not throttled to one per session.
+      when(() => prRepo.bestFor('ex1'))
+          .thenAnswer((_) async => pr(weight: 100, reps: 5));
+      await restoreWith(makeSession());
+
+      final signals = <PrSignal>[];
+      final sub = bloc.prSignals.listen(signals.add);
+
+      bloc.add(const LogSet(
+        exerciseId: 'ex1',
+        setId: 'set_a',
+        weight: 110,
+        reps: 5,
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      // First beat: just an achieve (no previous live head to revoke).
+      expect(signals.whereType<PrAchievedSignal>(), hasLength(1));
+      expect(signals.whereType<PrRevokedSignal>(), isEmpty);
+
+      bloc.add(const LogSet(
+        exerciseId: 'ex1',
+        setId: 'set_b',
+        weight: 115,
+        reps: 5,
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      // Second beat: revoke set_a, achieve set_b.
+      expect(signals.whereType<PrAchievedSignal>(), hasLength(2));
+      expect(
+        signals.whereType<PrAchievedSignal>().last.setId,
+        'set_b',
+      );
+      expect(signals.whereType<PrRevokedSignal>(), hasLength(1));
+      expect(signals.whereType<PrRevokedSignal>().single.setId, 'set_a');
 
       await sub.cancel();
     });

@@ -177,7 +177,15 @@ class WorkoutSessionBloc
     // Revoke first when the old head was a live set and either it's
     // gone or has been displaced. The set may still exist (just no
     // longer head) — UI still needs to drop its PR pill.
-    if (oldHead != null && oldHead.setId != _baselineSetId) {
+    //
+    // Same workout-level gate as the achieve branch below: if there is
+    // no historical baseline, the live PR pill never appeared in the
+    // first place, so there is nothing to revoke. Suppressing the
+    // signal keeps subscriber bookkeeping consistent with what the user
+    // actually saw on screen during the first workout.
+    if (oldHead != null &&
+        oldHead.setId != _baselineSetId &&
+        _historical[exerciseId] != null) {
       _prSignals.add(PrRevokedSignal(
         exerciseId: exerciseId,
         setId: oldHead.setId,
@@ -187,12 +195,18 @@ class WorkoutSessionBloc
     //   - new head must exist and be a live set,
     //   - the old head must have existed (silent-baseline rule when oldHead == null),
     //   - and oldHead.record must actually be beaten by newHead.record.
+    // Plus the workout-level baseline rule: PR animations never fire on
+    // an exercise's first-ever workout. They start firing only once a
+    // prior finished workout has produced a historical baseline. Inside
+    // that first workout we still tracked the live head (so the PR
+    // header can show the current best), we just suppress the signal.
     // This guards against celebrating a regression (e.g. user deletes
     // their 110-set; head falls back to a still-live 100-set — that's
     // a revoke, not an achievement).
     if (newHead != null &&
         newHead.setId != _baselineSetId &&
         oldHead != null &&
+        _historical[exerciseId] != null &&
         oldHead.record.isBeatenBy(
           weight: newHead.record.weight,
           reps: newHead.record.reps,

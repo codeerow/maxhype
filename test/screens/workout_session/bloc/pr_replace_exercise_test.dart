@@ -33,7 +33,14 @@ void main() {
     repo = MockWorkoutSessionRepository();
     prRepo = MockPersonalRecordRepository();
     when(() => repo.save(any())).thenAnswer((_) async {});
-    when(() => prRepo.bestFor(any())).thenAnswer((_) async => null);
+    // Default historical baseline is featherweight (1×1) so every
+    // exercise — including replacement targets — passes the
+    // workout-level "first workout is silent" gate and intra-session
+    // signals fire as the carryover-and-replace logic intends. Specific
+    // tests can override per-id (e.g. to model a fresh exercise with no
+    // prior history).
+    when(() => prRepo.bestFor(any()))
+        .thenAnswer((_) async => pr(weight: 1, reps: 1));
     bloc = WorkoutSessionBloc(repository: repo, prRepository: prRepo);
   });
 
@@ -68,6 +75,13 @@ void main() {
   test(
     'replace before any LogSet: new exerciseId acts like a fresh exercise',
     () async {
+      // Override the default featherweight baseline for the replacement
+      // id only — this test is specifically about the "no history yet"
+      // path, so the post-replace head must really be null and the
+      // first set must land silently.
+      when(() => prRepo.bestFor('ex_new'))
+          .thenAnswer((_) async => null);
+
       await restoreSingleExercise();
 
       bloc.add(ReplaceExercise(
@@ -84,7 +98,8 @@ void main() {
       final signals = <PrSignal>[];
       final sub = bloc.prSignals.listen(signals.add);
 
-      // First set on the replacement → silent baseline, no celebration.
+      // First set on the replacement → silent baseline, no celebration
+      // (workout-level rule: no historical baseline for ex_new).
       bloc.add(const LogSet(
         exerciseId: 'ex_new',
         setId: 'set_a',
