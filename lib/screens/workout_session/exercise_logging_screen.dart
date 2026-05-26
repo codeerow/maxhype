@@ -397,7 +397,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
         child: const Center(
           child: Icon(
             CupertinoIcons.back,
-            color: AppTheme.textPrimary,
+            color: AppTheme.primaryOrange,
             size: 26,
           ),
         ),

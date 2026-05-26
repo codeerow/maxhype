@@ -33,7 +33,7 @@ class SessionAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: const Center(
           child: Icon(
             CupertinoIcons.back,
-            color: AppTheme.textPrimary,
+            color: AppTheme.primaryOrange,
             size: 26,
           ),
         ),
