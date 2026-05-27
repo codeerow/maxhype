@@ -142,7 +142,6 @@ void _onSessionDismissed(BuildContext context, WorkoutSessionState state) {
       AppToast.showPremiumOnOverlay(
         overlay,
         'Workout Completed',
-        icon: '💪',
         accent: AppTheme.primaryOrange,
       );
       getIt<HapticManager>().strongest();
