@@ -91,10 +91,17 @@ class WorkoutSessionBloc
   static const String _baselineSetId = '__baseline__';
 
   /// True when the current head for [exerciseId] was produced by a
-  /// live set in this session (not by the historical baseline).
+  /// live set in this session AND the exercise has a historical
+  /// baseline to compare against. The session-screen "PERSONAL RECORD"
+  /// pill rides on this, so it stays hidden during the very first
+  /// workout on an exercise — matching the same workout-level baseline
+  /// gate that suppresses the 🔥 NEW PR animation on the logging
+  /// screen. Once a finished workout lands in workout_history.jsonl
+  /// for the exercise, both surfaces light up together.
   bool hasFreshPr(String exerciseId) {
     final head = _lastHead[exerciseId];
-    return head != null && head.setId != _baselineSetId;
+    if (head == null || head.setId == _baselineSetId) return false;
+    return _historical[exerciseId] != null;
   }
 
   /// Side-channel for PR life-cycle events. Subscribers (logging

@@ -67,10 +67,11 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      // Sanity: head is the session-seeded entry (hasFreshPr true),
-      // and previousBestFor walks to a baseline-with-setId==null — none
-      // exists yet, so null.
-      expect(bloc.hasFreshPr('ex1'), isTrue);
+      // Head moved to the user-logged set, but the historical baseline
+      // hasn't loaded yet, so the workout-level gate keeps hasFreshPr
+      // false — the "PERSONAL RECORD" pill stays hidden until we know
+      // whether this is the user's first workout on the exercise or not.
+      expect(bloc.hasFreshPr('ex1'), isFalse);
       expect(bloc.prFor('ex1')?.weight, 100);
       expect(bloc.previousBestFor('ex1'), isNull,
           reason: 'no historical baseline spliced yet');
@@ -91,6 +92,9 @@ void main() {
         80,
         reason: 'historical baseline must be reachable after splice',
       );
+      // Once the historical baseline lands, hasFreshPr flips true and
+      // the session screen's PR pill can finally light up for this
+      // exercise.
       expect(bloc.hasFreshPr('ex1'), isTrue);
     },
   );

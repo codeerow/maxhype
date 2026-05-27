@@ -60,9 +60,11 @@ void main() {
       expect(signals, isEmpty);
       expect(bloc.prFor('ex1')?.weight, 100);
       expect(bloc.prFor('ex1')?.reps, 5);
-      // Baseline-from-first-set has setId set, so hasFreshPr is true —
-      // that's how delete-of-this-set cleanly revokes the baseline.
-      expect(bloc.hasFreshPr('ex1'), isTrue);
+      // Workout-level baseline rule: hasFreshPr stays false during the
+      // first workout on an exercise, so the session screen's
+      // "PERSONAL RECORD" pill stays hidden — matching the suppressed
+      // 🔥 NEW PR animation on the logging screen.
+      expect(bloc.hasFreshPr('ex1'), isFalse);
       // No previous best — chain has only the session baseline (setId != null).
       expect(bloc.previousBestFor('ex1'), isNull);
 
@@ -305,6 +307,33 @@ void main() {
 
       await sub.cancel();
     });
+
+    test(
+      'hasFreshPr flips true once a live set beats the historical baseline',
+      () async {
+        // The session-screen PERSONAL RECORD pill rides on hasFreshPr.
+        // It must stay aligned with the logging-screen PR animation:
+        // off while the historical baseline owns the head, on once a
+        // live set takes over.
+        when(() => prRepo.bestFor('ex1'))
+            .thenAnswer((_) async => pr(weight: 100, reps: 5));
+        await restoreWith(makeSession());
+
+        expect(bloc.hasFreshPr('ex1'), isFalse,
+            reason: 'head is the historical baseline');
+
+        bloc.add(const LogSet(
+          exerciseId: 'ex1',
+          setId: 'set_a',
+          weight: 110,
+          reps: 5,
+        ));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(bloc.hasFreshPr('ex1'), isTrue,
+            reason: 'live set beat the historical baseline');
+      },
+    );
   });
 
   group('Warmup sets', () {
