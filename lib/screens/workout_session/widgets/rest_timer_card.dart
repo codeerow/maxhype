@@ -159,7 +159,7 @@ class _RestTimerCardState extends State<RestTimerCard>
               ],
               const Spacer(),
               TapScale(
-                scaleDown: 0.85,
+                scaleDown: 0.90,
                 onTap: widget.onCancel,
                 child: const SizedBox(
                   width: 28,

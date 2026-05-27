@@ -37,7 +37,7 @@ class ActionChipRow extends StatelessWidget {
                 const Text(
                   'Rest ',
                   style: TextStyle(
-                    color: AppTheme.primaryOrange,
+                    color: AppTheme.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),

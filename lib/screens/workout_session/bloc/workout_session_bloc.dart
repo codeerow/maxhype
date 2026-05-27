@@ -91,10 +91,17 @@ class WorkoutSessionBloc
   static const String _baselineSetId = '__baseline__';
 
   /// True when the current head for [exerciseId] was produced by a
-  /// live set in this session (not by the historical baseline).
+  /// live set in this session AND the exercise has a historical
+  /// baseline to compare against. The session-screen "PERSONAL RECORD"
+  /// pill rides on this, so it stays hidden during the very first
+  /// workout on an exercise — matching the same workout-level baseline
+  /// gate that suppresses the 🔥 NEW PR animation on the logging
+  /// screen. Once a finished workout lands in workout_history.jsonl
+  /// for the exercise, both surfaces light up together.
   bool hasFreshPr(String exerciseId) {
     final head = _lastHead[exerciseId];
-    return head != null && head.setId != _baselineSetId;
+    if (head == null || head.setId == _baselineSetId) return false;
+    return _historical[exerciseId] != null;
   }
 
   /// Side-channel for PR life-cycle events. Subscribers (logging
@@ -177,7 +184,15 @@ class WorkoutSessionBloc
     // Revoke first when the old head was a live set and either it's
     // gone or has been displaced. The set may still exist (just no
     // longer head) — UI still needs to drop its PR pill.
-    if (oldHead != null && oldHead.setId != _baselineSetId) {
+    //
+    // Same workout-level gate as the achieve branch below: if there is
+    // no historical baseline, the live PR pill never appeared in the
+    // first place, so there is nothing to revoke. Suppressing the
+    // signal keeps subscriber bookkeeping consistent with what the user
+    // actually saw on screen during the first workout.
+    if (oldHead != null &&
+        oldHead.setId != _baselineSetId &&
+        _historical[exerciseId] != null) {
       _prSignals.add(PrRevokedSignal(
         exerciseId: exerciseId,
         setId: oldHead.setId,
@@ -187,12 +202,18 @@ class WorkoutSessionBloc
     //   - new head must exist and be a live set,
     //   - the old head must have existed (silent-baseline rule when oldHead == null),
     //   - and oldHead.record must actually be beaten by newHead.record.
+    // Plus the workout-level baseline rule: PR animations never fire on
+    // an exercise's first-ever workout. They start firing only once a
+    // prior finished workout has produced a historical baseline. Inside
+    // that first workout we still tracked the live head (so the PR
+    // header can show the current best), we just suppress the signal.
     // This guards against celebrating a regression (e.g. user deletes
     // their 110-set; head falls back to a still-live 100-set — that's
     // a revoke, not an achievement).
     if (newHead != null &&
         newHead.setId != _baselineSetId &&
         oldHead != null &&
+        _historical[exerciseId] != null &&
         oldHead.record.isBeatenBy(
           weight: newHead.record.weight,
           reps: newHead.record.reps,
@@ -477,41 +498,28 @@ class WorkoutSessionBloc
     DeleteSet event,
     Emitter<WorkoutSessionState> emit,
   ) async {
-    var autoComplete = false;
+    // DeleteSet never marks the exercise complete on its own. When the
+    // user swipes off the last unlogged effective set, every remaining
+    // set is already logged — isAwaitingDoneConfirmation flips true and
+    // the bottom button shows "Done", so the user can finish manually.
+    // Auto-completing here would also pop the logging screen out from
+    // under them via the completed-flag listener, which is exactly the
+    // surprise we want to avoid.
     final next = await _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
         if (event.isWarmup) {
           return ex.copyWith(warmupSet: null);
         }
         final newSets = ex.sets.where((s) => s.id != event.setId).toList();
-        final warmupPending = ex.warmupSet != null && !ex.warmupSet!.isLogged;
-        // If the user deleted the last *unlogged* effective set while at least
-        // one set is already logged, treat the exercise as done — otherwise
-        // there's no way to finish it (Log Set button has nothing to target).
-        final shouldComplete = !ex.completed &&
-            !warmupPending &&
-            newSets.isNotEmpty &&
-            newSets.every((s) => s.isLogged);
-        if (shouldComplete) autoComplete = true;
         return ex.copyWith(
           sets: newSets,
           targetSets: max(0, ex.targetSets - 1),
-          completed: shouldComplete ? true : null,
         );
       });
     });
     if (next != null && !event.isWarmup) {
       _recomputeFor(event.exerciseId);
     }
-    if (!autoComplete || next == null) return;
-    await _mutate(emit, (cur) {
-      return cur.copyWith(
-        activeExerciseId: cur.activeExerciseId == event.exerciseId
-            ? null
-            : cur.activeExerciseId,
-        activeRestEndsAt: null,
-      );
-    }, flush: true);
   }
 
   Future<void> _onDeleteExercise(
@@ -654,6 +662,20 @@ class WorkoutSessionBloc
       emit(const SessionIdle());
       return;
     }
+
+    // Guard against finishing a workout with zero logged sets across all
+    // exercises. Archiving such a session would pollute the history file
+    // (and therefore the PR baseline scan) with an empty completion.
+    // Bounce back to SessionActive so the screen stays put while the UI
+    // shows a validation toast.
+    final hasAnyLoggedSet =
+        cur.exercises.any((ex) => ex.hasAnyLoggedSet);
+    if (!hasAnyLoggedSet) {
+      emit(const SessionFinishBlockedEmpty());
+      emit(SessionActive(cur));
+      return;
+    }
+
     emit(const SessionFinishing());
     final finished = cur.copyWith(
       status: SessionStatus.finished,

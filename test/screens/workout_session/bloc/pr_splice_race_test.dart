@@ -67,10 +67,11 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      // Sanity: head is the session-seeded entry (hasFreshPr true),
-      // and previousBestFor walks to a baseline-with-setId==null — none
-      // exists yet, so null.
-      expect(bloc.hasFreshPr('ex1'), isTrue);
+      // Head moved to the user-logged set, but the historical baseline
+      // hasn't loaded yet, so the workout-level gate keeps hasFreshPr
+      // false — the "PERSONAL RECORD" pill stays hidden until we know
+      // whether this is the user's first workout on the exercise or not.
+      expect(bloc.hasFreshPr('ex1'), isFalse);
       expect(bloc.prFor('ex1')?.weight, 100);
       expect(bloc.previousBestFor('ex1'), isNull,
           reason: 'no historical baseline spliced yet');
@@ -91,6 +92,9 @@ void main() {
         80,
         reason: 'historical baseline must be reachable after splice',
       );
+      // Once the historical baseline lands, hasFreshPr flips true and
+      // the session screen's PR pill can finally light up for this
+      // exercise.
       expect(bloc.hasFreshPr('ex1'), isTrue);
     },
   );
@@ -168,8 +172,11 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      // set_b beat set_a — one PR signal expected so far.
-      expect(signals.whereType<PrAchievedSignal>(), hasLength(1));
+      // Workout-level rule: while history hasn't loaded yet, _historical
+      // doesn't contain a baseline entry, so no PR signal can fire —
+      // we don't know whether this is the user's first workout for the
+      // exercise or not. Head still moves under the hood for PrHeader.
+      expect(signals, isEmpty);
       expect(bloc.prFor('ex1')?.weight, 110);
 
       gate.complete();
@@ -185,6 +192,12 @@ void main() {
         100,
         reason: 'runner-up is set_a; historical 80 sits below it',
       );
+
+      // After the late splice, no new signal should fire either — head
+      // is still set_b, so _recomputeFor sees no change. The PR pill on
+      // set_b will only ever appear if the user logs another beat in
+      // *this* session after the splice.
+      expect(signals, isEmpty);
 
       await sub.cancel();
     },

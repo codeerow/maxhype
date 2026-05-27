@@ -380,8 +380,9 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
             ),
           ),
           LogSetButton(
-            enabled: exercise.currentTarget?.isFilled ?? false,
-            isFinalSet: exercise.isOnFinalEffectiveSet,
+            enabled: exercise.isAwaitingDoneConfirmation ||
+                (exercise.currentTarget?.isFilled ?? false),
+            isAwaitingDoneConfirmation: exercise.isAwaitingDoneConfirmation,
             onTap: () => _onLogSetTap(context),
           ),
         ],
@@ -397,7 +398,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
         child: const Center(
           child: Icon(
             CupertinoIcons.back,
-            color: AppTheme.textPrimary,
+            color: AppTheme.primaryOrange,
             size: 26,
           ),
         ),
@@ -461,6 +462,14 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
 
   void _onLogSetTap(BuildContext context) {
     final bloc = context.read<WorkoutSessionBloc>();
+
+    // Awaiting-Done state: every effective set is already logged. A tap
+    // on the "Done" button just confirms completion — no LogSet to fire.
+    if (exercise.isAwaitingDoneConfirmation) {
+      bloc.add(MarkExerciseDone(exercise.exerciseId));
+      return;
+    }
+
     final target = exercise.currentTarget;
     if (target == null || !target.isFilled) return;
 
@@ -473,24 +482,15 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
       isWarmup: isWarmup,
     ));
 
-    // Compute the next set we'd jump to so the IME can chain into it. We
-    // figure this out *before* dispatching MarkExerciseDone (that pops the
-    // screen, so jumping focus would be pointless then).
     final remainingEffective =
         exercise.sets.where((s) => !s.isLogged && s.id != target.id).toList();
 
-    if (isWarmup) {
-      bloc.add(const StartRestTimer());
-      if (remainingEffective.isNotEmpty) {
-        _focusWeight(remainingEffective.first.id);
-      }
-      return;
-    }
-
-    if (remainingEffective.isEmpty) {
-      bloc.add(MarkExerciseDone(exercise.exerciseId));
-    } else {
-      bloc.add(const StartRestTimer());
+    // Start the rest timer regardless of whether more sets remain — after
+    // the final set the user is still on-screen waiting to tap Done, so
+    // they benefit from the rest countdown already running. Focus only
+    // moves when there is a next set to chain into.
+    bloc.add(const StartRestTimer());
+    if (remainingEffective.isNotEmpty) {
       _focusWeight(remainingEffective.first.id);
     }
   }

@@ -95,7 +95,7 @@ class LiquidGlassNavBar extends StatelessWidget {
                       onTap: onBack!,
                       child: Icon(
                         backIcon ?? Icons.arrow_back,
-                        color: AppTheme.textPrimary,
+                        color: AppTheme.primaryOrange,
                         size: 22,
                       ),
                     ),

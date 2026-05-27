@@ -43,7 +43,7 @@ class ReplaceExerciseSheet extends StatelessWidget {
           child: const Center(
             child: Icon(
               CupertinoIcons.back,
-              color: AppTheme.textPrimary,
+              color: AppTheme.primaryOrange,
               size: 26,
             ),
           ),

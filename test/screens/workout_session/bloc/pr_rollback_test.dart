@@ -20,7 +20,12 @@ void main() {
     repo = MockWorkoutSessionRepository();
     prRepo = MockPersonalRecordRepository();
     when(() => repo.save(any())).thenAnswer((_) async {});
-    when(() => prRepo.bestFor(any())).thenAnswer((_) async => null);
+    // Featherweight historical baseline (1×1) so every recompute can
+    // emit signals — these tests are about delete-driven head rollback,
+    // not the workout-level "first workout is silent" gate. Tests that
+    // need the no-history path override per-id.
+    when(() => prRepo.bestFor(any()))
+        .thenAnswer((_) async => pr(weight: 1, reps: 1));
     bloc = WorkoutSessionBloc(repository: repo, prRepository: prRepo);
   });
 

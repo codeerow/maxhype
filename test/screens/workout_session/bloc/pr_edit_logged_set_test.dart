@@ -27,7 +27,12 @@ void main() {
     repo = MockWorkoutSessionRepository();
     prRepo = MockPersonalRecordRepository();
     when(() => repo.save(any())).thenAnswer((_) async {});
-    when(() => prRepo.bestFor(any())).thenAnswer((_) async => null);
+    // These tests focus on intra-session recompute correctness, not on
+    // the workout-level baseline rule. A featherweight historical PR
+    // gets us past the "first workout is silent" gate so every recompute
+    // can broadcast signals as intended.
+    when(() => prRepo.bestFor(any()))
+        .thenAnswer((_) async => pr(weight: 1, reps: 1));
     bloc = WorkoutSessionBloc(repository: repo, prRepository: prRepo);
   });
 
