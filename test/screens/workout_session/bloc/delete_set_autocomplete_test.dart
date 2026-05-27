@@ -7,12 +7,13 @@ import 'package:mocktail/mocktail.dart';
 
 import 'helpers.dart';
 
-/// Auto-complete invariant in `_onDeleteSet`: when the user trims the
-/// last unlogged effective set off an exercise whose remaining sets are
-/// all logged (and whose warmup is satisfied), the exercise flips to
-/// `completed = true` and the rest timer is cleared. Without this, the
-/// "Log Set" button would have no target and the user would be stuck
-/// unable to finish the exercise.
+/// DeleteSet never marks the exercise complete on its own. When the
+/// user trims off the last unlogged effective set, the surviving sets
+/// are all logged → `isAwaitingDoneConfirmation` flips true and the
+/// bottom button shows "Done". The user finishes by tapping Done,
+/// not by deleting their way to completion. Auto-completing here
+/// would also pop the logging screen out from under them via the
+/// completed-flag listener.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -64,7 +65,8 @@ void main() {
   }
 
   test(
-    'deleting last unlogged set after others are logged completes the exercise',
+    'deleting the last unlogged set leaves the exercise active in the '
+    'awaiting-Done state — no auto-complete, screen stays open',
     () async {
       await restoreWith(
         makeSession(
@@ -80,8 +82,7 @@ void main() {
       await logSet('ex1', 'set_a');
       await logSet('ex1', 'set_b');
 
-      expect(currentExercise('ex1').completed, isFalse,
-          reason: 'still one unlogged set left — not done yet');
+      expect(currentExercise('ex1').completed, isFalse);
 
       // Delete the only remaining unlogged set.
       bloc.add(const DeleteSet(exerciseId: 'ex1', setId: 'set_c'));
@@ -89,10 +90,13 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final ex = currentExercise('ex1');
-      expect(ex.completed, isTrue,
+      expect(ex.completed, isFalse,
+          reason: 'DeleteSet no longer auto-completes the exercise');
+      expect(ex.isAwaitingDoneConfirmation, isTrue,
           reason:
-              'no unlogged set remains and all survivors are logged — '
-              'exercise auto-completes');
+              'all surviving sets are logged and warmup is satisfied — '
+              'the bottom button should switch to "Done" so the user can '
+              'finish manually');
       expect(ex.sets.length, 2);
       expect(ex.targetSets, 2,
           reason: 'targetSets decrements alongside the removed set');
@@ -100,7 +104,7 @@ void main() {
   );
 
   test(
-    'auto-complete clears activeExerciseId and activeRestEndsAt',
+    'a running rest timer survives DeleteSet — only Done/Cancel clear it',
     () async {
       await restoreWith(
         makeSession(
@@ -114,7 +118,6 @@ void main() {
       );
 
       await logSet('ex1', 'set_a');
-      // Start a rest timer so we can prove it gets cleared.
       bloc.add(const StartRestTimer(duration: Duration(seconds: 60)));
       await Future<void>.delayed(Duration.zero);
       final sActive = bloc.state as SessionActive;
@@ -126,16 +129,18 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final s = bloc.state as SessionActive;
-      expect(currentExercise('ex1').completed, isTrue);
-      expect(s.session.activeRestEndsAt, isNull,
-          reason: 'auto-complete cancels the rest timer');
-      expect(s.session.activeExerciseId, isNull,
-          reason: 'auto-complete clears the active exercise pointer');
+      expect(currentExercise('ex1').completed, isFalse);
+      expect(s.session.activeRestEndsAt, isNotNull,
+          reason:
+              'rest timer keeps ticking — the user might still want to log '
+              'another set before tapping Done');
+      expect(s.session.activeExerciseId, 'ex1',
+          reason: 'active-exercise pointer also survives the delete');
     },
   );
 
   test(
-    'pending warmup blocks auto-complete even when all effective sets are logged',
+    'pending warmup keeps isAwaitingDoneConfirmation false after delete',
     () async {
       await restoreWith(
         makeSession(
@@ -156,13 +161,18 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
 
-      expect(currentExercise('ex1').completed, isFalse,
-          reason: 'warmup is still pending — exercise must not auto-complete');
+      final ex = currentExercise('ex1');
+      expect(ex.completed, isFalse);
+      expect(ex.isAwaitingDoneConfirmation, isFalse,
+          reason:
+              'warmup is still pending — the bottom button must keep '
+              'pointing at the warmup, not flip to Done');
     },
   );
 
   test(
-    'unlogged sets remaining block auto-complete',
+    'deleting one of several unlogged sets leaves isAwaitingDoneConfirmation '
+    'false (still more sets to log)',
     () async {
       await restoreWith(
         makeSession(
@@ -182,16 +192,16 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
 
-      expect(currentExercise('ex1').completed, isFalse,
-          reason:
-              'set_b is still unlogged — survivors are not all-logged, '
-              'no auto-complete');
+      final ex = currentExercise('ex1');
+      expect(ex.completed, isFalse);
+      expect(ex.isAwaitingDoneConfirmation, isFalse,
+          reason: 'set_b is still unlogged — Log Set has a target');
     },
   );
 
   test(
-    'deleting the only set (logged) does not auto-complete '
-    '(no surviving sets)',
+    'deleting the only (logged) set leaves the exercise with zero sets — '
+    'no auto-complete, isAwaitingDoneConfirmation is false (empty list)',
     () async {
       await restoreWith(
         makeSession(
@@ -207,21 +217,19 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final ex = currentExercise('ex1');
-      expect(ex.completed, isFalse,
-          reason:
-              'shouldComplete requires newSets.isNotEmpty — deleting the '
-              'last set leaves nothing to mark "done"');
+      expect(ex.completed, isFalse);
       expect(ex.sets, isEmpty);
+      expect(ex.isAwaitingDoneConfirmation, isFalse,
+          reason:
+              'isAllSetsLogged is false on empty lists — the Done state '
+              'requires at least one effective set on the exercise');
     },
   );
 
   test(
-    'deleting a non-final unlogged set when others are logged still '
-    'auto-completes (regression — sets every-logged after delete)',
+    'deleting a non-final unlogged set when the rest are logged also lands '
+    'in awaiting-Done (order of deletes does not matter)',
     () async {
-      // Edge case: order doesn't matter. If after delete every remaining
-      // set is logged, we auto-complete regardless of which unlogged set
-      // we removed.
       await restoreWith(
         makeSession(
           exercises: [
@@ -241,8 +249,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
 
-      expect(currentExercise('ex1').completed, isTrue,
-          reason: 'removing the only unlogged set finishes the exercise');
+      final ex = currentExercise('ex1');
+      expect(ex.completed, isFalse);
+      expect(ex.isAwaitingDoneConfirmation, isTrue);
     },
   );
 }

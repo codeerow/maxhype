@@ -491,41 +491,28 @@ class WorkoutSessionBloc
     DeleteSet event,
     Emitter<WorkoutSessionState> emit,
   ) async {
-    var autoComplete = false;
+    // DeleteSet never marks the exercise complete on its own. When the
+    // user swipes off the last unlogged effective set, every remaining
+    // set is already logged — isAwaitingDoneConfirmation flips true and
+    // the bottom button shows "Done", so the user can finish manually.
+    // Auto-completing here would also pop the logging screen out from
+    // under them via the completed-flag listener, which is exactly the
+    // surprise we want to avoid.
     final next = await _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
         if (event.isWarmup) {
           return ex.copyWith(warmupSet: null);
         }
         final newSets = ex.sets.where((s) => s.id != event.setId).toList();
-        final warmupPending = ex.warmupSet != null && !ex.warmupSet!.isLogged;
-        // If the user deleted the last *unlogged* effective set while at least
-        // one set is already logged, treat the exercise as done — otherwise
-        // there's no way to finish it (Log Set button has nothing to target).
-        final shouldComplete = !ex.completed &&
-            !warmupPending &&
-            newSets.isNotEmpty &&
-            newSets.every((s) => s.isLogged);
-        if (shouldComplete) autoComplete = true;
         return ex.copyWith(
           sets: newSets,
           targetSets: max(0, ex.targetSets - 1),
-          completed: shouldComplete ? true : null,
         );
       });
     });
     if (next != null && !event.isWarmup) {
       _recomputeFor(event.exerciseId);
     }
-    if (!autoComplete || next == null) return;
-    await _mutate(emit, (cur) {
-      return cur.copyWith(
-        activeExerciseId: cur.activeExerciseId == event.exerciseId
-            ? null
-            : cur.activeExerciseId,
-        activeRestEndsAt: null,
-      );
-    }, flush: true);
   }
 
   Future<void> _onDeleteExercise(
