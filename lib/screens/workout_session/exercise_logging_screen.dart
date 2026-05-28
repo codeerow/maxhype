@@ -218,7 +218,14 @@ class _LoggingViewState extends State<_LoggingView>
               repsFocusFor: _repsFocusFor,
               celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
-              currentPr: bloc.prFor(widget.exerciseId),
+              // Same workout-level baseline gate as the row animation
+              // and the session-screen PR pill: the top PR header stays
+              // hidden during the first-ever workout on an exercise.
+              // It only lights up once a finished workout has produced
+              // a historical baseline AND a live set beats it.
+              currentPr: bloc.hasFreshPr(widget.exerciseId)
+                  ? bloc.prFor(widget.exerciseId)
+                  : null,
               previousBest: bloc.previousBestFor(widget.exerciseId),
               isFreshPr: _prSetIds.isNotEmpty,
             );
