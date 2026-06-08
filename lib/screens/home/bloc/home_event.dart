@@ -6,3 +6,11 @@ sealed class HomeEvent {
 class HomeInitial extends HomeEvent {
   const HomeInitial();
 }
+
+/// Triggered when external state (e.g., a workout was just finished)
+/// invalidates the completion map cached in [HomeSuccess]. The bloc
+/// re-reads the completion store without re-running the full workout /
+/// monthly-data load.
+class RefreshCompletions extends HomeEvent {
+  const RefreshCompletions();
+}

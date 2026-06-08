@@ -53,6 +53,13 @@ class EffectiveSetRow extends StatefulWidget {
   /// side of the row and tints the pills gold-ish to make it stand out.
   final bool isPr;
 
+  /// Disables weight/reps text input. Used by the preview screen so
+  /// the user can browse the workout — including its prefilled values
+  /// from history / the catalog plan — without actually editing
+  /// anything until they press Start Workout (clarification: weight
+  /// and reps fields are not editable until the workout is started).
+  final bool readOnly;
+
   const EffectiveSetRow({
     super.key,
     required this.marker,
@@ -69,6 +76,7 @@ class EffectiveSetRow extends StatefulWidget {
     this.weightFocusNode,
     this.repsFocusNode,
     this.isPr = false,
+    this.readOnly = false,
   });
 
   @override
@@ -170,7 +178,7 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
               controller: _weightCtrl,
               focusNode: _weightFocus,
               state: state,
-              readOnly: false,
+              readOnly: widget.readOnly,
               hint: widget.prefillWeight == null
                   ? ''
                   : _formatWeight(widget.prefillWeight),
@@ -199,8 +207,8 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
               // Logged sets are still editable — the user can fix typos
               // after the fact. The pill keeps its orange colour to
               // signal it's logged, but typing replaces the value in
-              // place.
-              readOnly: false,
+              // place. Preview mode locks the field via widget.readOnly.
+              readOnly: widget.readOnly,
               hint: widget.prefillReps?.toString() ?? '',
               keyboard: TextInputType.number,
               textInputAction: TextInputAction.done,

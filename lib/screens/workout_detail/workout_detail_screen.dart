@@ -14,10 +14,13 @@ import '../../widgets/tap_scale.dart';
 import 'bloc/workout_detail_bloc.dart';
 import 'bloc/workout_detail_event.dart';
 import 'bloc/workout_detail_state.dart';
+import 'bloc/workout_preview_bloc.dart';
 import 'widgets/exercise_card.dart';
 import 'widgets/exercise_navigation.dart';
+import '../workout_session/exercise_logging_screen.dart';
 import '../workout_session/workout_session_screen.dart';
 import '../workout_session/bloc/workout_session_bloc.dart';
+import '../workout_session/bloc/workout_session_event.dart' as session_event;
 import '../workout_session/bloc/workout_session_state.dart';
 
 class WorkoutDetailScreen extends StatelessWidget {
@@ -30,12 +33,21 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) {
-        final event = LoadWorkoutDetail(workout.id);
-        return context.read<BlocFactory>().create<WorkoutDetailBloc>()
-          ..add(event);
-      },
+    // Detail screen owns the preview cubit — its lifetime matches this
+    // route, so backing out without Start disposes the drafts (brief
+    // Phase 3 Part 3 §6 — "If the user backs out without pressing
+    // Start Workout, there should be no active session").
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) {
+            final event = LoadWorkoutDetail(workout.id);
+            return context.read<BlocFactory>().create<WorkoutDetailBloc>()
+              ..add(event);
+          },
+        ),
+        BlocProvider(create: (_) => WorkoutPreviewBloc()),
+      ],
       child: BlocBuilder<WorkoutDetailBloc, WorkoutDetailState>(
         builder: (context, state) {
           return Scaffold(
@@ -143,6 +155,10 @@ class WorkoutDetailScreen extends StatelessWidget {
                   final exercise = workout.exercises[index];
                   return ExerciseCard(
                     exercise: exercise,
+                    // Brief §6 — tapping an exercise on the workout
+                    // detail screen opens the preview variant of the
+                    // logging screen, before any session is created.
+                    onTap: () => _openPreview(context, exercise),
                     onOptionsPressed: () =>
                         _showExerciseOptions(context, exercise),
                   );
@@ -175,20 +191,34 @@ class WorkoutDetailScreen extends StatelessWidget {
                   scaleDown: 0.94,
                   enableHaptic: true,
                   onTap: () {
-                    final cur = context.read<WorkoutSessionBloc>().state;
+                    final sessionBloc = context.read<WorkoutSessionBloc>();
+                    final cur = sessionBloc.state;
                     if (cur is SessionActive &&
                         cur.session.workoutId != workout.id) {
-                      AppToast.show(
+                      // Brief §4 — block the second-workout attempt
+                      // with a premium-orange toast. Keeps the active
+                      // session untouched and tells the user what to
+                      // do, in the same visual language as the
+                      // Completed / Cancelled toasts (clarifications
+                      // 4.10, 4.11, 10.30).
+                      AppToast.showPremium(
                         context,
-                        'Workout in Progress — finish or cancel your current workout first.',
+                        'Finish your current workout first',
                         accent: AppTheme.primaryOrange,
                       );
                       return;
                     }
+                    // Carry over any preview drafts the user typed
+                    // before pressing Start — clarifications 6.15/6.18.
+                    final drafts = Map.of(
+                      context.read<WorkoutPreviewBloc>().state.drafts,
+                    );
+                    sessionBloc.add(
+                      session_event.StartSession(workout, previewDrafts: drafts),
+                    );
                     Navigator.of(context).pushReplacement(
                       CupertinoPageRoute<void>(
-                        builder: (_) =>
-                            WorkoutSessionScreen.start(workout: workout),
+                        builder: (_) => WorkoutSessionScreen.restored(),
                       ),
                     );
                   },
@@ -278,6 +308,34 @@ class WorkoutDetailScreen extends StatelessWidget {
             );
         AppToast.show(context, 'Replaced with ${newExercise.name}');
       },
+    );
+  }
+
+  Future<void> _openPreview(
+    BuildContext context,
+    Exercise exercise,
+  ) async {
+    final sessionBloc = context.read<WorkoutSessionBloc>();
+    final previewBloc = context.read<WorkoutPreviewBloc>();
+    final detailBloc = context.read<WorkoutDetailBloc>();
+    // Always pass the latest workout from the detail bloc — if the
+    // user replaced an exercise from the options sheet, we want the
+    // preview screen to read the updated template (clarification
+    // 6.17).
+    final detailState = detailBloc.state;
+    final liveWorkout = detailState is WorkoutDetailSuccess
+        ? detailState.workout
+        : workout;
+    await Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => ExerciseLoggingScreen.preview(
+          exerciseId: exercise.id,
+          workout: liveWorkout,
+          previewBloc: previewBloc,
+          sessionBloc: sessionBloc,
+          detailBloc: detailBloc,
+        ),
+      ),
     );
   }
 }

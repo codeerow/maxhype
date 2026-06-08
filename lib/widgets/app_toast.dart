@@ -29,12 +29,18 @@ class AppToast {
 
   /// Larger, glow-y variant used for celebratory moments
   /// (workout completed). Wider bubble, longer hold, accent halo.
+  ///
+  /// [bottomOffset] lifts the bubble further above the screen bottom
+  /// — pass enough room to clear a floating button (e.g., the
+  /// session screen's Finish pill) so the toast sits above it
+  /// instead of overlapping. Defaults to 0.
   static void showPremium(
     BuildContext context,
     String message, {
     String? icon,
     Color? accent,
     Duration duration = const Duration(milliseconds: 2500),
+    double bottomOffset = 0,
   }) =>
       _present(
         context,
@@ -43,6 +49,7 @@ class AppToast {
         accent: accent,
         icon: icon,
         premium: true,
+        bottomOffset: bottomOffset,
       );
 
   static void _present(
@@ -52,6 +59,7 @@ class AppToast {
     required bool premium,
     Color? accent,
     String? icon,
+    double bottomOffset = 0,
   }) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
@@ -60,7 +68,8 @@ class AppToast {
         duration: duration,
         premium: premium,
         accent: accent,
-        icon: icon);
+        icon: icon,
+        bottomOffset: bottomOffset);
   }
 
   /// Variant used when the caller has an [OverlayState] directly — needed
@@ -103,6 +112,7 @@ class AppToast {
     required bool premium,
     Color? accent,
     String? icon,
+    double bottomOffset = 0,
   }) {
     _current?.remove();
     final entry = OverlayEntry(
@@ -112,6 +122,7 @@ class AppToast {
         accent: accent,
         icon: icon,
         premium: premium,
+        bottomOffset: bottomOffset,
         onDismissed: () {
           _current?.remove();
           _current = null;
@@ -129,6 +140,7 @@ class _ToastEntry extends StatefulWidget {
   final Color? accent;
   final String? icon;
   final bool premium;
+  final double bottomOffset;
   final VoidCallback onDismissed;
 
   const _ToastEntry({
@@ -138,6 +150,7 @@ class _ToastEntry extends StatefulWidget {
     required this.premium,
     this.accent,
     this.icon,
+    this.bottomOffset = 0,
   });
 
   @override
@@ -175,7 +188,7 @@ class _ToastEntryState extends State<_ToastEntry>
     final media = MediaQuery.of(context);
     final accent = widget.accent ?? AppTheme.recoveryGreen;
     return Positioned(
-      bottom: media.padding.bottom + 24,
+      bottom: media.padding.bottom + 24 + widget.bottomOffset,
       left: 16,
       right: 16,
       child: SafeArea(

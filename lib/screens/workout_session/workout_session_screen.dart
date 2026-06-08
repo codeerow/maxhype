@@ -21,6 +21,7 @@ import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
 import 'exercise_logging_screen.dart';
+import 'in_progress_bar_routing.dart';
 import 'widgets/cancel_workout_dialog.dart';
 import 'widgets/persistent_workout_timer.dart';
 import 'widgets/session_app_bar.dart';
@@ -31,17 +32,24 @@ import 'widgets/warmup_choice_tile.dart';
 
 /// Workout session main screen.
 ///
-/// Two entry shapes:
+/// Entry shapes:
 ///  - `WorkoutSessionScreen.start(workout: ...)` — fresh session.
 ///  - `WorkoutSessionScreen.restored()` — bloc already in SessionActive
 ///    (used by app-launch restore path from main.dart).
+///  - `WorkoutSessionScreen.restoredAndOpenActive()` — same restore
+///    path, plus on first frame push the logging screen for the
+///    resume-target exercise. Used by the "WORKOUT IN PROGRESS" bar
+///    so a tap drops the user back into the row they were logging
+///    (brief Phase 3 Part 3 §5).
 class WorkoutSessionScreen extends StatelessWidget {
   final Workout? startWorkout;
   final bool restored;
+  final bool autoOpenActive;
 
   const WorkoutSessionScreen._({
     this.startWorkout,
     this.restored = false,
+    this.autoOpenActive = false,
   });
 
   factory WorkoutSessionScreen.start({required Workout workout}) {
@@ -50,6 +58,13 @@ class WorkoutSessionScreen extends StatelessWidget {
 
   factory WorkoutSessionScreen.restored() {
     return const WorkoutSessionScreen._(restored: true);
+  }
+
+  factory WorkoutSessionScreen.restoredAndOpenActive() {
+    return const WorkoutSessionScreen._(
+      restored: true,
+      autoOpenActive: true,
+    );
   }
 
   @override
@@ -69,13 +84,14 @@ class WorkoutSessionScreen extends StatelessWidget {
     }
     return BlocProvider<WorkoutSessionBloc>.value(
       value: bloc,
-      child: const _WorkoutSessionView(),
+      child: _WorkoutSessionView(autoOpenActive: autoOpenActive),
     );
   }
 }
 
 class _WorkoutSessionView extends StatelessWidget {
-  const _WorkoutSessionView();
+  final bool autoOpenActive;
+  const _WorkoutSessionView({this.autoOpenActive = false});
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +100,10 @@ class _WorkoutSessionView extends StatelessWidget {
       listener: _onSessionDismissed,
       builder: (context, state) {
         if (state is SessionActive) {
-          return _ActiveSessionScaffold(state: state);
+          return _ActiveSessionScaffold(
+            state: state,
+            autoOpenActive: autoOpenActive,
+          );
         }
         if (state is SessionLoading || state is SessionFinishing) {
           return const Scaffold(
@@ -157,7 +176,11 @@ void _onSessionDismissed(BuildContext context, WorkoutSessionState state) {
 
 class _ActiveSessionScaffold extends StatefulWidget {
   final SessionActive state;
-  const _ActiveSessionScaffold({required this.state});
+  final bool autoOpenActive;
+  const _ActiveSessionScaffold({
+    required this.state,
+    this.autoOpenActive = false,
+  });
 
   @override
   State<_ActiveSessionScaffold> createState() => _ActiveSessionScaffoldState();
@@ -205,6 +228,37 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     _prSub = context.read<WorkoutSessionBloc>().prSignals.listen((_) {
       if (mounted) setState(() {});
     });
+
+    // Brief §5 — when the user tapped the WORKOUT IN PROGRESS bar,
+    // the exercise list flashes briefly (this scaffold), then we
+    // push the logging screen for the right exercise. We wait for
+    // this route's incoming Cupertino transition to finish before
+    // stacking the logging screen on top, so the nested push doesn't
+    // race the in-flight TransitionRoute animation.
+    if (widget.autoOpenActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final route = ModalRoute.of(context);
+        route?.didPush().whenComplete(() {
+          if (mounted) _autoOpenResumeTarget();
+        });
+      });
+    }
+  }
+
+  /// Push the logging screen for the resume-target exercise. When
+  /// [resumeTargetExerciseId] returns null (no active exercise — the
+  /// user hasn't logged anything yet, or just finished one), we stay
+  /// on the exercise list and let them pick the next row to open.
+  Future<void> _autoOpenResumeTarget() async {
+    final session = widget.state.session;
+    final targetId = resumeTargetExerciseId(session);
+    if (targetId == null) return;
+    final target = session.exercises.firstWhere(
+      (e) => e.exerciseId == targetId,
+      orElse: () => session.exercises.first,
+    );
+    await _openLogging(context, target);
   }
 
   @override
@@ -271,6 +325,10 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
           context,
           'Complete at least one set first',
           accent: AppTheme.primaryOrange,
+          // Brief §9 — positioned above the Finish button.
+          // Finish pill sits at bottom: 24 inside SafeArea with a
+          // 52px height, so lift the toast 80px to clear it cleanly.
+          bottomOffset: 80,
         );
         getIt<HapticManager>().medium();
       },
@@ -388,7 +446,7 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     // the left edge for free.
     await Navigator.of(context).push(
       CupertinoPageRoute<void>(
-        builder: (_) => ExerciseLoggingScreen(
+        builder: (_) => ExerciseLoggingScreen.live(
           exerciseId: ex.exerciseId,
           bloc: bloc,
         ),

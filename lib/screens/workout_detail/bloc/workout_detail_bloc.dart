@@ -38,34 +38,20 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
     if (state is! WorkoutDetailSuccess) return;
 
     try {
-      final currentState = state as WorkoutDetailSuccess;
-      final workout = currentState.workout;
-
-      // Find the index of the exercise to replace
-      final exerciseIndex = workout.exercises.indexWhere(
-        (ex) => ex.id == event.oldExerciseId,
+      // Persist the swap on the workout repository so the next
+      // getWorkouts() call returns the updated template
+      // (clarification 6.17). Local state then re-renders from that
+      // canonical source.
+      await workoutRepository.replaceExercise(
+        workoutId: event.workoutId,
+        oldExerciseId: event.oldExerciseId,
+        newExercise: event.newExercise,
       );
-
-      if (exerciseIndex == -1) {
-        throw Exception('Exercise not found');
-      }
-
-      // Create new exercises list with replacement
-      final newExercises = List.of(workout.exercises);
-      newExercises[exerciseIndex] = event.newExercise;
-
-      // Create updated workout
-      final updatedWorkout = Workout(
-        id: workout.id,
-        title: workout.title,
-        subtitle: workout.subtitle,
-        duration: workout.duration,
-        exerciseCount: newExercises.length,
-        exercises: newExercises,
-        targetMuscles: workout.targetMuscles,
-        recoveryInfo: workout.recoveryInfo,
+      final workouts = await workoutRepository.getWorkouts();
+      final updatedWorkout = workouts.firstWhere(
+        (w) => w.id == event.workoutId,
+        orElse: () => throw Exception('Workout not found'),
       );
-
       emit(WorkoutDetailSuccess(workout: updatedWorkout));
     } catch (e) {
       emit(WorkoutDetailError(message: e.toString()));

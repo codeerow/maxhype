@@ -21,6 +21,13 @@ import 'bloc/pr_signal.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
+import '../../models/workout.dart';
+import '../workout_detail/bloc/workout_detail_bloc.dart';
+import '../workout_detail/bloc/workout_preview_bloc.dart';
+import '../workout_detail/widgets/exercise_navigation.dart';
+import 'live_logging_mode.dart';
+import 'logging_mode.dart';
+import 'preview_logging_mode.dart';
 import 'widgets/action_chip_row.dart';
 import 'widgets/add_set_button.dart';
 import 'widgets/effective_set_row.dart';
@@ -41,31 +48,96 @@ typedef _Prefill = ({double? weight, int? reps});
 // ListView so the last rows can scroll under the floating timer.
 const double _kRestCardReserve = 60;
 
-/// Logging screen for a single exercise. Mounts the shared
-/// `WorkoutSessionBloc` so any state mutations stay in sync with the main
-/// session screen.
+/// Logging screen for a single exercise. Operates in one of two modes:
+///
+///   - `ExerciseLoggingScreen.live(...)` — backed by `WorkoutSessionBloc`,
+///     used during an active session. Logs sets, drives PR celebrations,
+///     bottom button toggles Log Set / Done.
+///   - `ExerciseLoggingScreen.preview(...)` — backed by
+///     [WorkoutPreviewBloc], used from the workout-detail screen before
+///     the user has tapped Start. Lets the user pre-fill weight/reps,
+///     add/delete rows, and replace the exercise; bottom button reads
+///     "Start Workout" and creates the session with the drafts merged
+///     in (brief Phase 3 Part 3 §6).
 class ExerciseLoggingScreen extends StatelessWidget {
   final String exerciseId;
   final WorkoutSessionBloc bloc;
+  final bool previewMode;
+  final Workout? previewWorkout;
+  final WorkoutPreviewBloc? previewBloc;
+  final WorkoutDetailBloc? detailBloc;
 
-  const ExerciseLoggingScreen({
-    super.key,
+  const ExerciseLoggingScreen._({
     required this.exerciseId,
     required this.bloc,
+    this.previewMode = false,
+    this.previewWorkout,
+    this.previewBloc,
+    this.detailBloc,
   });
+
+  factory ExerciseLoggingScreen.live({
+    required String exerciseId,
+    required WorkoutSessionBloc bloc,
+  }) =>
+      ExerciseLoggingScreen._(exerciseId: exerciseId, bloc: bloc);
+
+  factory ExerciseLoggingScreen.preview({
+    required String exerciseId,
+    required Workout workout,
+    required WorkoutPreviewBloc previewBloc,
+    required WorkoutSessionBloc sessionBloc,
+    required WorkoutDetailBloc detailBloc,
+  }) =>
+      ExerciseLoggingScreen._(
+        exerciseId: exerciseId,
+        bloc: sessionBloc,
+        previewMode: true,
+        previewWorkout: workout,
+        previewBloc: previewBloc,
+        detailBloc: detailBloc,
+      );
 
   @override
   Widget build(BuildContext context) {
+    Widget view = _LoggingView(
+      exerciseId: exerciseId,
+      previewMode: previewMode,
+      previewWorkout: previewWorkout,
+    );
+    // Re-expose the workout-detail bloc on the new route so the
+    // three-dot Replace flow (which dispatches detail_event.ReplaceExercise)
+    // can find it via context.read. Without this, the modal sheet's
+    // context — pushed even deeper than the preview route — would
+    // hit ProviderNotFoundException.
+    if (detailBloc != null) {
+      view = BlocProvider<WorkoutDetailBloc>.value(
+        value: detailBloc!,
+        child: view,
+      );
+    }
     return BlocProvider<WorkoutSessionBloc>.value(
       value: bloc,
-      child: _LoggingView(exerciseId: exerciseId),
+      child: previewBloc == null
+          ? view
+          : BlocProvider<WorkoutPreviewBloc>.value(
+              value: previewBloc!,
+              child: view,
+            ),
     );
   }
 }
 
 class _LoggingView extends StatefulWidget {
   final String exerciseId;
-  const _LoggingView({required this.exerciseId});
+  final bool previewMode;
+  final Workout? previewWorkout;
+
+  const _LoggingView({
+    required this.exerciseId,
+    this.previewMode = false,
+    this.previewWorkout,
+  });
 
   @override
   State<_LoggingView> createState() => _LoggingViewState();
@@ -73,7 +145,15 @@ class _LoggingView extends StatefulWidget {
 
 class _LoggingViewState extends State<_LoggingView>
     with TickerProviderStateMixin {
-  late final Future<SessionSet?> _historyFuture;
+  /// The exerciseId the screen is currently rendering. Starts at the
+  /// widget's exerciseId and gets swapped in when the user replaces
+  /// the exercise via the three-dot menu (live mode runs through the
+  /// session bloc's ReplaceExercise event; preview mode swaps through
+  /// the workout-detail bloc and the preview cubit's draft store).
+  /// Without this, the screen would either show the stale exercise
+  /// or self-pop the moment the old id disappeared from the model.
+  late String _currentExerciseId = widget.exerciseId;
+  late Future<SessionSet?> _historyFuture;
 
   /// Stable FocusNodes for WEIGHT / REPS fields keyed by `setId`
   /// (or `'warmup'`). Owned here so we can chain focus to the next
@@ -113,10 +193,23 @@ class _LoggingViewState extends State<_LoggingView>
   void initState() {
     super.initState();
     _historyFuture =
-        getIt<WorkoutSessionRepository>().lastLogFor(widget.exerciseId);
+        getIt<WorkoutSessionRepository>().lastLogFor(_currentExerciseId);
 
     final bloc = context.read<WorkoutSessionBloc>();
     _prSub = bloc.prSignals.listen(_onPrSignal);
+  }
+
+  /// Switch the screen onto a newly replaced exercise. Re-fetches the
+  /// history future so the prefill pills reflect *this* exercise's
+  /// last logged set, and forces a rebuild so the rest of the body
+  /// reads from the freshly-resolved [_currentExerciseId].
+  void _switchExerciseId(String newId) {
+    if (!mounted) return;
+    setState(() {
+      _currentExerciseId = newId;
+      _historyFuture =
+          getIt<WorkoutSessionRepository>().lastLogFor(newId);
+    });
   }
 
   void _onPrSignal(PrSignal signal) {
@@ -129,7 +222,7 @@ class _LoggingViewState extends State<_LoggingView>
   }
 
   void _onPrAchieved(PrAchievedSignal signal) {
-    if (signal.exerciseId != widget.exerciseId) return;
+    if (signal.exerciseId != _currentExerciseId) return;
     if (!mounted) return;
     setState(() => _prSetIds.add(signal.setId));
     celebrationFor(signal.setId).forward(from: 0);
@@ -138,7 +231,7 @@ class _LoggingViewState extends State<_LoggingView>
   }
 
   void _onPrRevoked(PrRevokedSignal signal) {
-    if (signal.exerciseId != widget.exerciseId) return;
+    if (signal.exerciseId != _currentExerciseId) return;
     if (!mounted) return;
     if (!_prSetIds.contains(signal.setId)) return;
     setState(() => _prSetIds.remove(signal.setId));
@@ -165,13 +258,20 @@ class _LoggingViewState extends State<_LoggingView>
   bool _completedFor(WorkoutSessionState s) {
     if (s is! SessionActive) return false;
     final ex = s.session.exercises.firstWhereOrNull(
-      (e) => e.exerciseId == widget.exerciseId,
+      (e) => e.exerciseId == _currentExerciseId,
     );
     return ex?.completed ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.previewMode) {
+      return _buildPreview(context);
+    }
+    return _buildLive(context);
+  }
+
+  Widget _buildLive(BuildContext context) {
     return BlocConsumer<WorkoutSessionBloc, WorkoutSessionState>(
       // Listen for the exercise's `completed` flag flipping false → true.
       // That's the single source of truth: when the exercise is done, we
@@ -191,11 +291,9 @@ class _LoggingViewState extends State<_LoggingView>
           );
         }
         final ex = state.session.exercises.firstWhereOrNull(
-          (e) => e.exerciseId == widget.exerciseId,
+          (e) => e.exerciseId == _currentExerciseId,
         );
         if (ex == null) {
-          // Exercise was removed (e.g., deleted while screen was open) —
-          // close ourselves on the next frame.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (Navigator.of(context).canPop()) Navigator.of(context).pop();
           });
@@ -208,8 +306,11 @@ class _LoggingViewState extends State<_LoggingView>
         return FutureBuilder<SessionSet?>(
           future: _historyFuture,
           builder: (context, snapshot) {
-            // History is best-effort pre-fill — show the screen immediately
-            // and fill in once the future resolves.
+            final mode = LiveLoggingMode(
+              bloc: bloc,
+              exercise: ex,
+              focusWeight: (id) => _weightFocusFor(id).requestFocus(),
+            );
             return _LoggingScaffold(
               exercise: ex,
               session: state.session,
@@ -218,16 +319,66 @@ class _LoggingViewState extends State<_LoggingView>
               repsFocusFor: _repsFocusFor,
               celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
-              // Same workout-level baseline gate as the row animation
-              // and the session-screen PR pill: the top PR header stays
-              // hidden during the first-ever workout on an exercise.
-              // It only lights up once a finished workout has produced
-              // a historical baseline AND a live set beats it.
-              currentPr: bloc.hasFreshPr(widget.exerciseId)
-                  ? bloc.prFor(widget.exerciseId)
+              currentPr: bloc.hasFreshPr(_currentExerciseId)
+                  ? bloc.prFor(_currentExerciseId)
                   : null,
-              previousBest: bloc.previousBestFor(widget.exerciseId),
+              previousBest: bloc.previousBestFor(_currentExerciseId),
               isFreshPr: _prSetIds.isNotEmpty,
+              mode: mode,
+              onExerciseReplaced: _switchExerciseId,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPreview(BuildContext context) {
+    final sessionBloc = context.read<WorkoutSessionBloc>();
+    final previewBloc = context.read<WorkoutPreviewBloc>();
+    // Preview screen pops itself the moment the user picks Replace
+    // (mirrors workout-detail's flow), so we don't need to subscribe
+    // to WorkoutDetailBloc for live template updates — the workout
+    // snapshot captured at open time is enough for the screen's
+    // lifetime.
+    final workout = widget.previewWorkout!;
+
+    return BlocBuilder<WorkoutPreviewBloc, WorkoutPreviewState>(
+      builder: (context, _) {
+        // Seed the preview draft for the current exercise. Idempotent —
+        // only sows rows when nothing yet exists for this exerciseId.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final ex = workout.exercises.firstWhere(
+            (e) => e.id == _currentExerciseId,
+            orElse: () => workout.exercises.first,
+          );
+          previewBloc.seedEffectiveSets(_currentExerciseId, ex.sets);
+        });
+
+        final mode = PreviewLoggingMode(
+          workout: workout,
+          exerciseId: _currentExerciseId,
+          previewBloc: previewBloc,
+          sessionBloc: sessionBloc,
+        );
+        final ex = mode.exerciseSnapshot;
+        return FutureBuilder<SessionSet?>(
+          future: _historyFuture,
+          builder: (context, snapshot) {
+            return _LoggingScaffold(
+              exercise: ex,
+              session: null,
+              historyLastLog: snapshot.data,
+              weightFocusFor: _weightFocusFor,
+              repsFocusFor: _repsFocusFor,
+              celebrationFor: celebrationFor,
+              prSetIds: _prSetIds,
+              currentPr: null,
+              previousBest: null,
+              isFreshPr: false,
+              mode: mode,
+              onExerciseReplaced: _switchExerciseId,
             );
           },
         );
@@ -238,7 +389,7 @@ class _LoggingViewState extends State<_LoggingView>
 
 class _LoggingScaffold extends StatefulWidget {
   final SessionExercise exercise;
-  final WorkoutSession session;
+  final WorkoutSession? session;
   final SessionSet? historyLastLog;
   final FocusNode Function(String key) weightFocusFor;
   final FocusNode Function(String key) repsFocusFor;
@@ -247,6 +398,8 @@ class _LoggingScaffold extends StatefulWidget {
   final PersonalRecord? currentPr;
   final PersonalRecord? previousBest;
   final bool isFreshPr;
+  final LoggingMode mode;
+  final ValueChanged<String> onExerciseReplaced;
 
   const _LoggingScaffold({
     required this.exercise,
@@ -259,6 +412,8 @@ class _LoggingScaffold extends StatefulWidget {
     required this.currentPr,
     required this.previousBest,
     required this.isFreshPr,
+    required this.mode,
+    required this.onExerciseReplaced,
   });
 
   @override
@@ -269,7 +424,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   // Field shorthands so the existing helper methods (_buildSetRows,
   // _onLogSetTap, etc.) can keep using bare names instead of `widget.x`.
   SessionExercise get exercise => widget.exercise;
-  WorkoutSession get session => widget.session;
+  WorkoutSession? get session => widget.session;
   SessionSet? get historyLastLog => widget.historyLastLog;
   FocusNode Function(String key) get weightFocusFor => widget.weightFocusFor;
   FocusNode Function(String key) get repsFocusFor => widget.repsFocusFor;
@@ -282,11 +437,14 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final mode = widget.mode;
     final prefill = _resolvePrefill(exercise);
     final firstUnlogged = exercise.firstUnloggedSet;
 
-    final restActive = session.activeRestEndsAt != null &&
-        session.activeRestEndsAt!.isAfter(DateTime.now());
+    final s = session;
+    final restActive = s != null &&
+        s.activeRestEndsAt != null &&
+        s.activeRestEndsAt!.isAfter(DateTime.now());
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -294,18 +452,10 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
       appBar: _buildAppBar(context),
       body: Column(
         children: [
-          // Scrolling area with the rest-timer card overlaid on top.
-          // List rows scroll under the (transparent-background) timer
-          // until they reach the bottom of this Stack, which sits
-          // exactly above the Log Set button.
           Expanded(
             child: Stack(
               children: [
                 ListView(
-                  // Edge-to-edge horizontally so swipe-to-delete bleeds
-                  // off the screen edge. Bottom padding reserves room
-                  // for the rest-timer card to overlay the last rows,
-                  // plus a small breathing-room tail in both states.
                   padding: EdgeInsets.fromLTRB(
                     0,
                     8,
@@ -313,56 +463,66 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     (restActive ? _kRestCardReserve : 0) + 16,
                   ),
                   children: [
-                    if (currentPr != null)
+                    if (currentPr != null && !mode.isPreview)
                       PrHeader(
                         pr: currentPr!,
                         previousBest: previousBest,
                         isFresh: isFreshPr,
                       ),
-                    ActionChipRow(
-                      restSeconds: session.restDurationSeconds,
-                      onRestTap: () =>
-                          AppToast.show(context, 'Rest timer adjusts in card'),
-                      onInstructionTap: () => AppToast.show(
-                          context, 'Instructions — coming in Part 2'),
-                      onAnalyticsTap: () => AppToast.show(
-                          context, 'Analytics — coming in Part 2'),
-                    ),
+                    // ActionChipRow shows the rest-timer / instructions /
+                    // analytics chips — only meaningful for an active
+                    // session. Preview mode hides it entirely.
+                    if (!mode.isPreview && s != null)
+                      ActionChipRow(
+                        restSeconds: s.restDurationSeconds,
+                        onRestTap: () => AppToast.show(
+                            context, 'Rest timer adjusts in card'),
+                        onInstructionTap: () => AppToast.show(
+                            context, 'Instructions — coming in Part 2'),
+                        onAnalyticsTap: () => AppToast.show(
+                            context, 'Analytics — coming in Part 2'),
+                      ),
+                    if (exercise.warmups.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      const _Hp(child: _SectionTitle(text: 'Warmup')),
+                      const SizedBox(height: 8),
+                      const _Hp(child: _Headers()),
+                      const SizedBox(height: 4),
+                      ..._buildWarmupRows(context, prefill),
+                    ],
                     const SizedBox(height: 18),
-                    const _Hp(child: _SectionTitle(text: 'Warmup')),
+                    if (exercise.warmups.isNotEmpty || exercise.sets.isNotEmpty)
+                      const _Hp(child: _SectionTitle(text: 'Sets')),
                     const SizedBox(height: 8),
-                    const _Hp(child: _Headers()),
-                    const SizedBox(height: 4),
-                    _buildWarmupRow(context, prefill),
-                    const SizedBox(height: 18),
                     const _Hp(child: _Headers()),
                     const SizedBox(height: 4),
                     ..._buildSetRows(context, prefill, firstUnlogged?.id),
-                    const SizedBox(height: 8),
-                    _Hp(
-                      child: AddSetButton(
-                        onAddOne: () => context
-                            .read<WorkoutSessionBloc>()
-                            .add(AddSet(exercise.exerciseId)),
-                        onAddMany: (count) {
-                          final bloc = context.read<WorkoutSessionBloc>();
-                          for (var i = 0; i < count; i++) {
-                            bloc.add(AddSet(exercise.exerciseId));
-                          }
-                        },
+                    if (exercise.dropSets.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      const _Hp(child: _SectionTitle(text: 'Drop sets')),
+                      const SizedBox(height: 8),
+                      const _Hp(child: _Headers()),
+                      const SizedBox(height: 4),
+                      ..._buildDropSetRows(context, prefill),
+                    ],
+                    // Add Set is hidden in preview — structural edits
+                    // (add / delete / replace) only happen after Start
+                    // Workout. Keeps preview a pure "look at what's
+                    // planned" surface.
+                    if (!mode.isPreview) ...[
+                      const SizedBox(height: 8),
+                      _Hp(
+                        child: AddSetButton(
+                          onAddSet: (kind) => mode.onAddRow(kind),
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 22),
                     _Hp(
                       child: NotesCard(
                         initialValue: exercise.notes,
-                        onChanged: (s) =>
-                            context.read<WorkoutSessionBloc>().add(
-                                  UpdateNotes(
-                                    exerciseId: exercise.exerciseId,
-                                    notes: s,
-                                  ),
-                                ),
+                        onChanged: mode.onNotesChanged,
+                        readOnly: mode.isPreview,
                       ),
                     ),
                   ],
@@ -373,8 +533,8 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     right: 0,
                     bottom: 12,
                     child: RestTimerCard(
-                      endsAt: session.activeRestEndsAt!,
-                      totalSeconds: session.restDurationSeconds,
+                      endsAt: s.activeRestEndsAt!,
+                      totalSeconds: s.restDurationSeconds,
                       onCancel: () => context
                           .read<WorkoutSessionBloc>()
                           .add(const CancelRestTimer()),
@@ -387,10 +547,11 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
             ),
           ),
           LogSetButton(
-            enabled: exercise.isAwaitingDoneConfirmation ||
-                (exercise.currentTarget?.isFilled ?? false),
-            isAwaitingDoneConfirmation: exercise.isAwaitingDoneConfirmation,
-            onTap: () => _onLogSetTap(context),
+            label: mode.bottomLabel,
+            enabled: mode.bottomEnabled,
+            isAwaitingDoneConfirmation:
+                !mode.isPreview && exercise.isAwaitingDoneConfirmation,
+            onTap: () => mode.onBottomTap(context),
           ),
         ],
       ),
@@ -418,25 +579,124 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
           fontWeight: FontWeight.w600,
         ),
       ),
+      // Brief Phase 3 Part 3 §7 — three-dot menu opens the same
+      // bottom sheet as the workout-detail screen. Replace routes
+      // through whichever store the current mode is bound to:
+      //   - live mode  → WorkoutSessionBloc.ReplaceExercise
+      //   - preview    → WorkoutDetailBloc.ReplaceExercise (writes
+      //                  the swap through to the workout template)
+      // Either path preserves logged sets, notes, warmups, drop sets
+      // and the rest timer (clarification 7.20).
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.more_horiz,
+            color: AppTheme.primaryOrange,
+          ),
+          onPressed: () => _openExerciseOptions(context),
+        ),
+      ],
     );
   }
 
-  Widget _buildWarmupRow(BuildContext context, _Prefill prefill) {
-    final warmup = exercise.warmupSet;
-    if (warmup == null) return const SizedBox.shrink();
-    return _LoggingSetRow(
-      exerciseId: exercise.exerciseId,
-      set: warmup,
-      marker: 'W',
-      isWarmup: true,
-      isCurrent: !warmup.isLogged,
-      isPr: false,
-      prefill: prefill,
-      weightFocus: weightFocusFor('warmup'),
-      repsFocus: repsFocusFor('warmup'),
-      celebrationController: celebrationFor(warmup.id),
-      onSubmitted: () => _onLogSetTap(context),
+  void _openExerciseOptions(BuildContext context) {
+    final repo = getIt<ExerciseRepository>();
+    final catalog = repo.getExerciseById(exercise.exerciseId);
+    final ex = catalog ??
+        Exercise(
+          id: exercise.exerciseId,
+          name: exercise.name,
+          sets: exercise.targetSets,
+          reps: 10,
+          weight: 0,
+          muscleGroups: exercise.muscleGroups,
+          equipmentType: exercise.equipment,
+          rating: 0,
+        );
+    final mode = widget.mode;
+    showExerciseOptionsSheet(
+      context,
+      exercise: ex,
+      onReplace: (newExercise) {
+        // Hand replacement to whichever store the screen is bound to:
+        // - Live mode → WorkoutSessionBloc.ReplaceExercise (preserves
+        //   logged sets, notes, warmups, drops, and the rest timer).
+        //   Screen stays on top and re-anchors on the new exerciseId.
+        // - Preview mode → WorkoutDetailBloc.ReplaceExercise (writes
+        //   the swap into the workout template). The preview pops
+        //   itself before we get here — we must NOT re-anchor on the
+        //   new id, because widget.previewWorkout is the snapshot
+        //   from preview-open time and doesn't contain the new
+        //   exercise yet. Any rebuild that fires before the route
+        //   finishes deactivating would then ask the snapshot for
+        //   the new id and blow up.
+        final oldId = exercise.exerciseId;
+        mode.onReplaceExercise(context, oldId, newExercise);
+        if (!mode.isPreview) {
+          widget.onExerciseReplaced(newExercise.id);
+        }
+      },
     );
+  }
+
+  Widget _row({
+    required SessionSet set,
+    required String marker,
+    required SetKind kind,
+    required bool isCurrent,
+    required bool isPr,
+    required _Prefill prefill,
+    required String focusKey,
+  }) {
+    final mode = widget.mode;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: _LoggingSetRow(
+        exerciseId: exercise.exerciseId,
+        set: set,
+        marker: marker,
+        kind: kind,
+        isCurrent: isCurrent,
+        isPr: isPr,
+        prefill: prefill,
+        weightFocus: weightFocusFor(focusKey),
+        repsFocus: repsFocusFor(focusKey),
+        celebrationController: celebrationFor(set.id),
+        onSubmitted: () => mode.onBottomTap(context),
+        onDelete: () => mode.onDeleteRow(set.id, kind),
+        onWeightChanged: (v) => mode.onWeightChanged(
+          setId: set.id,
+          kind: kind,
+          weight: v,
+        ),
+        onRepsChanged: (v) => mode.onRepsChanged(
+          setId: set.id,
+          kind: kind,
+          reps: v,
+        ),
+        // Preview mode locks weight/reps fields — the user can browse
+        // hints and add/delete/replace rows, but values are entered
+        // only after Start Workout.
+        readOnly: mode.isPreview,
+      ),
+    );
+  }
+
+  List<Widget> _buildWarmupRows(BuildContext context, _Prefill prefill) {
+    if (exercise.warmups.isEmpty) return const [];
+    final firstUnlogged = exercise.firstUnloggedWarmup;
+    return [
+      for (var i = 0; i < exercise.warmups.length; i++)
+        _row(
+          set: exercise.warmups[i],
+          marker: 'W',
+          kind: SetKind.warmup,
+          isCurrent: exercise.warmups[i].id == firstUnlogged?.id,
+          isPr: false,
+          prefill: prefill,
+          focusKey: 'warmup_${exercise.warmups[i].id}',
+        ),
+    ];
   }
 
   List<Widget> _buildSetRows(
@@ -446,60 +706,37 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   ) {
     return [
       for (var i = 0; i < exercise.sets.length; i++)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: _LoggingSetRow(
-            exerciseId: exercise.exerciseId,
-            set: exercise.sets[i],
-            marker: '${i + 1}',
-            isWarmup: false,
-            // Warmup pending → no effective row is "current" yet.
-            isCurrent: !exercise.hasWarmupPending &&
-                exercise.sets[i].id == currentSetId,
-            isPr: prSetIds.contains(exercise.sets[i].id),
-            prefill: prefill,
-            weightFocus: weightFocusFor(exercise.sets[i].id),
-            repsFocus: repsFocusFor(exercise.sets[i].id),
-            celebrationController: celebrationFor(exercise.sets[i].id),
-            onSubmitted: () => _onLogSetTap(context),
-          ),
+        _row(
+          set: exercise.sets[i],
+          marker: '${i + 1}',
+          kind: SetKind.effective,
+          // Warmup pending → no effective row is "current" yet.
+          isCurrent: !exercise.hasWarmupPending &&
+              exercise.sets[i].id == currentSetId,
+          isPr: prSetIds.contains(exercise.sets[i].id),
+          prefill: prefill,
+          focusKey: exercise.sets[i].id,
         ),
     ];
   }
 
-  void _onLogSetTap(BuildContext context) {
-    final bloc = context.read<WorkoutSessionBloc>();
-
-    // Awaiting-Done state: every effective set is already logged. A tap
-    // on the "Done" button just confirms completion — no LogSet to fire.
-    if (exercise.isAwaitingDoneConfirmation) {
-      bloc.add(MarkExerciseDone(exercise.exerciseId));
-      return;
-    }
-
-    final target = exercise.currentTarget;
-    if (target == null || !target.isFilled) return;
-
-    final isWarmup = exercise.isCurrentTargetWarmup;
-    bloc.add(LogSet(
-      exerciseId: exercise.exerciseId,
-      setId: target.id,
-      weight: target.weight!,
-      reps: target.reps!,
-      isWarmup: isWarmup,
-    ));
-
-    final remainingEffective =
-        exercise.sets.where((s) => !s.isLogged && s.id != target.id).toList();
-
-    // Start the rest timer regardless of whether more sets remain — after
-    // the final set the user is still on-screen waiting to tap Done, so
-    // they benefit from the rest countdown already running. Focus only
-    // moves when there is a next set to chain into.
-    bloc.add(const StartRestTimer());
-    if (remainingEffective.isNotEmpty) {
-      _focusWeight(remainingEffective.first.id);
-    }
+  List<Widget> _buildDropSetRows(BuildContext context, _Prefill prefill) {
+    if (exercise.dropSets.isEmpty) return const [];
+    final firstUnlogged = exercise.firstUnloggedDropSet;
+    return [
+      for (var i = 0; i < exercise.dropSets.length; i++)
+        _row(
+          set: exercise.dropSets[i],
+          marker: 'D',
+          kind: SetKind.dropSet,
+          isCurrent: !exercise.hasWarmupPending &&
+              exercise.firstUnloggedSet == null &&
+              exercise.dropSets[i].id == firstUnlogged?.id,
+          isPr: false,
+          prefill: prefill,
+          focusKey: 'drop_${exercise.dropSets[i].id}',
+        ),
+    ];
   }
 
   /// Move focus to the WEIGHT field of [setId] **synchronously** so the
@@ -620,7 +857,7 @@ class _LoggingSetRow extends StatelessWidget {
   final String exerciseId;
   final SessionSet set;
   final String marker;
-  final bool isWarmup;
+  final SetKind kind;
   final bool isCurrent;
   final bool isPr;
   final _Prefill prefill;
@@ -628,12 +865,16 @@ class _LoggingSetRow extends StatelessWidget {
   final FocusNode repsFocus;
   final AnimationController celebrationController;
   final VoidCallback onSubmitted;
+  final VoidCallback onDelete;
+  final ValueChanged<double?> onWeightChanged;
+  final ValueChanged<int?> onRepsChanged;
+  final bool readOnly;
 
   const _LoggingSetRow({
     required this.exerciseId,
     required this.set,
     required this.marker,
-    required this.isWarmup,
+    required this.kind,
     required this.isCurrent,
     required this.isPr,
     required this.prefill,
@@ -641,57 +882,56 @@ class _LoggingSetRow extends StatelessWidget {
     required this.repsFocus,
     required this.celebrationController,
     required this.onSubmitted,
+    required this.onDelete,
+    required this.onWeightChanged,
+    required this.onRepsChanged,
+    this.readOnly = false,
   });
+
+  String get _keyPrefix {
+    switch (kind) {
+      case SetKind.warmup:
+        return 'warmup';
+      case SetKind.dropSet:
+        return 'drop';
+      case SetKind.effective:
+        return 'set';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<WorkoutSessionBloc>();
+    final row = _Hp(
+      child: PrCelebration(
+        controller: celebrationController,
+        child: EffectiveSetRow(
+          key: ValueKey('${_keyPrefix}_${set.id}'),
+          marker: marker,
+          isWarmup: kind == SetKind.warmup,
+          weight: set.weight,
+          reps: set.reps,
+          isLogged: set.isLogged,
+          isCurrent: isCurrent,
+          isPr: isPr,
+          prefillWeight: prefill.weight,
+          prefillReps: prefill.reps,
+          weightFocusNode: weightFocus,
+          repsFocusNode: repsFocus,
+          onSubmitted: onSubmitted,
+          onWeightChanged: onWeightChanged,
+          onRepsChanged: onRepsChanged,
+          readOnly: readOnly,
+        ),
+      ),
+    );
+    // Swipe-to-delete only in live mode — preview is read-only, no
+    // structural edits.
+    if (readOnly) return row;
     return SwipeToDelete(
-      dismissKey: ValueKey(
-        isWarmup ? 'warmup_dismiss_${set.id}' : 'set_dismiss_${set.id}',
-      ),
+      dismissKey: ValueKey('${_keyPrefix}_dismiss_${set.id}'),
       borderRadius: BorderRadius.zero,
-      onDismissed: () => bloc.add(
-        DeleteSet(
-          exerciseId: exerciseId,
-          setId: set.id,
-          isWarmup: isWarmup,
-        ),
-      ),
-      child: _Hp(
-        child: PrCelebration(
-          controller: celebrationController,
-          child: EffectiveSetRow(
-            key: ValueKey(isWarmup ? 'warmup_${set.id}' : 'set_${set.id}'),
-            marker: marker,
-            isWarmup: isWarmup,
-            weight: set.weight,
-            reps: set.reps,
-            isLogged: set.isLogged,
-            isCurrent: isCurrent,
-            isPr: isPr,
-            prefillWeight: prefill.weight,
-            prefillReps: prefill.reps,
-            weightFocusNode: weightFocus,
-            repsFocusNode: repsFocus,
-            onSubmitted: onSubmitted,
-            onWeightChanged: (v) => bloc.add(UpdateSetDraft(
-              exerciseId: exerciseId,
-              setId: set.id,
-              weight: v,
-              isWarmup: isWarmup,
-              clearWeight: v == null,
-            )),
-            onRepsChanged: (v) => bloc.add(UpdateSetDraft(
-              exerciseId: exerciseId,
-              setId: set.id,
-              reps: v,
-              isWarmup: isWarmup,
-              clearReps: v == null,
-            )),
-          ),
-        ),
-      ),
+      onDismissed: onDelete,
+      child: row,
     );
   }
 }

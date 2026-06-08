@@ -9,6 +9,8 @@ import '../repositories/workout_session_repository.dart';
 import '../repositories/local_workout_session_repository.dart';
 import '../repositories/personal_record_repository.dart';
 import '../repositories/local_personal_record_repository.dart';
+import '../repositories/workout_completion_repository.dart';
+import '../repositories/local_workout_completion_repository.dart';
 import '../screens/home/bloc/home_bloc.dart';
 import '../screens/workout_detail/bloc/workout_detail_bloc.dart';
 import '../screens/workout_session/bloc/workout_session_bloc.dart';
@@ -44,6 +46,13 @@ Future<void> setupDependencies() async {
     () => LocalPersonalRecordRepository(),
   );
 
+  // Per-workout completion state, drives the "Completed · N mins"
+  // home-card variant (Phase 3 Part 3, Item 1). Persisted in
+  // `workout_completion.json` next to the active session and history.
+  getIt.registerLazySingleton<WorkoutCompletionRepository>(
+    () => LocalWorkoutCompletionRepository(),
+  );
+
   // Shared RouteObserver — wired into MaterialApp.navigatorObservers and
   // subscribed by RouteAware widgets that need to react to becoming-visible
   // again after a child route is popped (e.g., the session screen pulses
@@ -63,7 +72,10 @@ Future<void> setupDependencies() async {
   // Using registerFactory means a new instance is created each time
   // This is appropriate for BLoCs that should be fresh for each screen
   getIt.registerFactory<HomeBloc>(
-    () => HomeBloc(repository: getIt<WorkoutRepository>()),
+    () => HomeBloc(
+      repository: getIt<WorkoutRepository>(),
+      completionRepository: getIt<WorkoutCompletionRepository>(),
+    ),
   );
 
   getIt.registerFactory<WorkoutDetailBloc>(
@@ -78,6 +90,7 @@ Future<void> setupDependencies() async {
     () => WorkoutSessionBloc(
       repository: getIt<WorkoutSessionRepository>(),
       prRepository: getIt<PersonalRecordRepository>(),
+      completionRepository: getIt<WorkoutCompletionRepository>(),
     ),
   );
 }

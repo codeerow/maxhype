@@ -1,4 +1,6 @@
 import '../../../models/exercise.dart';
+import '../../../models/session/preview_draft.dart';
+import '../../../models/session/session_set.dart';
 import '../../../models/session/session_warmup_type.dart';
 import '../../../models/workout.dart';
 
@@ -8,7 +10,18 @@ sealed class WorkoutSessionEvent {
 
 class StartSession extends WorkoutSessionEvent {
   final Workout workout;
-  const StartSession(this.workout);
+
+  /// Drafts captured on the preview screen before Start was pressed.
+  /// Keys are exerciseIds matching [Workout.exercises]; missing keys
+  /// mean "no preview edits for that exercise — use the default set
+  /// layout from the workout template". When provided, the bloc takes
+  /// the draft's effective sets, warmups, and drop sets verbatim so
+  /// the user's pre-typed weight/reps and added rows appear in the
+  /// live session (brief Phase 3 Part 3 §6, clarifications 6.15,
+  /// 6.18).
+  final Map<String, PreviewExerciseDraft> previewDrafts;
+
+  const StartSession(this.workout, {this.previewDrafts = const {}});
 }
 
 class RestoreSession extends WorkoutSessionEvent {
@@ -20,13 +33,13 @@ class LogSet extends WorkoutSessionEvent {
   final String setId;
   final double weight;
   final int reps;
-  final bool isWarmup;
+  final SetKind kind;
   const LogSet({
     required this.exerciseId,
     required this.setId,
     required this.weight,
     required this.reps,
-    this.isWarmup = false,
+    this.kind = SetKind.effective,
   });
 }
 
@@ -35,7 +48,7 @@ class UpdateSetDraft extends WorkoutSessionEvent {
   final String setId;
   final double? weight;
   final int? reps;
-  final bool isWarmup;
+  final SetKind kind;
   final bool clearWeight;
   final bool clearReps;
   const UpdateSetDraft({
@@ -43,7 +56,7 @@ class UpdateSetDraft extends WorkoutSessionEvent {
     required this.setId,
     this.weight,
     this.reps,
-    this.isWarmup = false,
+    this.kind = SetKind.effective,
     this.clearWeight = false,
     this.clearReps = false,
   });
@@ -56,17 +69,18 @@ class MarkExerciseDone extends WorkoutSessionEvent {
 
 class AddSet extends WorkoutSessionEvent {
   final String exerciseId;
-  const AddSet(this.exerciseId);
+  final SetKind kind;
+  const AddSet(this.exerciseId, {this.kind = SetKind.effective});
 }
 
 class DeleteSet extends WorkoutSessionEvent {
   final String exerciseId;
   final String setId;
-  final bool isWarmup;
+  final SetKind kind;
   const DeleteSet({
     required this.exerciseId,
     required this.setId,
-    this.isWarmup = false,
+    this.kind = SetKind.effective,
   });
 }
 

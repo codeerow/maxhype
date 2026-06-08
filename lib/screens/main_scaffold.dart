@@ -6,6 +6,7 @@ import '../widgets/tap_scale.dart';
 import '../widgets/workout_in_progress_bar.dart';
 import 'home/home_screen.dart';
 import 'history/history_screen.dart';
+import 'home_tab_visibility.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -16,6 +17,7 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
+  late final ValueNotifier<int> _tabIndex = ValueNotifier<int>(_currentIndex);
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -23,10 +25,18 @@ class _MainScaffoldState extends State<MainScaffold> {
   ];
 
   @override
+  void dispose() {
+    _tabIndex.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Stack(
+      body: HomeTabVisibility(
+        notifier: _tabIndex,
+        child: Stack(
         children: [
           IndexedStack(
             index: _currentIndex,
@@ -39,6 +49,7 @@ class _MainScaffoldState extends State<MainScaffold> {
             child: WorkoutInProgressBar(),
           ),
         ],
+      ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -90,6 +101,7 @@ class _MainScaffoldState extends State<MainScaffold> {
           setState(() {
             _currentIndex = index;
           });
+          _tabIndex.value = index;
         }
       },
       child: AnimatedContainer(

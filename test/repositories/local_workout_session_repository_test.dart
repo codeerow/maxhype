@@ -212,7 +212,7 @@ void main() {
   });
 
   group('lastLogFor', () {
-    SessionExercise _ex(
+    SessionExercise makeEx(
       String exerciseId,
       List<(double w, int r, DateTime at)> sets, {
       SessionSet? warmup,
@@ -222,7 +222,7 @@ void main() {
         name: 'Ex',
         equipment: EquipmentType.barbell,
         targetSets: sets.length,
-        warmupSet: warmup,
+        warmups: warmup == null ? const [] : [warmup],
         sets: [
           for (var i = 0; i < sets.length; i++)
             SessionSet(
@@ -260,7 +260,7 @@ void main() {
         id: 's_old',
         status: SessionStatus.finished,
         exercises: [
-          _ex('ex1', [
+          makeEx('ex1', [
             (200, 5, DateTime(2025, 1, 1, 10, 5)),
           ]),
         ],
@@ -270,7 +270,7 @@ void main() {
         id: 's_new',
         status: SessionStatus.finished,
         exercises: [
-          _ex('ex1', [
+          makeEx('ex1', [
             (80, 5, DateTime(2025, 1, 2, 10, 0)),
             (100, 6, DateTime(2025, 1, 2, 10, 5)),
           ]),
@@ -283,18 +283,19 @@ void main() {
       expect(last.reps, 6);
     });
 
-    test('falls back to warmupSet when no effective sets are logged',
+    test('falls back to the last logged warmup when no effective sets are logged',
         () async {
       final repo = newRepo();
       await repo.archiveFinished(_makeSession(
         id: 's1',
         status: SessionStatus.finished,
         exercises: [
-          _ex(
+          makeEx(
             'ex1',
             const [], // no effective sets at all
             warmup: SessionSet(
               id: 'w1',
+              kind: SetKind.warmup,
               weight: 40,
               reps: 10,
               loggedAt: DateTime(2025, 1, 1, 10, 0),
@@ -316,7 +317,7 @@ void main() {
         id: 'g1',
         status: SessionStatus.finished,
         exercises: [
-          _ex('ex1', [(125, 4, DateTime(2025, 1, 1, 10, 0))]),
+          makeEx('ex1', [(125, 4, DateTime(2025, 1, 1, 10, 0))]),
         ],
       );
       historyFile().writeAsStringSync(

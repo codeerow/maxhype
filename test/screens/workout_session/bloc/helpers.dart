@@ -48,14 +48,28 @@ SessionExercise makeExercise({
   String name = 'Bench',
   List<String> setIds = const ['set_a'],
   bool withWarmup = false,
+  List<String> warmupIds = const [],
+  List<String> dropSetIds = const [],
 }) {
+  // Back-compat for callers that pass `withWarmup: true` and expect a
+  // single warmup row with the legacy id 'warmup_a'.
+  final warmups = warmupIds.isNotEmpty
+      ? warmupIds
+          .map((id) => SessionSet(id: id, kind: SetKind.warmup))
+          .toList()
+      : (withWarmup
+          ? const [SessionSet(id: 'warmup_a', kind: SetKind.warmup)]
+          : const <SessionSet>[]);
   return SessionExercise(
     exerciseId: exerciseId,
     name: name,
     equipment: EquipmentType.barbell,
     targetSets: setIds.length,
     sets: setIds.map((id) => SessionSet(id: id)).toList(),
-    warmupSet: withWarmup ? const SessionSet(id: 'warmup_a') : null,
+    warmups: warmups,
+    dropSets: dropSetIds
+        .map((id) => SessionSet(id: id, kind: SetKind.dropSet))
+        .toList(),
   );
 }
 

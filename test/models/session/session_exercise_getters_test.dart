@@ -17,7 +17,7 @@ SessionExercise _ex({
     name: 'Bench',
     equipment: EquipmentType.barbell,
     targetSets: n,
-    warmupSet: warmup,
+    warmups: warmup == null ? const [] : [warmup],
     completed: completed,
     sets: [
       for (var i = 0; i < n; i++)
@@ -36,6 +36,7 @@ SessionExercise _ex({
 SessionSet _warmup({bool logged = false}) {
   return SessionSet(
     id: 'warmup',
+    kind: SetKind.warmup,
     weight: logged ? 40 : null,
     reps: logged ? 10 : null,
     loggedAt: logged ? DateTime(2025, 1, 1, 9, 55) : null,

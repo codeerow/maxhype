@@ -14,7 +14,9 @@ import '../../../models/session/personal_record.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
 import '../../../models/session/workout_session.dart';
+import '../../../models/workout_completion.dart';
 import '../../../repositories/personal_record_repository.dart';
+import '../../../repositories/workout_completion_repository.dart';
 import '../../../repositories/workout_session_repository.dart';
 import 'pr_signal.dart';
 import 'workout_session_event.dart';
@@ -34,6 +36,7 @@ class WorkoutSessionBloc
   WorkoutSessionBloc({
     required this.repository,
     required this.prRepository,
+    this.completionRepository,
     RestBell? bell,
     RestNotificationScheduler? scheduler,
   })  : _scheduler = scheduler ?? RestTimerNotifications.instance,
@@ -65,6 +68,12 @@ class WorkoutSessionBloc
 
   final WorkoutSessionRepository repository;
   final PersonalRecordRepository prRepository;
+
+  /// Optional sink for per-workout completion records. Wired in
+  /// production so the home carousel's "Completed · 17 mins" state
+  /// turns on the moment FinishWorkout archives. Tests that don't care
+  /// about completion state can leave it null.
+  final WorkoutCompletionRepository? completionRepository;
   final RestNotificationScheduler _scheduler;
   late final RestBellCoordinator _restBell;
 
@@ -307,23 +316,30 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     final w = event.workout;
-    final exercises = w.exercises
-        .map(
-          (ex) => SessionExercise(
-            exerciseId: ex.id,
-            name: ex.name,
-            equipment: ex.equipmentType,
-            muscleGroups: ex.muscleGroups,
-            targetSets: ex.sets,
-            sets: List.generate(
+    final exercises = w.exercises.map((ex) {
+      final draft = event.previewDrafts[ex.id];
+      // When the user previewed and pre-filled rows, take their list
+      // verbatim — they may have added warmups / drops or pre-typed
+      // weight & reps that should land in the live session. Otherwise
+      // fall back to the workout template's target-sets count.
+      final sets = draft != null && draft.sets.isNotEmpty
+          ? List<SessionSet>.from(draft.sets)
+          : List<SessionSet>.generate(
               ex.sets,
               (_) => SessionSet(id: _newId('set')),
-            ),
-            warmupSet: SessionSet(id: _newId('wset')),
-            notes: '',
-          ),
-        )
-        .toList();
+            );
+      return SessionExercise(
+        exerciseId: ex.id,
+        name: ex.name,
+        equipment: ex.equipmentType,
+        muscleGroups: ex.muscleGroups,
+        targetSets: sets.length,
+        sets: sets,
+        warmups: draft?.warmups ?? const [],
+        dropSets: draft?.dropSets ?? const [],
+        notes: draft?.notes ?? '',
+      );
+    }).toList();
 
     final session = WorkoutSession(
       id: _newId('session'),
@@ -389,33 +405,38 @@ class WorkoutSessionBloc
   Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) async {
     await _mutate(emit, (cur) {
       final next = _mutateExercise(cur, event.exerciseId, (ex) {
-        if (event.isWarmup) {
-          return ex.copyWith(
-            warmupSet:
-                (ex.warmupSet ?? SessionSet(id: _newId('wset'))).copyWith(
+        SessionSet logRow(SessionSet s) => s.copyWith(
               weight: event.weight,
               reps: event.reps,
               loggedAt: DateTime.now(),
-            ),
-          );
+            );
+        switch (event.kind) {
+          case SetKind.warmup:
+            return ex.copyWith(
+              warmups: ex.warmups
+                  .map((w) => w.id == event.setId ? logRow(w) : w)
+                  .toList(),
+            );
+          case SetKind.dropSet:
+            return ex.copyWith(
+              dropSets: ex.dropSets
+                  .map((d) => d.id == event.setId ? logRow(d) : d)
+                  .toList(),
+            );
+          case SetKind.effective:
+            return ex.copyWith(
+              sets: ex.sets
+                  .map((s) => s.id == event.setId ? logRow(s) : s)
+                  .toList(),
+            );
         }
-        final newSets = ex.sets
-            .map((s) => s.id == event.setId
-                ? s.copyWith(
-                    weight: event.weight,
-                    reps: event.reps,
-                    loggedAt: DateTime.now(),
-                  )
-                : s)
-            .toList();
-        return ex.copyWith(sets: newSets);
       });
       return next.copyWith(activeExerciseId: event.exerciseId);
     }, flush: true);
 
-    // Warmups never participate in PR computation — _recomputeFor only
-    // reads effective sets — so we can skip the call when isWarmup.
-    if (!event.isWarmup) {
+    // Only effective sets participate in PR computation — warmups and
+    // drop sets are excluded by design (see [_rankedRecordsFor]).
+    if (event.kind == SetKind.effective) {
       // Head was null before this set went in: the new head exists but
       // there's no prior to compare against, so _recomputeFor stays
       // silent (correct — silent-baseline rule). Re-emit SessionActive
@@ -433,38 +454,66 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     final cur = _current;
-    final beforeSet = cur?.exercises
-        .firstWhereOrNull((e) => e.exerciseId == event.exerciseId)
-        ?.sets
-        .firstWhereOrNull((s) => s.id == event.setId);
+    final beforeExercise = cur?.exercises
+        .firstWhereOrNull((e) => e.exerciseId == event.exerciseId);
+    final beforeSet = _findRowById(beforeExercise, event.setId, event.kind);
     final wasLogged = beforeSet?.isLogged ?? false;
 
     await _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
-        SessionSet apply(SessionSet s) {
-          return s.copyWith(
-            weight: event.clearWeight ? null : (event.weight ?? s.weight),
-            reps: event.clearReps ? null : (event.reps ?? s.reps),
-          );
+        SessionSet apply(SessionSet s) => s.copyWith(
+              weight: event.clearWeight ? null : (event.weight ?? s.weight),
+              reps: event.clearReps ? null : (event.reps ?? s.reps),
+            );
+        switch (event.kind) {
+          case SetKind.warmup:
+            return ex.copyWith(
+              warmups: ex.warmups
+                  .map((w) => w.id == event.setId ? apply(w) : w)
+                  .toList(),
+            );
+          case SetKind.dropSet:
+            return ex.copyWith(
+              dropSets: ex.dropSets
+                  .map((d) => d.id == event.setId ? apply(d) : d)
+                  .toList(),
+            );
+          case SetKind.effective:
+            return ex.copyWith(
+              sets: ex.sets
+                  .map((s) => s.id == event.setId ? apply(s) : s)
+                  .toList(),
+            );
         }
-
-        if (event.isWarmup) {
-          final w = ex.warmupSet ?? SessionSet(id: _newId('wset'));
-          return ex.copyWith(warmupSet: apply(w));
-        }
-        final newSets = ex.sets
-            .map((s) => s.id == event.setId ? apply(s) : s)
-            .toList();
-        return ex.copyWith(sets: newSets);
       });
     });
 
     // Editing an already-logged effective set changes its contribution
-    // to the PR ranking — recompute. Drafts on unlogged sets or on the
-    // warmup row never enter the ranking, so we skip the work there.
-    if (!event.isWarmup && wasLogged) {
+    // to the PR ranking — recompute. Drafts on unlogged sets, warmup
+    // rows, or drop-set rows never enter the ranking, so skip otherwise.
+    if (event.kind == SetKind.effective && wasLogged) {
       _recomputeFor(event.exerciseId);
     }
+  }
+
+  /// Locate a row by [setId] inside the section corresponding to [kind].
+  /// Returns null if the exercise is missing or the id isn't found.
+  SessionSet? _findRowById(
+    SessionExercise? ex,
+    String setId,
+    SetKind kind,
+  ) {
+    if (ex == null) return null;
+    final List<SessionSet> source;
+    switch (kind) {
+      case SetKind.warmup:
+        source = ex.warmups;
+      case SetKind.dropSet:
+        source = ex.dropSets;
+      case SetKind.effective:
+        source = ex.sets;
+    }
+    return source.firstWhereOrNull((s) => s.id == setId);
   }
 
   Future<void> _onMarkExerciseDone(
@@ -486,10 +535,29 @@ class WorkoutSessionBloc
   Future<void> _onAddSet(AddSet event, Emitter<WorkoutSessionState> emit) {
     return _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
-        return ex.copyWith(
-          sets: [...ex.sets, SessionSet(id: _newId('set'))],
-          targetSets: ex.targetSets + 1,
-        );
+        switch (event.kind) {
+          case SetKind.warmup:
+            return ex.copyWith(
+              warmups: [
+                ...ex.warmups,
+                SessionSet(id: _newId('wset'), kind: SetKind.warmup),
+              ],
+            );
+          case SetKind.dropSet:
+            return ex.copyWith(
+              dropSets: [
+                ...ex.dropSets,
+                SessionSet(id: _newId('dset'), kind: SetKind.dropSet),
+              ],
+            );
+          case SetKind.effective:
+            // Working sets drive targetSets — bump it so the exercise
+            // card subtitle and completion math see the new row.
+            return ex.copyWith(
+              sets: [...ex.sets, SessionSet(id: _newId('set'))],
+              targetSets: ex.targetSets + 1,
+            );
+        }
       });
     });
   }
@@ -507,17 +575,28 @@ class WorkoutSessionBloc
     // surprise we want to avoid.
     final next = await _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
-        if (event.isWarmup) {
-          return ex.copyWith(warmupSet: null);
+        switch (event.kind) {
+          case SetKind.warmup:
+            return ex.copyWith(
+              warmups:
+                  ex.warmups.where((w) => w.id != event.setId).toList(),
+            );
+          case SetKind.dropSet:
+            return ex.copyWith(
+              dropSets:
+                  ex.dropSets.where((d) => d.id != event.setId).toList(),
+            );
+          case SetKind.effective:
+            final newSets =
+                ex.sets.where((s) => s.id != event.setId).toList();
+            return ex.copyWith(
+              sets: newSets,
+              targetSets: max(0, ex.targetSets - 1),
+            );
         }
-        final newSets = ex.sets.where((s) => s.id != event.setId).toList();
-        return ex.copyWith(
-          sets: newSets,
-          targetSets: max(0, ex.targetSets - 1),
-        );
       });
     });
-    if (next != null && !event.isWarmup) {
+    if (next != null && event.kind == SetKind.effective) {
       _recomputeFor(event.exerciseId);
     }
   }
@@ -550,8 +629,9 @@ class WorkoutSessionBloc
       final newEx = event.newExercise;
       final newList = cur.exercises.map((ex) {
         if (ex.exerciseId != event.oldExerciseId) return ex;
-        // Carry sets, warmupSet, notes; bump targetSets to new exercise's
-        // plan but keep extra logged sets so user doesn't lose work.
+        // Carry sets, warmups, dropSets, notes; bump targetSets to new
+        // exercise's plan but keep extra logged sets so the user doesn't
+        // lose work mid-session.
         final keptSets = ex.sets;
         final targetSets = max(newEx.sets, keptSets.length);
         return SessionExercise(
@@ -561,7 +641,8 @@ class WorkoutSessionBloc
           muscleGroups: newEx.muscleGroups,
           targetSets: targetSets,
           sets: keptSets,
-          warmupSet: ex.warmupSet,
+          warmups: ex.warmups,
+          dropSets: ex.dropSets,
           notes: ex.notes,
           completed: ex.completed,
         );
@@ -677,9 +758,10 @@ class WorkoutSessionBloc
     }
 
     emit(const SessionFinishing());
+    final finishedAt = DateTime.now();
     final finished = cur.copyWith(
       status: SessionStatus.finished,
-      finishedAt: DateTime.now(),
+      finishedAt: finishedAt,
       activeRestEndsAt: null,
       activeExerciseId: null,
     );
@@ -688,6 +770,16 @@ class WorkoutSessionBloc
     await BatteryOptimization.instance.stopForegroundService();
     await repository.archiveFinished(finished);
     await repository.clearActive();
+    // Record the per-workout completion so the home carousel can flip
+    // the matching card into its "Completed · N mins" state (brief §1).
+    // Per clarification 1.3, the latest finish overwrites any earlier
+    // one for the same workoutId in the same week.
+    await completionRepository?.upsert(WorkoutCompletion(
+      workoutId: finished.workoutId,
+      completedAt: finishedAt,
+      durationSeconds:
+          finishedAt.difference(finished.startedAt).inSeconds,
+    ));
     emit(const SessionFinished());
     emit(const SessionIdle());
   }

@@ -65,7 +65,7 @@ void main() {
   });
 
   group('SessionExercise', () {
-    test('full roundtrip preserves every field including warmup & muscleGroups',
+    test('full roundtrip preserves warmups, drop sets, muscleGroups, notes',
         () {
       final original = SessionExercise(
         exerciseId: 'ex_bench',
@@ -77,7 +77,13 @@ void main() {
           SessionSet(id: 's1', weight: 100, reps: 5),
           SessionSet(id: 's2', weight: 105, reps: 4),
         ],
-        warmupSet: const SessionSet(id: 'w1', weight: 60, reps: 10),
+        warmups: const [
+          SessionSet(id: 'w1', kind: SetKind.warmup, weight: 60, reps: 10),
+          SessionSet(id: 'w2', kind: SetKind.warmup, weight: 80, reps: 6),
+        ],
+        dropSets: const [
+          SessionSet(id: 'd1', kind: SetKind.dropSet, weight: 70, reps: 8),
+        ],
         notes: 'felt good',
         completed: true,
       );
@@ -90,29 +96,33 @@ void main() {
       expect(restored.muscleGroups, original.muscleGroups);
       expect(restored.targetSets, original.targetSets);
       expect(restored.sets.map((s) => s.id), ['s1', 's2']);
-      expect(restored.warmupSet?.id, 'w1');
+      expect(restored.warmups.map((w) => w.id), ['w1', 'w2']);
+      expect(restored.warmups.every((w) => w.kind == SetKind.warmup), isTrue);
+      expect(restored.dropSets.map((d) => d.id), ['d1']);
+      expect(restored.dropSets.single.kind, SetKind.dropSet);
       expect(restored.notes, 'felt good');
       expect(restored.completed, isTrue);
     });
 
-    test('null warmupSet stays null after roundtrip', () {
-      final original = SessionExercise(
+    test('empty warmups and dropSets stay empty after roundtrip', () {
+      const original = SessionExercise(
         exerciseId: 'ex1',
         name: 'Squat',
         equipment: EquipmentType.barbell,
         targetSets: 1,
-        sets: const [SessionSet(id: 's1')],
-        warmupSet: null,
+        sets: [SessionSet(id: 's1')],
       );
       final restored =
           _roundTrip(original.toJson(), SessionExercise.fromJson);
 
-      expect(restored.warmupSet, isNull);
+      expect(restored.warmups, isEmpty);
+      expect(restored.dropSets, isEmpty);
     });
 
     test('defaults are applied when optional fields missing from wire', () {
       // Older payloads may not carry `muscleGroups`, `notes`, `completed`,
-      // or `warmupSet`. The decoder must fill them with sensible defaults.
+      // `warmups`, or `dropSets`. The decoder must fill them with sensible
+      // defaults so a partially-shaped JSON record still loads.
       final raw = {
         'exerciseId': 'ex_legacy',
         'name': 'Old Lift',
@@ -123,14 +133,15 @@ void main() {
           {'id': 's1', 'weight': null, 'reps': null, 'loggedAt': null},
           {'id': 's2', 'weight': null, 'reps': null, 'loggedAt': null},
         ],
-        // warmupSet, notes, completed omitted
+        // warmups, dropSets, notes, completed omitted
       };
       final restored = SessionExercise.fromJson(raw);
 
       expect(restored.muscleGroups, isEmpty);
       expect(restored.notes, '');
       expect(restored.completed, isFalse);
-      expect(restored.warmupSet, isNull);
+      expect(restored.warmups, isEmpty);
+      expect(restored.dropSets, isEmpty);
     });
 
     test('unknown equipment value falls back to bodyweight', () {

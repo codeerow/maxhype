@@ -150,7 +150,13 @@ class LocalWorkoutSessionRepository implements WorkoutSessionRepository {
             final s = ex.sets[j];
             if (s.isLogged) return s;
           }
-          if (ex.warmupSet?.isLogged ?? false) return ex.warmupSet;
+          // Fall back to the most recent logged warmup (used to pre-fill
+          // weight/reps when the user starts a new session and hasn't yet
+          // logged a working set for this exercise).
+          for (var j = ex.warmups.length - 1; j >= 0; j--) {
+            final w = ex.warmups[j];
+            if (w.isLogged) return w;
+          }
         }
       } on FormatException {
         continue; // skip corrupt JSON line

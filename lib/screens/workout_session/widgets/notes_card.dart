@@ -11,11 +11,13 @@ import '../../../theme/app_theme.dart';
 class NotesCard extends StatefulWidget {
   final String initialValue;
   final ValueChanged<String> onChanged;
+  final bool readOnly;
 
   const NotesCard({
     super.key,
     required this.initialValue,
     required this.onChanged,
+    this.readOnly = false,
   });
 
   @override
@@ -79,6 +81,7 @@ class _NotesCardState extends State<NotesCard> {
             controller: _controller,
             minLines: 3,
             maxLines: 6,
+            readOnly: widget.readOnly,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 13,
@@ -87,7 +90,9 @@ class _NotesCardState extends State<NotesCard> {
               isDense: true,
               contentPadding: EdgeInsets.zero,
               border: InputBorder.none,
-              hintText: 'Add notes for this exercise…',
+              hintText: widget.readOnly
+                  ? 'Notes can be added once you Start Workout'
+                  : 'Add notes for this exercise…',
               hintStyle: TextStyle(
                 color: AppTheme.textSecondary.withValues(alpha: 0.7),
                 fontSize: 13,

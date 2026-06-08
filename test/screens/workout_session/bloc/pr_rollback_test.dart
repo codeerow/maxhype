@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maxhype/models/session/session_set.dart';
 import 'package:maxhype/screens/workout_session/bloc/pr_signal.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_bloc.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_event.dart';
@@ -219,7 +220,7 @@ void main() {
     final sub = bloc.prSignals.listen(signals.add);
 
     bloc.add(const DeleteSet(
-        exerciseId: 'ex1', setId: 'warmup_a', isWarmup: true));
+        exerciseId: 'ex1', setId: 'warmup_a', kind: SetKind.warmup));
     await Future<void>.delayed(Duration.zero);
 
     expect(bloc.prFor('ex1')?.weight, 100, reason: 'PR head untouched');

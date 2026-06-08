@@ -1,89 +1,98 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../../models/session/session_set.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 
-/// Round "+" icon followed by an "Add Set" label in the accent colour.
+/// "Add Set" pill that opens a Cupertino action sheet with three options:
+/// Set / Warm-Up / Drop Set, matching the MaxHype web prototype's
+/// set-type pattern (milestone Phase 3 Part 3, Item 8).
 ///
-/// Tap = +1 set. Long-press opens a Cupertino picker for adding multiple
-/// sets at once (3 / 5 / 10).
+/// Tap → action sheet → [onAddSet] called with the chosen [SetKind].
 class AddSetButton extends StatelessWidget {
-  final VoidCallback onAddOne;
-  final ValueChanged<int> onAddMany;
+  final ValueChanged<SetKind> onAddSet;
 
   const AddSetButton({
     super.key,
-    required this.onAddOne,
-    required this.onAddMany,
+    required this.onAddSet,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onLongPress: () => _showPicker(context),
-      child: TapScale(
-        scaleDown: 0.97,
-        onTap: onAddOne,
-        // Edge-to-edge outlined pill, ~44 tall — sits across the full
-        // width of the row beneath the last effective set.
-        child: CustomPaint(
-          painter: _DashedBorderPainter(
-            color: AppTheme.primaryOrange.withValues(alpha: 0.55),
-            strokeWidth: 1,
-            radius: 22,
-            dashLength: 5,
-            gapLength: 4,
+    return TapScale(
+      scaleDown: 0.97,
+      onTap: () => _showKindSheet(context),
+      // Edge-to-edge outlined pill, ~44 tall — sits across the full
+      // width of the row beneath the last effective set.
+      child: CustomPaint(
+        painter: _DashedBorderPainter(
+          color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+          strokeWidth: 1,
+          radius: 22,
+          dashLength: 5,
+          gapLength: 4,
+        ),
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryOrange.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(22),
           ),
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryOrange.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            alignment: Alignment.center,
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 18,
+          alignment: Alignment.center,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.add,
+                color: Colors.white,
+                size: 18,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Add Set',
+                style: TextStyle(
+                  color: AppTheme.primaryOrange,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
                 ),
-                SizedBox(width: 8),
-                Text(
-                  'Add Set',
-                  style: TextStyle(
-                    color: AppTheme.primaryOrange,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  void _showPicker(BuildContext context) {
+  void _showKindSheet(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (ctx) => CupertinoActionSheet(
-        title: const Text('Add multiple sets'),
+        title: const Text('Add Set'),
         actions: [
-          for (final count in const [3, 5, 10])
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                onAddMany(count);
-              },
-              child: Text('Add $count sets'),
-            ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              onAddSet(SetKind.effective);
+            },
+            child: const Text('Set'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              onAddSet(SetKind.warmup);
+            },
+            child: const Text('Warm-Up'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              onAddSet(SetKind.dropSet);
+            },
+            child: const Text('Drop Set'),
+          ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maxhype/models/session/session_set.dart';
 import 'package:maxhype/models/session/workout_session.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_bloc.dart';
 import 'package:maxhype/screens/workout_session/bloc/workout_session_event.dart';
@@ -312,7 +313,7 @@ void main() {
           setId: 'warmup_a',
           weight: 40,
           reps: 10,
-          isWarmup: true,
+          kind: SetKind.warmup,
         ));
         await Future<void>.delayed(Duration.zero);
 

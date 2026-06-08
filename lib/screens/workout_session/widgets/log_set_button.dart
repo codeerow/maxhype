@@ -8,16 +8,22 @@ class LogSetButton extends StatelessWidget {
   final bool isAwaitingDoneConfirmation;
   final VoidCallback onTap;
 
+  /// Optional label override. Used by preview mode to show
+  /// "Start Workout" without changing button styling.
+  final String? label;
+
   const LogSetButton({
     super.key,
     required this.enabled,
     required this.isAwaitingDoneConfirmation,
     required this.onTap,
+    this.label,
   });
 
   @override
   Widget build(BuildContext context) {
-    final label = isAwaitingDoneConfirmation ? 'Done' : 'Log Set';
+    final effectiveLabel = label ??
+        (isAwaitingDoneConfirmation ? 'Done' : 'Log Set');
     return SafeArea(
       top: false,
       child: Padding(
@@ -43,7 +49,7 @@ class LogSetButton extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Text(
-                label,
+                effectiveLabel,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
