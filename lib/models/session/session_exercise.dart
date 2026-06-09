@@ -42,9 +42,13 @@ class SessionExercise {
 
   int get loggedSetsCount => sets.where((s) => s.isLogged).length;
 
+  /// True when the exercise has at least one logged effective set or
+  /// drop set. Warm-ups are intentionally excluded — they count as
+  /// preparation, not workout activity, so a session with only warm-ups
+  /// logged still trips the empty-finish guard. PR detection is unaffected;
+  /// it has always excluded warm-ups and drop sets.
   bool get hasAnyLoggedSet =>
       loggedSetsCount > 0 ||
-      warmups.any((w) => w.isLogged) ||
       dropSets.any((d) => d.isLogged);
 
   /// True when every working set has been logged. Warm-ups and drop sets

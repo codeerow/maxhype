@@ -70,10 +70,10 @@ void main() {
       expect(_ex(n: 2, loggedIndices: [1]).hasAnyLoggedSet, isTrue);
     });
 
-    test('true when only warmup is logged', () {
+    test('false when only warmup is logged (warm-up alone is not activity)', () {
       expect(
         _ex(n: 2, warmup: _warmup(logged: true)).hasAnyLoggedSet,
-        isTrue,
+        isFalse,
       );
     });
 
