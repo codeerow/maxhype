@@ -8,6 +8,7 @@ import '../screens/workout_detail/workout_detail_screen.dart';
 import '../screens/workout_session/bloc/workout_session_bloc.dart';
 import '../screens/workout_session/bloc/workout_session_state.dart';
 import '../screens/workout_session/workout_session_screen.dart';
+import 'app_toast.dart';
 import 'tap_scale.dart';
 
 /// Tri-state home workout card (milestone Phase 3 Part 3, Item 1):
@@ -268,6 +269,22 @@ class _WorkoutCardState extends State<WorkoutCard>
   }
 
   void _handleTap(BuildContext context, bool inProgress) {
+    // One-active-workout rule: when another workout is active, block
+    // navigation at the card-tap level instead of letting the user
+    // browse into a second workout and bouncing them at the Start
+    // button (customer feedback — the previous flow let the user
+    // wander into Workout B's exercise list before the blocker fired).
+    final sessionState = context.read<WorkoutSessionBloc>().state;
+    if (sessionState is SessionActive &&
+        sessionState.session.workoutId != widget.workout.id) {
+      AppToast.showPremium(
+        context,
+        'Finish your current workout first',
+        accent: AppTheme.primaryOrange,
+        bottomOffset: 64,
+      );
+      return;
+    }
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
         builder: (_) => inProgress
