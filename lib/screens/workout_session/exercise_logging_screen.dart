@@ -469,19 +469,20 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                         previousBest: previousBest,
                         isFresh: isFreshPr,
                       ),
-                    // ActionChipRow shows the rest-timer / instructions /
-                    // analytics chips — only meaningful for an active
-                    // session. Preview mode hides it entirely.
-                    if (!mode.isPreview && s != null)
-                      ActionChipRow(
-                        restSeconds: s.restDurationSeconds,
-                        onRestTap: () => AppToast.show(
-                            context, 'Rest timer adjusts in card'),
-                        onInstructionTap: () => AppToast.show(
-                            context, 'Instructions — coming in Part 2'),
-                        onAnalyticsTap: () => AppToast.show(
-                            context, 'Analytics — coming in Part 2'),
-                      ),
+                    // ActionChipRow is shown in both modes so the
+                    // preview screen mirrors the live layout. In preview
+                    // the rest label is a static hint ("Rest 2:00") —
+                    // no timer ticks until Start Workout flips the
+                    // screen into live mode.
+                    ActionChipRow(
+                      restSeconds: mode.restSecondsHint,
+                      onRestTap: () => AppToast.show(
+                          context, 'Rest timer adjusts in card'),
+                      onInstructionTap: () => AppToast.show(
+                          context, 'Instructions — coming in Part 2'),
+                      onAnalyticsTap: () => AppToast.show(
+                          context, 'Analytics — coming in Part 2'),
+                    ),
                     if (exercise.warmups.isNotEmpty) ...[
                       const SizedBox(height: 18),
                       const _Hp(child: _SectionTitle(text: 'Warmup')),
@@ -505,18 +506,16 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                       const SizedBox(height: 4),
                       ..._buildDropSetRows(context, prefill),
                     ],
-                    // Add Set is hidden in preview — structural edits
-                    // (add / delete / replace) only happen after Start
-                    // Workout. Keeps preview a pure "look at what's
-                    // planned" surface.
-                    if (!mode.isPreview) ...[
-                      const SizedBox(height: 8),
-                      _Hp(
-                        child: AddSetButton(
-                          onAddSet: (kind) => mode.onAddRow(kind),
-                        ),
+                    // Add Set is available in both modes. In preview it
+                    // mutates the WorkoutPreviewBloc draft (no session
+                    // exists yet); the rows carry into the live session
+                    // when the user taps Start Workout.
+                    const SizedBox(height: 8),
+                    _Hp(
+                      child: AddSetButton(
+                        onAddSet: (kind) => mode.onAddRow(kind),
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 22),
                     _Hp(
                       child: NotesCard(
@@ -924,9 +923,10 @@ class _LoggingSetRow extends StatelessWidget {
         ),
       ),
     );
-    // Swipe-to-delete only in live mode — preview is read-only, no
-    // structural edits.
-    if (readOnly) return row;
+    // Swipe-to-delete is available in both modes. readOnly only locks
+    // the value inputs (preview mode is for browsing & adding planned
+    // rows, not entering numbers); the user can still swipe a planned
+    // row off if they added it by mistake.
     return SwipeToDelete(
       dismissKey: ValueKey('${_keyPrefix}_dismiss_${set.id}'),
       borderRadius: BorderRadius.zero,

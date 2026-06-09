@@ -5,6 +5,7 @@ import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
+import 'bloc/workout_session_state.dart';
 import 'logging_mode.dart';
 
 /// [LoggingMode] backed by `WorkoutSessionBloc`. Mutations fire events
@@ -27,6 +28,11 @@ class LiveLoggingMode extends LoggingMode {
 
   @override
   SessionExercise get exerciseSnapshot => exercise;
+
+  @override
+  int get restSecondsHint => bloc.state is SessionActive
+      ? (bloc.state as SessionActive).session.restDurationSeconds
+      : 120;
 
   @override
   String get bottomLabel =>

@@ -26,6 +26,12 @@ abstract class LoggingMode {
   /// preview mode it's a snapshot derived from the preview draft.
   SessionExercise get exerciseSnapshot;
 
+  /// Seconds shown in the Rest pill. In live mode this is the active
+  /// session's `restDurationSeconds`; in preview the workout-default
+  /// (120 unless overridden). The pill is informational in preview —
+  /// no timer ticks until Start Workout flips the screen into live.
+  int get restSecondsHint;
+
   /// Bottom-button label.
   String get bottomLabel;
 

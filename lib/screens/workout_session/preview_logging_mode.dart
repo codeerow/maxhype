@@ -80,6 +80,15 @@ class PreviewLoggingMode extends LoggingMode {
   }
 
   @override
+  int get restSecondsHint {
+    // Preview reads the workout-level default. We don't have a
+    // per-exercise rest field on Exercise (yet) — use 120s, matching
+    // WorkoutSession.restDurationSeconds default, so the pill reads
+    // "Rest 2:00" out of the box.
+    return 120;
+  }
+
+  @override
   String get bottomLabel => 'Start Workout';
 
   @override
