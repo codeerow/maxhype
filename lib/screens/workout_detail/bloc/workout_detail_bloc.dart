@@ -38,21 +38,45 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
     if (state is! WorkoutDetailSuccess) return;
 
     try {
-      // Persist the swap on the workout repository so the next
-      // getWorkouts() call returns the updated template
-      // (clarification 6.17). Local state then re-renders from that
-      // canonical source.
-      await workoutRepository.replaceExercise(
-        workoutId: event.workoutId,
-        oldExerciseId: event.oldExerciseId,
-        newExercise: event.newExercise,
-      );
-      final workouts = await workoutRepository.getWorkouts();
-      final updatedWorkout = workouts.firstWhere(
-        (w) => w.id == event.workoutId,
-        orElse: () => throw Exception('Workout not found'),
-      );
-      emit(WorkoutDetailSuccess(workout: updatedWorkout));
+      if (event.persistToTemplate) {
+        // Detail-screen three-dot menu: write through to the workout
+        // repository so the next getWorkouts() call returns the
+        // updated template.
+        await workoutRepository.replaceExercise(
+          workoutId: event.workoutId,
+          oldExerciseId: event.oldExerciseId,
+          newExercise: event.newExercise,
+        );
+        final workouts = await workoutRepository.getWorkouts();
+        final updatedWorkout = workouts.firstWhere(
+          (w) => w.id == event.workoutId,
+          orElse: () => throw Exception('Workout not found'),
+        );
+        emit(WorkoutDetailSuccess(workout: updatedWorkout));
+      } else {
+        // Preview-screen replace: keep the swap local to this bloc's
+        // state. The change carries into the live session via
+        // `Start Workout` (which reads `state.workout`) but never
+        // touches the shared workout repository, so it can't leak
+        // into future workout generations or other open detail
+        // screens. Backing out of the detail route disposes this
+        // bloc and the swap is gone.
+        final current = (state as WorkoutDetailSuccess).workout;
+        final updatedExercises = current.exercises
+            .map((e) => e.id == event.oldExerciseId ? event.newExercise : e)
+            .toList();
+        final updatedWorkout = Workout(
+          id: current.id,
+          title: current.title,
+          subtitle: current.subtitle,
+          duration: current.duration,
+          exerciseCount: current.exerciseCount,
+          exercises: updatedExercises,
+          targetMuscles: current.targetMuscles,
+          recoveryInfo: current.recoveryInfo,
+        );
+        emit(WorkoutDetailSuccess(workout: updatedWorkout));
+      }
     } catch (e) {
       emit(WorkoutDetailError(message: e.toString()));
     }

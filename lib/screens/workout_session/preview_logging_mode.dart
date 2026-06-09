@@ -205,6 +205,10 @@ class PreviewLoggingMode extends LoggingMode {
         workoutId: workout.id,
         oldExerciseId: oldExerciseId,
         newExercise: newExercise,
+        // Preview replace must not mutate the shared workout template
+        // — the swap stays inside this detail bloc's state and only
+        // carries into the live session if the user taps Start.
+        persistToTemplate: false,
       ),
     );
     // Drop the obsolete draft so it doesn't ride into the next
