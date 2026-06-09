@@ -497,11 +497,11 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     const _Hp(child: _Headers()),
                     const SizedBox(height: 4),
                     ..._buildSetRows(context, prefill, firstUnlogged?.id),
+                    // Drop sets flow inline directly after the effective
+                    // rows — no section title, no repeated WEIGHT/REPS
+                    // header, just the D-marker rows so the visual feels
+                    // like a continuation of the same table.
                     if (exercise.dropSets.isNotEmpty) ...[
-                      const SizedBox(height: 18),
-                      const _Hp(child: _SectionTitle(text: 'Drop sets')),
-                      const SizedBox(height: 8),
-                      const _Hp(child: _Headers()),
                       const SizedBox(height: 4),
                       ..._buildDropSetRows(context, prefill),
                     ],
