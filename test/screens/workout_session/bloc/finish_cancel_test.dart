@@ -289,8 +289,8 @@ void main() {
     );
 
     test(
-      'a logged warmup also clears the guard '
-      '(warmups count as evidence the user worked the exercise)',
+      'a logged warmup ALONE does NOT clear the guard — warmups count as '
+      'preparation, not workout activity (customer feedback on M5)',
       () async {
         when(() => repo.loadActive()).thenAnswer(
           (_) async => makeSession(
@@ -320,7 +320,8 @@ void main() {
         bloc.add(const FinishWorkout());
         await Future<void>.delayed(Duration.zero);
 
-        verify(() => repo.archiveFinished(any())).called(1);
+        // Finish must be blocked — warm-up alone is not activity.
+        verifyNever(() => repo.archiveFinished(any()));
       },
     );
   });

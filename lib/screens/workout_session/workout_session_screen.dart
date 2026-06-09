@@ -193,6 +193,13 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   ///     transitions so the SessionExerciseCard's State is not rebuilt
   ///     (which would swallow the completion scale-in animation).
   ///  2. Scrolling a specific card into view via Scrollable.ensureVisible.
+  ///
+  /// Keys are pruned in [didUpdateWidget] whenever the exercise list
+  /// changes, so a deleted or replaced exercise doesn't leave a stale
+  /// GlobalKey behind. Without that cleanup, a replaced exercise that
+  /// later got swapped back into the same session would attach a key
+  /// that's still bound to the old card's render tree and trip the
+  /// "Multiple widgets used the same GlobalKey" assertion.
   final Map<String, GlobalKey> _cardKeys = {};
 
   /// Pending scroll request — held while the route's push transition
@@ -286,6 +293,15 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     if (oldId != newId && newId != null) {
       _scheduleScrollToActive();
     }
+    // Prune GlobalKeys for exercises that have left the session
+    // (delete / replace). Without this the map keeps growing and an
+    // exercise re-added later (e.g., replaced back) attaches a key
+    // that's still associated with the old render tree, tripping
+    // "Multiple widgets used the same GlobalKey".
+    final liveIds = widget.state.session.exercises
+        .map((e) => e.exerciseId)
+        .toSet();
+    _cardKeys.removeWhere((id, _) => !liveIds.contains(id));
   }
 
   @override
