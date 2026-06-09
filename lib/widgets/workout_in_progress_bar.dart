@@ -105,7 +105,10 @@ class _ActiveBarState extends State<_ActiveBar> {
         enableHaptic: true,
         onTap: () => _resume(context),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          // Bottom padding hugs the home-bar — keeps a minimal gap so
+          // the orange halo doesn't bleed into the nav, but no large
+          // dead space between the bar and the tab row.
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 2),
           // Static orange halo via boxShadow — no AnimationController
           // means the bar can't mark itself dirty while another route
           // is mid-transition on top of MainScaffold.
