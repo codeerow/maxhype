@@ -67,8 +67,15 @@ class WorkoutDetailScreen extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ),
-                    WorkoutDetailSuccess(:final workout) =>
-                      _buildContent(context, workout),
+                    WorkoutDetailSuccess(
+                      :final workout,
+                      :final completionThisWeek
+                    ) =>
+                      _buildContent(
+                        context,
+                        workout,
+                        isCompletedThisWeek: completionThisWeek != null,
+                      ),
                   },
                 ),
                 // Glass nav bar floats over the scroll body. Its shader
@@ -92,7 +99,11 @@ class WorkoutDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, Workout workout) {
+  Widget _buildContent(
+    BuildContext context,
+    Workout workout, {
+    bool isCompletedThisWeek = false,
+  }) {
     final statusBar = MediaQuery.of(context).padding.top;
     final navBottom = statusBar + kToolbarHeight;
     // Pixel height of the band where the progressive blur ramps from
@@ -187,6 +198,52 @@ class WorkoutDetailScreen extends StatelessWidget {
                 return isMine(prev) != isMine(next);
               },
               builder: (context, sessionState) {
+                if (isCompletedThisWeek) {
+                  // Locked state for an already-finished workout in
+                  // this ISO week (brief Item 7 follow-up). The screen
+                  // is still browsable so the user can review what
+                  // they logged — only the Start button is dimmed and
+                  // non-interactive. Persists across navigation and
+                  // restart because the bloc reloads completions from
+                  // disk on `LoadWorkoutDetail`.
+                  return Container(
+                    width: 220,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color:
+                          AppTheme.cardBackground.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(
+                        color:
+                            AppTheme.primaryOrange.withValues(alpha: 0.35),
+                        width: 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          size: 18,
+                          color:
+                              AppTheme.primaryOrange.withValues(alpha: 0.85),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Completed',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                            color: AppTheme.primaryOrange
+                                .withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 return TapScale(
                   scaleDown: 0.94,
                   enableHaptic: true,

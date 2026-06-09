@@ -79,7 +79,10 @@ Future<void> setupDependencies() async {
   );
 
   getIt.registerFactory<WorkoutDetailBloc>(
-    () => WorkoutDetailBloc(workoutRepository: getIt<WorkoutRepository>()),
+    () => WorkoutDetailBloc(
+      workoutRepository: getIt<WorkoutRepository>(),
+      completionRepository: getIt<WorkoutCompletionRepository>(),
+    ),
   );
 
   // WorkoutSessionBloc is a LazySingleton because the session main screen
