@@ -1,16 +1,18 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/session/session_set.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 
-/// "Add Set" pill that opens a Cupertino action sheet with three options:
-/// Set / Warm-Up / Drop Set, matching the MaxHype web prototype's
-/// set-type pattern (milestone Phase 3 Part 3, Item 8).
+/// "Add Set" composite control — an inline type selector (Set / Warm-Up /
+/// Drop Set pills with coloured dots) sitting above the dashed Add Set
+/// pill. The selector is always visible: tapping a pill picks the type
+/// the next Add Set tap will append. Selection persists between adds so
+/// the user can fire multiple drop sets in a row without re-selecting.
 ///
-/// Tap → action sheet → [onAddSet] called with the chosen [SetKind].
-class AddSetButton extends StatelessWidget {
+/// Replaces the previous CupertinoActionSheet flow (milestone Phase 3
+/// Part 3, Item 8 — customer asked for the inline MaxHype-web variant).
+class AddSetButton extends StatefulWidget {
   final ValueChanged<SetKind> onAddSet;
 
   const AddSetButton({
@@ -19,84 +21,162 @@ class AddSetButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return TapScale(
-      scaleDown: 0.97,
-      onTap: () => _showKindSheet(context),
-      // Edge-to-edge outlined pill, ~44 tall — sits across the full
-      // width of the row beneath the last effective set.
-      child: CustomPaint(
-        painter: _DashedBorderPainter(
-          color: AppTheme.primaryOrange.withValues(alpha: 0.55),
-          strokeWidth: 1,
-          radius: 22,
-          dashLength: 5,
-          gapLength: 4,
-        ),
-        child: Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryOrange.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          alignment: Alignment.center,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 18,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Add Set',
-                style: TextStyle(
-                  color: AppTheme.primaryOrange,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  State<AddSetButton> createState() => _AddSetButtonState();
+}
+
+class _AddSetButtonState extends State<AddSetButton> {
+  /// Current type the Add Set button will append. Lives across multiple
+  /// taps so the user doesn't have to re-pick after every add.
+  SetKind _selectedKind = SetKind.effective;
+
+  void _select(SetKind kind) {
+    if (_selectedKind == kind) return;
+    setState(() => _selectedKind = kind);
   }
 
-  void _showKindSheet(BuildContext context) {
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: const Text('Add Set'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onAddSet(SetKind.effective);
-            },
-            child: const Text('Set'),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _KindPill(
+              label: 'Set',
+              dotColor: AppTheme.recoveryGreen,
+              isSelected: _selectedKind == SetKind.effective,
+              onTap: () => _select(SetKind.effective),
+            ),
+            const SizedBox(width: 8),
+            _KindPill(
+              label: 'Warm-Up',
+              dotColor: AppTheme.recoveryYellow,
+              isSelected: _selectedKind == SetKind.warmup,
+              onTap: () => _select(SetKind.warmup),
+            ),
+            const SizedBox(width: 8),
+            _KindPill(
+              label: 'Drop Set',
+              dotColor: AppTheme.primaryOrange,
+              isSelected: _selectedKind == SetKind.dropSet,
+              onTap: () => _select(SetKind.dropSet),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TapScale(
+          scaleDown: 0.97,
+          onTap: () => widget.onAddSet(_selectedKind),
+          child: CustomPaint(
+            painter: _DashedBorderPainter(
+              color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+              strokeWidth: 1,
+              radius: 22,
+              dashLength: 5,
+              gapLength: 4,
+            ),
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryOrange.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              alignment: Alignment.center,
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Add Set',
+                    style: TextStyle(
+                      color: AppTheme.primaryOrange,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onAddSet(SetKind.warmup);
-            },
-            child: const Text('Warm-Up'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Small capsule with a coloured dot + label, used in the row above
+/// Add Set. Selected state gets the orange border + soft glow.
+class _KindPill extends StatelessWidget {
+  final String label;
+  final Color dotColor;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _KindPill({
+    required this.label,
+    required this.dotColor,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isSelected
+        ? AppTheme.primaryOrange
+        : Colors.white.withValues(alpha: 0.10);
+    return TapScale(
+      scaleDown: 0.95,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBackground,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: borderColor,
+            width: isSelected ? 1.5 : 1,
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onAddSet(SetKind.dropSet);
-            },
-            child: const Text('Drop Set'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cancel'),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    spreadRadius: 0.5,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
