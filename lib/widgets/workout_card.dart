@@ -174,23 +174,43 @@ class _WorkoutCardState extends State<WorkoutCard>
               );
             },
             child: Column(
+              // Anchor the card's content block toward the bottom of
+              // the fixed-height (220) card, matching the web prototype
+              // layout the customer linked. The Spacer above the title
+              // pushes the whole text group down, giving the card the
+              // "premium / lower-balanced" feel they asked for.
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
                   widget.workout.title,
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
-                const SizedBox(height: 4),
+                // Completed cards get a weekday line directly under the
+                // title — orange, bold — same as the web app.
+                if (isCompletedThisWeek &&
+                    widget.completionThisWeek != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    _weekdayLabel(widget.completionThisWeek!.completedAt),
+                    style: const TextStyle(
+                      color: AppTheme.primaryOrange,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 2),
                 Text(
                   widget.workout.subtitle,
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   '${widget.workout.duration} - ${widget.workout.exerciseCount} exercises',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 if (isCompletedThisWeek)
                   AnimatedBuilder(
                     animation: _pulse,
@@ -362,10 +382,11 @@ class _RecoveryFooter extends StatelessWidget {
   }
 }
 
-/// "Completed · 17 mins" footer with an orange checkmark, replacing
-/// the recovery block on workout cards finished this ISO week. The
-/// [pulseStrength] (0..1) brightens fill, border and text for the
-/// post-completion pulse cycle, then settles back at 0.
+/// "✓ Completed · 17 mins" inline footer with an orange checkmark,
+/// replacing the recovery block on workout cards finished this ISO
+/// week. Customer-requested compact variant — no bordered pill, no
+/// fill, just an inline row. The [pulseStrength] (0..1) brightens the
+/// icon + text colour for the post-completion pulse cycle.
 class _CompletedFooter extends StatelessWidget {
   final WorkoutCompletion completion;
   final double pulseStrength;
@@ -384,45 +405,49 @@ class _CompletedFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orange = AppTheme.primaryOrange;
-    final fillAlpha = 0.08 + 0.20 * pulseStrength;
-    final borderAlpha = 0.45 + 0.40 * pulseStrength;
-    final brightOrange = Color.lerp(orange, Colors.white, 0.20 * pulseStrength)!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: orange.withValues(alpha: fillAlpha),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: orange.withValues(alpha: borderAlpha),
-          width: 1.5,
-        ),
-        boxShadow: pulseStrength > 0
-            ? [
-                BoxShadow(
-                  color: orange.withValues(alpha: 0.30 * pulseStrength),
-                  blurRadius: 14 * pulseStrength,
-                  spreadRadius: 1 * pulseStrength,
-                ),
-              ]
-            : null,
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: brightOrange, size: 20),
-          const SizedBox(width: 10),
-          Text(
-            'Completed · ${_formatDuration(completion.durationSeconds)}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: brightOrange,
-              letterSpacing: 0.3,
-            ),
+    final brightOrange =
+        Color.lerp(orange, Colors.white, 0.25 * pulseStrength)!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.check_circle, color: brightOrange, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          'Completed',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: brightOrange,
+            letterSpacing: 0.3,
           ),
-        ],
-      ),
+        ),
+        Text(
+          ' · ${_formatDuration(completion.durationSeconds)}',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
     );
   }
+}
+
+/// English weekday name (Monday … Sunday) — used as the orange line
+/// under the title on a completed card, mirroring the web prototype.
+String _weekdayLabel(DateTime instant) {
+  const names = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  // DateTime.weekday is 1..7 (Mon..Sun) — perfect 0-indexed lookup.
+  return names[instant.weekday - 1];
 }
 
 class _InProgressBadge extends StatelessWidget {
