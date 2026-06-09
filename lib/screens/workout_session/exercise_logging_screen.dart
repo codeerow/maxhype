@@ -145,14 +145,13 @@ class _LoggingView extends StatefulWidget {
 
 class _LoggingViewState extends State<_LoggingView>
     with TickerProviderStateMixin {
-  /// The exerciseId the screen is currently rendering. Starts at the
-  /// widget's exerciseId and gets swapped in when the user replaces
-  /// the exercise via the three-dot menu (live mode runs through the
-  /// session bloc's ReplaceExercise event; preview mode swaps through
-  /// the workout-detail bloc and the preview cubit's draft store).
-  /// Without this, the screen would either show the stale exercise
-  /// or self-pop the moment the old id disappeared from the model.
-  late String _currentExerciseId = widget.exerciseId;
+  /// The slotId the screen is currently rendering. Starts at the
+  /// widget's exerciseId (in live mode the caller passes a slotId via
+  /// this parameter — same name, slot semantics; in preview mode the
+  /// slot identity is the catalog exerciseId because preview has one
+  /// slot per template exercise). Survives Replace because the slot
+  /// keeps its id — only the underlying catalog exerciseId changes.
+  late String _currentSlotId = widget.exerciseId;
   late Future<SessionSet?> _historyFuture;
 
   /// Stable FocusNodes for WEIGHT / REPS fields keyed by `setId`
@@ -193,7 +192,7 @@ class _LoggingViewState extends State<_LoggingView>
   void initState() {
     super.initState();
     _historyFuture =
-        getIt<WorkoutSessionRepository>().lastLogFor(_currentExerciseId);
+        getIt<WorkoutSessionRepository>().lastLogFor(_currentSlotId);
 
     final bloc = context.read<WorkoutSessionBloc>();
     _prSub = bloc.prSignals.listen(_onPrSignal);
@@ -202,11 +201,11 @@ class _LoggingViewState extends State<_LoggingView>
   /// Switch the screen onto a newly replaced exercise. Re-fetches the
   /// history future so the prefill pills reflect *this* exercise's
   /// last logged set, and forces a rebuild so the rest of the body
-  /// reads from the freshly-resolved [_currentExerciseId].
+  /// reads from the freshly-resolved [_currentSlotId].
   void _switchExerciseId(String newId) {
     if (!mounted) return;
     setState(() {
-      _currentExerciseId = newId;
+      _currentSlotId = newId;
       _historyFuture =
           getIt<WorkoutSessionRepository>().lastLogFor(newId);
     });
@@ -221,9 +220,20 @@ class _LoggingViewState extends State<_LoggingView>
     }
   }
 
+  /// Catalog exerciseId of the slot currently rendered, or null when
+  /// the slot is no longer in the session (just popped, mid-replace).
+  /// PR signals key by catalog exerciseId — slot identity is local.
+  String? _currentCatalogExerciseId(BuildContext context) {
+    final state = context.read<WorkoutSessionBloc>().state;
+    if (state is! SessionActive) return null;
+    return state.session.exercises
+        .firstWhereOrNull((e) => e.slotId == _currentSlotId)
+        ?.exerciseId;
+  }
+
   void _onPrAchieved(PrAchievedSignal signal) {
-    if (signal.exerciseId != _currentExerciseId) return;
     if (!mounted) return;
+    if (signal.exerciseId != _currentCatalogExerciseId(context)) return;
     setState(() => _prSetIds.add(signal.setId));
     celebrationFor(signal.setId).forward(from: 0);
     getIt<HapticManager>().strongest();
@@ -231,8 +241,8 @@ class _LoggingViewState extends State<_LoggingView>
   }
 
   void _onPrRevoked(PrRevokedSignal signal) {
-    if (signal.exerciseId != _currentExerciseId) return;
     if (!mounted) return;
+    if (signal.exerciseId != _currentCatalogExerciseId(context)) return;
     if (!_prSetIds.contains(signal.setId)) return;
     setState(() => _prSetIds.remove(signal.setId));
     // Park the celebration controller back to 0 so any future re-PR on a
@@ -258,7 +268,7 @@ class _LoggingViewState extends State<_LoggingView>
   bool _completedFor(WorkoutSessionState s) {
     if (s is! SessionActive) return false;
     final ex = s.session.exercises.firstWhereOrNull(
-      (e) => e.exerciseId == _currentExerciseId,
+      (e) => e.slotId == _currentSlotId,
     );
     return ex?.completed ?? false;
   }
@@ -291,7 +301,7 @@ class _LoggingViewState extends State<_LoggingView>
           );
         }
         final ex = state.session.exercises.firstWhereOrNull(
-          (e) => e.exerciseId == _currentExerciseId,
+          (e) => e.slotId == _currentSlotId,
         );
         if (ex == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -319,10 +329,10 @@ class _LoggingViewState extends State<_LoggingView>
               repsFocusFor: _repsFocusFor,
               celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
-              currentPr: bloc.hasFreshPr(_currentExerciseId)
-                  ? bloc.prFor(_currentExerciseId)
+              currentPr: bloc.hasFreshPr(ex.exerciseId)
+                  ? bloc.prFor(ex.exerciseId)
                   : null,
-              previousBest: bloc.previousBestFor(_currentExerciseId),
+              previousBest: bloc.previousBestFor(ex.exerciseId),
               isFreshPr: _prSetIds.isNotEmpty,
               mode: mode,
               onExerciseReplaced: _switchExerciseId,
@@ -350,15 +360,15 @@ class _LoggingViewState extends State<_LoggingView>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           final ex = workout.exercises.firstWhere(
-            (e) => e.id == _currentExerciseId,
+            (e) => e.id == _currentSlotId,
             orElse: () => workout.exercises.first,
           );
-          previewBloc.seedEffectiveSets(_currentExerciseId, ex.sets);
+          previewBloc.seedEffectiveSets(_currentSlotId, ex.sets);
         });
 
         final mode = PreviewLoggingMode(
           workout: workout,
-          exerciseId: _currentExerciseId,
+          exerciseId: _currentSlotId,
           previewBloc: previewBloc,
           sessionBloc: sessionBloc,
         );
@@ -618,22 +628,24 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
       exercise: ex,
       onReplace: (newExercise) {
         // Hand replacement to whichever store the screen is bound to:
-        // - Live mode → WorkoutSessionBloc.ReplaceExercise (preserves
-        //   logged sets, notes, warmups, drops, and the rest timer).
-        //   Screen stays on top and re-anchors on the new exerciseId.
+        // - Live mode → WorkoutSessionBloc.ReplaceExercise via slot.
+        //   The slot keeps the same slotId across the swap, so the
+        //   screen stays put — no anchor change needed. PR baselines
+        //   refresh from the bloc as the new exerciseId loads.
         // - Preview mode → WorkoutDetailBloc.ReplaceExercise (writes
-        //   the swap into the workout template). The preview pops
+        //   the swap into this detail bloc's state). The preview pops
         //   itself before we get here — we must NOT re-anchor on the
         //   new id, because widget.previewWorkout is the snapshot
         //   from preview-open time and doesn't contain the new
         //   exercise yet. Any rebuild that fires before the route
         //   finishes deactivating would then ask the snapshot for
         //   the new id and blow up.
-        final oldId = exercise.exerciseId;
-        mode.onReplaceExercise(context, oldId, newExercise);
-        if (!mode.isPreview) {
-          widget.onExerciseReplaced(newExercise.id);
-        }
+        final oldRef = mode.isPreview
+            ? exercise.exerciseId  // preview keys slots by catalog id
+            : exercise.slotId;     // live keys slots by slotId
+        mode.onReplaceExercise(context, oldRef, newExercise);
+        // Live: slotId is preserved, no re-anchor. Preview: route is
+        // popping, the higher detail-screen now reflects the swap.
       },
     );
   }

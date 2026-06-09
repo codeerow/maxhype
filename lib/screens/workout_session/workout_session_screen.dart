@@ -208,8 +208,8 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   /// can leave intermediate items un-painted until the user scrolls.
   Timer? _scrollTimer;
 
-  GlobalKey _cardKeyFor(String exerciseId) =>
-      _cardKeys.putIfAbsent(exerciseId, GlobalKey.new);
+  GlobalKey _cardKeyFor(String slotId) =>
+      _cardKeys.putIfAbsent(slotId, GlobalKey.new);
 
   GlobalKey? get _activeCardKey {
     final id = widget.state.session.activeExerciseId;
@@ -259,10 +259,10 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   /// on the exercise list and let them pick the next row to open.
   Future<void> _autoOpenResumeTarget() async {
     final session = widget.state.session;
-    final targetId = resumeTargetExerciseId(session);
-    if (targetId == null) return;
+    final targetSlotId = resumeTargetExerciseId(session);
+    if (targetSlotId == null) return;
     final target = session.exercises.firstWhere(
-      (e) => e.exerciseId == targetId,
+      (e) => e.slotId == targetSlotId,
       orElse: () => session.exercises.first,
     );
     await _openLogging(context, target);
@@ -293,15 +293,15 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     if (oldId != newId && newId != null) {
       _scheduleScrollToActive();
     }
-    // Prune GlobalKeys for exercises that have left the session
-    // (delete / replace). Without this the map keeps growing and an
-    // exercise re-added later (e.g., replaced back) attaches a key
-    // that's still associated with the old render tree, tripping
+    // Prune GlobalKeys for slots that have left the session
+    // (delete). Replace preserves slotId so its key stays. Without
+    // this the map keeps growing and a slot re-added later attaches
+    // a key still associated with the old render tree, tripping
     // "Multiple widgets used the same GlobalKey".
-    final liveIds = widget.state.session.exercises
-        .map((e) => e.exerciseId)
+    final liveSlotIds = widget.state.session.exercises
+        .map((e) => e.slotId)
         .toSet();
-    _cardKeys.removeWhere((id, _) => !liveIds.contains(id));
+    _cardKeys.removeWhere((id, _) => !liveSlotIds.contains(id));
   }
 
   @override
@@ -428,19 +428,22 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
       final ex = session.exercises[i];
       widgets.add(
         SwipeToDelete(
-          dismissKey: ValueKey('exercise_dismiss_${ex.exerciseId}'),
+          // Slot-scoped key so two slots with the same catalog
+          // exerciseId (e.g., after a Replace that brings DBP back
+          // into a second slot) don't collide on the same ValueKey.
+          dismissKey: ValueKey('exercise_dismiss_${ex.slotId}'),
           borderRadius: BorderRadius.circular(14),
           onDismissed: () => context
               .read<WorkoutSessionBloc>()
-              .add(DeleteExercise(ex.exerciseId)),
+              .add(DeleteExercise(ex.slotId)),
           child: SessionExerciseCard(
-            // Stable GlobalKey per exerciseId — survives active/completed
+            // Stable GlobalKey per slot — survives active/completed
             // transitions so the card's State (and its animation
             // controllers) is preserved across rebuilds.
-            key: _cardKeyFor(ex.exerciseId),
+            key: _cardKeyFor(ex.slotId),
             exercise: ex,
             isActive:
-                session.activeExerciseId == ex.exerciseId && !ex.completed,
+                session.activeExerciseId == ex.slotId && !ex.completed,
             hasPr: context
                 .read<WorkoutSessionBloc>()
                 .hasFreshPr(ex.exerciseId),
@@ -458,13 +461,13 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
 
   Future<void> _openLogging(BuildContext context, SessionExercise ex) async {
     final bloc = context.read<WorkoutSessionBloc>();
-    // iOS-style horizontal slide: enters from the right, exits to the right
-    // on pop. CupertinoPageRoute also enables interactive swipe-back from
-    // the left edge for free.
+    // iOS-style horizontal slide. The logging screen anchors on slot
+    // identity so two cards pointing at the same catalog exercise
+    // (e.g., DBP after a Replace) open into their own slot.
     await Navigator.of(context).push(
       CupertinoPageRoute<void>(
         builder: (_) => ExerciseLoggingScreen.live(
-          exerciseId: ex.exerciseId,
+          exerciseId: ex.slotId,
           bloc: bloc,
         ),
       ),
@@ -487,9 +490,13 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
       context,
       exercise: _exerciseFromSession(ex),
       onReplace: (newExercise) {
+        // Slot-scoped replace — only this slot is swapped, other
+        // slots that may hold the same catalog exerciseId are left
+        // alone (fixes customer report: replacing a different
+        // exercise with DBP wiped the already-logged DBP slot).
         bloc.add(
           ReplaceExercise(
-            oldExerciseId: ex.exerciseId,
+            oldExerciseId: ex.slotId,
             newExercise: newExercise,
           ),
         );

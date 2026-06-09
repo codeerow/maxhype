@@ -83,10 +83,10 @@ class _ActiveBarState extends State<_ActiveBar> {
   /// workout title — the tap will land them on the exercise list to
   /// pick what to do next.
   String _exerciseLabel(SessionActive s) {
-    final targetId = resumeTargetExerciseId(s.session);
-    if (targetId == null) return s.session.workoutName;
+    final targetSlotId = resumeTargetExerciseId(s.session);
+    if (targetSlotId == null) return s.session.workoutName;
     final ex = s.session.exercises.firstWhere(
-      (e) => e.exerciseId == targetId,
+      (e) => e.slotId == targetSlotId,
       orElse: () => s.session.exercises.first,
     );
     return ex.name;

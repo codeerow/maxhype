@@ -46,14 +46,14 @@ class LiveLoggingMode extends LoggingMode {
   @override
   void onBottomTap(BuildContext context) {
     if (exercise.isAwaitingDoneConfirmation) {
-      bloc.add(MarkExerciseDone(exercise.exerciseId));
+      bloc.add(MarkExerciseDone(exercise.slotId));
       return;
     }
     final target = exercise.currentTarget;
     if (target == null || !target.isFilled) return;
 
     bloc.add(LogSet(
-      exerciseId: exercise.exerciseId,
+      exerciseId: exercise.slotId,
       setId: target.id,
       weight: target.weight!,
       reps: target.reps!,
@@ -87,13 +87,13 @@ class LiveLoggingMode extends LoggingMode {
 
   @override
   void onAddRow(SetKind kind) {
-    bloc.add(AddSet(exercise.exerciseId, kind: kind));
+    bloc.add(AddSet(exercise.slotId, kind: kind));
   }
 
   @override
   void onDeleteRow(String setId, SetKind kind) {
     bloc.add(DeleteSet(
-      exerciseId: exercise.exerciseId,
+      exerciseId: exercise.slotId,
       setId: setId,
       kind: kind,
     ));
@@ -106,7 +106,7 @@ class LiveLoggingMode extends LoggingMode {
     required double? weight,
   }) {
     bloc.add(UpdateSetDraft(
-      exerciseId: exercise.exerciseId,
+      exerciseId: exercise.slotId,
       setId: setId,
       weight: weight,
       kind: kind,
@@ -121,7 +121,7 @@ class LiveLoggingMode extends LoggingMode {
     required int? reps,
   }) {
     bloc.add(UpdateSetDraft(
-      exerciseId: exercise.exerciseId,
+      exerciseId: exercise.slotId,
       setId: setId,
       reps: reps,
       kind: kind,
@@ -132,7 +132,7 @@ class LiveLoggingMode extends LoggingMode {
   @override
   void onNotesChanged(String notes) {
     bloc.add(UpdateNotes(
-      exerciseId: exercise.exerciseId,
+      exerciseId: exercise.slotId,
       notes: notes,
     ));
   }

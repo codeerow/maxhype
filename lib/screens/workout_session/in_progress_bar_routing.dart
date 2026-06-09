@@ -1,45 +1,42 @@
 import '../../models/session/session_exercise.dart';
 import '../../models/session/workout_session.dart';
 
-/// Decide which exercise the user should land on when they tap the
-/// floating "WORKOUT IN PROGRESS" bar (milestone Phase 3 Part 3,
-/// Item 5).
+/// Decide which slot the user should land on when they tap the floating
+/// "WORKOUT IN PROGRESS" bar (milestone Phase 3 Part 3, Item 5).
+///
+/// Returns a [SessionExercise.slotId] (or null when the session has no
+/// exercises). Slot identity — not catalog exerciseId — is what the
+/// session screen and logging route anchor on, so two slots that point
+/// at the same catalog exercise can be navigated independently.
 ///
 /// Brief §5 — three-tier priority:
-///   1. The currently active exercise (`session.activeExerciseId`) —
-///      "If the user was actively logging a specific exercise →
-///       navigate to that exact exercise/logging screen".
-///   2. The last exercise that received a logged set — "the same
-///      logic as active exercise" (clarification 5.13).
-///   3. The first incomplete exercise — "If workout started but no
-///      exercise has been started/logged yet → route to the
-///      first/next incomplete exercise".
-///
-/// Returns null only when the session has no exercises (bar is
-/// invisible in that state, but the helper stays safe).
+///   1. The currently active slot (`session.activeExerciseId`, which
+///      stores a slotId).
+///   2. The slot whose most recent set was logged most recently.
+///   3. The first slot that isn't already complete.
 String? resumeTargetExerciseId(WorkoutSession session) {
   if (session.exercises.isEmpty) return null;
 
-  final active = session.activeExerciseId;
-  if (active != null &&
-      session.exercises.any((e) => e.exerciseId == active && !e.completed)) {
-    return active;
+  final activeSlot = session.activeExerciseId;
+  if (activeSlot != null &&
+      session.exercises.any((e) => e.slotId == activeSlot && !e.completed)) {
+    return activeSlot;
   }
 
-  final lastLogged = _lastLoggedExerciseId(session.exercises);
+  final lastLogged = _lastLoggedSlotId(session.exercises);
   if (lastLogged != null) return lastLogged;
 
-  // No logged sets anywhere yet — drop the user into the first
-  // exercise that's not already marked complete (brief §5).
+  // No logged sets anywhere yet — drop the user into the first slot
+  // that's not already marked complete (brief §5).
   for (final ex in session.exercises) {
-    if (!ex.completed) return ex.exerciseId;
+    if (!ex.completed) return ex.slotId;
   }
-  // Every exercise is somehow completed — fall back to the very
-  // first one so the bar still routes somewhere sensible.
-  return session.exercises.first.exerciseId;
+  // Every slot is somehow completed — fall back to the very first one
+  // so the bar still routes somewhere sensible.
+  return session.exercises.first.slotId;
 }
 
-String? _lastLoggedExerciseId(List<SessionExercise> exercises) {
+String? _lastLoggedSlotId(List<SessionExercise> exercises) {
   DateTime? bestAt;
   String? bestId;
   for (final ex in exercises) {
@@ -48,7 +45,7 @@ String? _lastLoggedExerciseId(List<SessionExercise> exercises) {
     if (latest == null) continue;
     if (bestAt == null || latest.isAfter(bestAt)) {
       bestAt = latest;
-      bestId = ex.exerciseId;
+      bestId = ex.slotId;
     }
   }
   return bestId;

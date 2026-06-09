@@ -61,6 +61,10 @@ SessionExercise makeExercise({
           ? const [SessionSet(id: 'warmup_a', kind: SetKind.warmup)]
           : const <SessionSet>[]);
   return SessionExercise(
+    // Tests built before slotId existed pass exerciseId as the slot
+    // identity — keeps legacy assertions like `e.exerciseId == 'ex1'`
+    // continuing to work alongside the new slot-aware bloc paths.
+    slotId: exerciseId,
     exerciseId: exerciseId,
     name: name,
     equipment: EquipmentType.barbell,

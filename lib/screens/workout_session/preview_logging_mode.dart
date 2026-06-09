@@ -65,6 +65,10 @@ class PreviewLoggingMode extends LoggingMode {
             (i) => SessionSet(id: 'preview_seed_${ex.id}_$i'),
           );
     return SessionExercise(
+      // Preview has one slot per template exercise, so slotId mirrors
+      // the catalog exerciseId — there's no chance of collision until
+      // the user taps Start Workout and the bloc disambiguates.
+      slotId: ex.id,
       exerciseId: ex.id,
       name: ex.name,
       equipment: ex.equipmentType,

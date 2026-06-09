@@ -13,6 +13,7 @@ SessionExercise _ex({
 }) {
   final loggedSet = loggedIndices.toSet();
   return SessionExercise(
+    slotId: 'ex1',
     exerciseId: 'ex1',
     name: 'Bench',
     equipment: EquipmentType.barbell,
