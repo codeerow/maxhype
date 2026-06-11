@@ -520,9 +520,19 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     // mutates the WorkoutPreviewBloc draft (no session
                     // exists yet); the rows carry into the live session
                     // when the user taps Start Workout.
+                    //
+                    // The ValueKey pins the AddSetButton's element so
+                    // its inline type selector (Set / Warm-Up / Drop
+                    // Set) survives a list rebuild: when the user adds
+                    // their first drop set, the drop-set section pops
+                    // in above the button, shifting its index in the
+                    // ListView children. Without a stable key Flutter
+                    // re-mounts AddSetButton and `_selectedKind` resets
+                    // to the default — the user's pick is lost.
                     const SizedBox(height: 8),
                     _Hp(
                       child: AddSetButton(
+                        key: const ValueKey('add_set_button'),
                         onAddSet: (kind) => mode.onAddRow(kind),
                       ),
                     ),
