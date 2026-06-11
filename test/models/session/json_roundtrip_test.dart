@@ -68,6 +68,7 @@ void main() {
     test('full roundtrip preserves warmups, drop sets, muscleGroups, notes',
         () {
       final original = SessionExercise(
+        slotId: 'ex_bench',
         exerciseId: 'ex_bench',
         name: 'Barbell Bench Press',
         equipment: EquipmentType.barbell,
@@ -106,6 +107,7 @@ void main() {
 
     test('empty warmups and dropSets stay empty after roundtrip', () {
       const original = SessionExercise(
+        slotId: 'ex1',
         exerciseId: 'ex1',
         name: 'Squat',
         equipment: EquipmentType.barbell,
@@ -190,6 +192,7 @@ void main() {
           status: SessionStatus.finished,
           exercises: [
             SessionExercise(
+              slotId: 'ex_bench',
               exerciseId: 'ex_bench',
               name: 'Bench',
               equipment: EquipmentType.barbell,

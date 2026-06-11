@@ -24,6 +24,7 @@ SessionExercise _exercise({
   List<SessionSet> sets = const [],
 }) {
   return SessionExercise(
+    slotId: id,
     exerciseId: id,
     name: id,
     equipment: EquipmentType.barbell,

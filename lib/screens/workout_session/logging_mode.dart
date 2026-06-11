@@ -26,6 +26,12 @@ abstract class LoggingMode {
   /// preview mode it's a snapshot derived from the preview draft.
   SessionExercise get exerciseSnapshot;
 
+  /// Seconds shown in the Rest pill. In live mode this is the active
+  /// session's `restDurationSeconds`; in preview the workout-default
+  /// (120 unless overridden). The pill is informational in preview —
+  /// no timer ticks until Start Workout flips the screen into live.
+  int get restSecondsHint;
+
   /// Bottom-button label.
   String get bottomLabel;
 
@@ -56,8 +62,9 @@ abstract class LoggingMode {
   /// Swap the currently displayed exercise for [newExercise]. Live
   /// mode dispatches to WorkoutSessionBloc.ReplaceExercise (preserves
   /// logged sets, notes, warmups, drops, rest timer). Preview mode
-  /// persists the swap into the workout template via
-  /// WorkoutDetailBloc.ReplaceExercise so the next open reflects it.
+  /// dispatches to WorkoutDetailBloc.ReplaceExercise with
+  /// `persistToTemplate: false` — the swap stays local to the detail
+  /// bloc's state and never mutates the shared workout template.
   void onReplaceExercise(
     BuildContext context,
     String oldExerciseId,

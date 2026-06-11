@@ -165,7 +165,7 @@ class _GlassPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TapScale(
-      scaleDown: 0.92,
+      scaleDown: TapScalePreset.glassIcon.scale,
       onTap: onTap,
       child: LiquidGlass.grouped(
         shape: const LiquidOval(),

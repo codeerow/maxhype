@@ -100,8 +100,11 @@ void main() {
 
       // First set on the replacement → silent baseline, no celebration
       // (workout-level rule: no historical baseline for ex_new).
+      // The slot kept its identity ('ex_old' is the slotId) — events
+      // now key by slotId, so we target the same slot whose underlying
+      // catalog exerciseId is now 'ex_new'.
       bloc.add(const LogSet(
-        exerciseId: 'ex_new',
+        exerciseId: 'ex_old',
         setId: 'set_a',
         weight: 100,
         reps: 5,
@@ -168,9 +171,11 @@ void main() {
       final signals = <PrSignal>[];
       final sub = bloc.prSignals.listen(signals.add);
 
-      // set_b beats set_a → revoke(set_a) + achieved(set_b).
+      // set_b beats set_a → revoke(set_a) + achieved(set_b). The
+      // slotId stays 'ex_old' across the replace, so the event still
+      // addresses the same slot.
       bloc.add(const LogSet(
-        exerciseId: 'ex_new',
+        exerciseId: 'ex_old',
         setId: 'set_b',
         weight: 120,
         reps: 5,
@@ -197,9 +202,12 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      // First set on ex_new → silent baseline at 100.
+      // First set on the slot (now backed by ex_new) → silent baseline
+      // at 100. The slot kept its slotId ('ex_old'), so events still
+      // target it under that id even though the underlying catalog
+      // exerciseId is now 'ex_new'.
       bloc.add(const LogSet(
-          exerciseId: 'ex_new', setId: 'set_a', weight: 100, reps: 5));
+          exerciseId: 'ex_old', setId: 'set_a', weight: 100, reps: 5));
       await Future<void>.delayed(Duration.zero);
 
       final signals = <PrSignal>[];
@@ -207,7 +215,7 @@ void main() {
 
       // Second set beats baseline → signal expected.
       bloc.add(const LogSet(
-          exerciseId: 'ex_new', setId: 'set_b', weight: 110, reps: 5));
+          exerciseId: 'ex_old', setId: 'set_b', weight: 110, reps: 5));
       await Future<void>.delayed(Duration.zero);
 
       expect(signals.whereType<PrAchievedSignal>(), hasLength(1));

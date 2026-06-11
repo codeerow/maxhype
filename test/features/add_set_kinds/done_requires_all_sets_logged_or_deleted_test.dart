@@ -33,6 +33,7 @@ SessionExercise _ex({
   List<SessionSet> dropSets = const [],
 }) {
   return SessionExercise(
+    slotId: 'ex1',
     exerciseId: 'ex1',
     name: 'Bench',
     equipment: EquipmentType.barbell,

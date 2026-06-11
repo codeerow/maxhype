@@ -14,7 +14,7 @@ class SessionFinishButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TapScale(
-      scaleDown: 0.94,
+      scaleDown: TapScalePreset.cta.scale,
       enableHaptic: true,
       onTap: onTap,
       child: Container(

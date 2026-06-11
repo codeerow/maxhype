@@ -28,7 +28,7 @@ class SessionAppBar extends StatelessWidget implements PreferredSizeWidget {
       scrolledUnderElevation: 0,
       centerTitle: true,
       leading: TapScale(
-        scaleDown: 0.90,
+        scaleDown: TapScalePreset.icon.scale,
         onTap: onBack,
         child: const Center(
           child: Icon(
@@ -51,7 +51,7 @@ class SessionAppBar extends StatelessWidget implements PreferredSizeWidget {
         SizedBox(
           width: 56,
           child: TapScale(
-            scaleDown: 0.90,
+            scaleDown: TapScalePreset.icon.scale,
             onTap: onCancel,
             child: const Center(
               child: Icon(

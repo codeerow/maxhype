@@ -91,7 +91,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TapScale(
-      scaleDown: 0.96,
+      scaleDown: TapScalePreset.cta.scale,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

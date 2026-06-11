@@ -316,19 +316,25 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     final w = event.workout;
+    // Track exerciseIds seen so duplicates (e.g., a preview replace
+    // already produced two slots pointing at the same catalog
+    // exercise) get distinct slotIds — UI lookups by slot stay
+    // unambiguous. The first occurrence keeps the bare exerciseId as
+    // its slotId so older sessions and tests are unaffected.
+    final seenIds = <String, int>{};
     final exercises = w.exercises.map((ex) {
       final draft = event.previewDrafts[ex.id];
-      // When the user previewed and pre-filled rows, take their list
-      // verbatim — they may have added warmups / drops or pre-typed
-      // weight & reps that should land in the live session. Otherwise
-      // fall back to the workout template's target-sets count.
       final sets = draft != null && draft.sets.isNotEmpty
           ? List<SessionSet>.from(draft.sets)
           : List<SessionSet>.generate(
               ex.sets,
               (_) => SessionSet(id: _newId('set')),
             );
+      final count = seenIds[ex.id] ?? 0;
+      seenIds[ex.id] = count + 1;
+      final slotId = count == 0 ? ex.id : '${ex.id}__slot$count';
       return SessionExercise(
+        slotId: slotId,
         exerciseId: ex.id,
         name: ex.name,
         equipment: ex.equipmentType,
@@ -437,13 +443,18 @@ class WorkoutSessionBloc
     // Only effective sets participate in PR computation — warmups and
     // drop sets are excluded by design (see [_rankedRecordsFor]).
     if (event.kind == SetKind.effective) {
+      // PR maps are keyed by catalog exerciseId, not slotId — read the
+      // current exerciseId off the slot we just mutated.
+      final slot = _current?.exercises
+          .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+      final exerciseId = slot?.exerciseId ?? event.exerciseId;
       // Head was null before this set went in: the new head exists but
       // there's no prior to compare against, so _recomputeFor stays
       // silent (correct — silent-baseline rule). Re-emit SessionActive
       // anyway so PrHeader (gated on `currentPr != null`) appears.
-      final hadHeadBefore = _lastHead[event.exerciseId] != null;
-      _recomputeFor(event.exerciseId);
-      if (!hadHeadBefore && _lastHead[event.exerciseId] != null) {
+      final hadHeadBefore = _lastHead[exerciseId] != null;
+      _recomputeFor(exerciseId);
+      if (!hadHeadBefore && _lastHead[exerciseId] != null) {
         add(const PrCacheLoaded());
       }
     }
@@ -455,7 +466,7 @@ class WorkoutSessionBloc
   ) async {
     final cur = _current;
     final beforeExercise = cur?.exercises
-        .firstWhereOrNull((e) => e.exerciseId == event.exerciseId);
+        .firstWhereOrNull((e) => e.slotId == event.exerciseId);
     final beforeSet = _findRowById(beforeExercise, event.setId, event.kind);
     final wasLogged = beforeSet?.isLogged ?? false;
 
@@ -492,7 +503,9 @@ class WorkoutSessionBloc
     // to the PR ranking — recompute. Drafts on unlogged sets, warmup
     // rows, or drop-set rows never enter the ranking, so skip otherwise.
     if (event.kind == SetKind.effective && wasLogged) {
-      _recomputeFor(event.exerciseId);
+      final slot = _current?.exercises
+          .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+      _recomputeFor(slot?.exerciseId ?? event.exerciseId);
     }
   }
 
@@ -597,7 +610,9 @@ class WorkoutSessionBloc
       });
     });
     if (next != null && event.kind == SetKind.effective) {
-      _recomputeFor(event.exerciseId);
+      final slot = _current?.exercises
+          .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+      _recomputeFor(slot?.exerciseId ?? event.exerciseId);
     }
   }
 
@@ -605,10 +620,15 @@ class WorkoutSessionBloc
     DeleteExercise event,
     Emitter<WorkoutSessionState> emit,
   ) async {
+    // Capture catalog exerciseId before the slot disappears so we can
+    // prune its PR baseline once the mutation lands.
+    final removedExerciseId = _current?.exercises
+        .firstWhereOrNull((e) => e.slotId == event.exerciseId)
+        ?.exerciseId;
     await _mutate(emit, (cur) {
       return cur.copyWith(
         exercises: cur.exercises
-            .where((e) => e.exerciseId != event.exerciseId)
+            .where((e) => e.slotId != event.exerciseId)
             .toList(),
         activeExerciseId: cur.activeExerciseId == event.exerciseId
             ? null
@@ -617,24 +637,47 @@ class WorkoutSessionBloc
     });
     // The exercise card is gone — drop the head & historical baseline
     // so a future re-add (via Replace, say) doesn't resurrect stale state.
-    _historical.remove(event.exerciseId);
-    _lastHead.remove(event.exerciseId);
+    // Only when no other slot in the session still references the
+    // same catalog exerciseId; otherwise the surviving slot still
+    // needs its PR baseline.
+    if (removedExerciseId != null) {
+      final stillPresent = _current?.exercises
+              .any((e) => e.exerciseId == removedExerciseId) ??
+          false;
+      if (!stillPresent) {
+        _historical.remove(removedExerciseId);
+        _lastHead.remove(removedExerciseId);
+      }
+    }
   }
 
   Future<void> _onReplaceExercise(
     ReplaceExercise event,
     Emitter<WorkoutSessionState> emit,
   ) async {
+    // Find the target slot. `oldExerciseId` is treated as the slotId of
+    // the slot the user is replacing — the UI passes the slotId of the
+    // currently-rendered card via this field. Only that single slot is
+    // affected, so a different slot holding the same catalog exerciseId
+    // (e.g., the user previously logged "Dumbbell Bench Press" in slot
+    // A, then replaces slot B with Dumbbell Bench Press) stays intact.
+    final targetSlot = _current?.exercises
+        .firstWhereOrNull((e) => e.slotId == event.oldExerciseId);
+    if (targetSlot == null) return;
+    final oldCatalogExerciseId = targetSlot.exerciseId;
+
     await _mutate(emit, (cur) {
       final newEx = event.newExercise;
       final newList = cur.exercises.map((ex) {
-        if (ex.exerciseId != event.oldExerciseId) return ex;
+        if (ex.slotId != event.oldExerciseId) return ex;
         // Carry sets, warmups, dropSets, notes; bump targetSets to new
         // exercise's plan but keep extra logged sets so the user doesn't
-        // lose work mid-session.
+        // lose work mid-session. Slot identity (slotId) is preserved so
+        // the UI keeps anchoring on the same row.
         final keptSets = ex.sets;
         final targetSets = max(newEx.sets, keptSets.length);
         return SessionExercise(
+          slotId: ex.slotId,
           exerciseId: newEx.id,
           name: newEx.name,
           equipment: newEx.equipmentType,
@@ -650,17 +693,24 @@ class WorkoutSessionBloc
 
       return cur.copyWith(
         exercises: newList,
-        activeExerciseId: cur.activeExerciseId == event.oldExerciseId
-            ? newEx.id
-            : cur.activeExerciseId,
+        // activeExerciseId stores slotId; slot identity didn't change.
+        activeExerciseId: cur.activeExerciseId,
       );
     });
-    // The old exerciseId is gone — drop its state. The new id starts
-    // fresh; its first logged set will become the silent baseline.
-    _historical.remove(event.oldExerciseId);
-    _lastHead.remove(event.oldExerciseId);
-    // Load historical baseline for the new id (may be non-null if the
-    // user did this exercise before in a prior session) and recompute.
+    // PR baselines are keyed by catalog exerciseId, not slot. Only drop
+    // the old baseline if no other surviving slot still references it.
+    final stillPresent = _current?.exercises
+            .any((e) => e.exerciseId == oldCatalogExerciseId) ??
+        false;
+    if (!stillPresent) {
+      _historical.remove(oldCatalogExerciseId);
+      _lastHead.remove(oldCatalogExerciseId);
+    }
+    // Load historical baseline for the new exercise (may be non-null if
+    // the user did this exercise before in a prior session) and
+    // recompute. If another slot already holds this exerciseId, the
+    // baseline is reused — _recomputeFor will reflect the new slot's
+    // contribution to the same head.
     final newPr = await prRepository.bestFor(event.newExercise.id);
     _historical[event.newExercise.id] = newPr;
     _recomputeFor(event.newExercise.id);
@@ -786,13 +836,19 @@ class WorkoutSessionBloc
 
   // ----- Helpers -----
 
+  /// Apply [fn] to the exercise whose [SessionExercise.slotId] equals
+  /// [slotId]. All event handlers route through this helper — the
+  /// `exerciseId` field on events is treated as a slotId reference so
+  /// two slots that point at the same catalog exercise (after Replace)
+  /// don't collide. Pristine sessions have `slotId == exerciseId`,
+  /// preserving backward compatibility for older payloads and tests.
   WorkoutSession _mutateExercise(
     WorkoutSession session,
-    String exerciseId,
+    String slotId,
     SessionExercise Function(SessionExercise) fn,
   ) {
     final list = session.exercises
-        .map((ex) => ex.exerciseId == exerciseId ? fn(ex) : ex)
+        .map((ex) => ex.slotId == slotId ? fn(ex) : ex)
         .toList();
     return session.copyWith(exercises: list);
   }

@@ -26,6 +26,7 @@ WorkoutSession _makeSession({
     exercises: exercises ??
         [
           SessionExercise(
+            slotId: 'ex1',
             exerciseId: 'ex1',
             name: 'Bench',
             equipment: EquipmentType.barbell,
@@ -218,6 +219,7 @@ void main() {
       SessionSet? warmup,
     }) {
       return SessionExercise(
+        slotId: exerciseId,
         exerciseId: exerciseId,
         name: 'Ex',
         equipment: EquipmentType.barbell,

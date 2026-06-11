@@ -31,7 +31,7 @@ class LogSetButton extends StatelessWidget {
         child: Opacity(
           opacity: enabled ? 1.0 : 0.5,
           child: TapScale(
-            scaleDown: 0.96,
+            scaleDown: TapScalePreset.cta.scale,
             enableHaptic: true,
             onTap: enabled ? onTap : null,
             child: Container(

@@ -65,6 +65,10 @@ class PreviewLoggingMode extends LoggingMode {
             (i) => SessionSet(id: 'preview_seed_${ex.id}_$i'),
           );
     return SessionExercise(
+      // Preview has one slot per template exercise, so slotId mirrors
+      // the catalog exerciseId — there's no chance of collision until
+      // the user taps Start Workout and the bloc disambiguates.
+      slotId: ex.id,
       exerciseId: ex.id,
       name: ex.name,
       equipment: ex.equipmentType,
@@ -77,6 +81,15 @@ class PreviewLoggingMode extends LoggingMode {
       dropSets: draft.dropSets,
       notes: draft.notes,
     );
+  }
+
+  @override
+  int get restSecondsHint {
+    // Preview reads the workout-level default. We don't have a
+    // per-exercise rest field on Exercise (yet) — use 120s, matching
+    // WorkoutSession.restDurationSeconds default, so the pill reads
+    // "Rest 2:00" out of the box.
+    return 120;
   }
 
   @override
@@ -196,6 +209,10 @@ class PreviewLoggingMode extends LoggingMode {
         workoutId: workout.id,
         oldExerciseId: oldExerciseId,
         newExercise: newExercise,
+        // Preview replace must not mutate the shared workout template
+        // — the swap stays inside this detail bloc's state and only
+        // carries into the live session if the user taps Start.
+        persistToTemplate: false,
       ),
     );
     // Drop the obsolete draft so it doesn't ride into the next

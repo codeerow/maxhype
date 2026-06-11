@@ -3,6 +3,21 @@ import '../muscle_group.dart';
 import 'session_set.dart';
 
 class SessionExercise {
+  /// Stable per-slot identity. Survives Replace — when the user swaps
+  /// the underlying exercise mid-session, the slot keeps the same
+  /// [slotId] but [exerciseId] points at the new catalog entry. This
+  /// lets the session hold two slots pointing at the same exercise
+  /// (e.g., the user replaced exercise B with Dumbbell Bench Press
+  /// while exercise A — already logged Dumbbell Bench Press — is still
+  /// in the list) without the UI collapsing them into one row.
+  ///
+  /// PR/history lookups continue to key on [exerciseId] because a PR
+  /// is per exercise, not per slot.
+  ///
+  /// For backward compatibility with sessions persisted before this
+  /// field existed, `fromJson` falls back to [exerciseId] when the
+  /// stored payload has no `slotId`.
+  final String slotId;
   final String exerciseId;
   final String name;
   final EquipmentType equipment;
@@ -25,7 +40,12 @@ class SessionExercise {
   final String notes;
   final bool completed;
 
+  /// Default constructor. [slotId] is required in production but tests
+  /// and older session payloads (pre-slot field) pass only
+  /// [exerciseId] — they should use [SessionExercise.exerciseScoped]
+  /// instead.
   const SessionExercise({
+    required this.slotId,
     required this.exerciseId,
     required this.name,
     required this.equipment,
@@ -42,9 +62,13 @@ class SessionExercise {
 
   int get loggedSetsCount => sets.where((s) => s.isLogged).length;
 
+  /// True when the exercise has at least one logged effective set or
+  /// drop set. Warm-ups are intentionally excluded — they count as
+  /// preparation, not workout activity, so a session with only warm-ups
+  /// logged still trips the empty-finish guard. PR detection is unaffected;
+  /// it has always excluded warm-ups and drop sets.
   bool get hasAnyLoggedSet =>
       loggedSetsCount > 0 ||
-      warmups.any((w) => w.isLogged) ||
       dropSets.any((d) => d.isLogged);
 
   /// True when every working set has been logged. Warm-ups and drop sets
@@ -137,6 +161,7 @@ class SessionExercise {
   // ----- copyWith / serialization -----
 
   SessionExercise copyWith({
+    String? slotId,
     String? exerciseId,
     String? name,
     EquipmentType? equipment,
@@ -149,6 +174,7 @@ class SessionExercise {
     bool? completed,
   }) {
     return SessionExercise(
+      slotId: slotId ?? this.slotId,
       exerciseId: exerciseId ?? this.exerciseId,
       name: name ?? this.name,
       equipment: equipment ?? this.equipment,
@@ -163,6 +189,7 @@ class SessionExercise {
   }
 
   Map<String, dynamic> toJson() => {
+        'slotId': slotId,
         'exerciseId': exerciseId,
         'name': name,
         'equipment': equipment.name,
@@ -175,36 +202,42 @@ class SessionExercise {
         'completed': completed,
       };
 
-  factory SessionExercise.fromJson(Map<String, dynamic> json) =>
-      SessionExercise(
-        exerciseId: json['exerciseId'] as String,
-        name: json['name'] as String,
-        equipment: EquipmentType.values.firstWhere(
-          (e) => e.name == json['equipment'],
-          orElse: () => EquipmentType.bodyweight,
-        ),
-        muscleGroups: (json['muscleGroups'] as List<dynamic>?)
-                ?.map(
-                  (m) => MuscleGroup.values.firstWhere(
-                    (v) => v.name == m,
-                    orElse: () => MuscleGroup.chest,
-                  ),
-                )
-                .toList() ??
-            const [],
-        targetSets: json['targetSets'] as int,
-        sets: (json['sets'] as List<dynamic>)
-            .map((e) => SessionSet.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        warmups: (json['warmups'] as List<dynamic>?)
-                ?.map((e) => SessionSet.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        dropSets: (json['dropSets'] as List<dynamic>?)
-                ?.map((e) => SessionSet.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        notes: (json['notes'] as String?) ?? '',
-        completed: (json['completed'] as bool?) ?? false,
-      );
+  factory SessionExercise.fromJson(Map<String, dynamic> json) {
+    final exerciseId = json['exerciseId'] as String;
+    return SessionExercise(
+      // Backward-compat: sessions persisted before this field existed
+      // didn't store slotId; default to exerciseId so an in-flight
+      // restored session keeps working without a slot collision.
+      slotId: (json['slotId'] as String?) ?? exerciseId,
+      exerciseId: exerciseId,
+      name: json['name'] as String,
+      equipment: EquipmentType.values.firstWhere(
+        (e) => e.name == json['equipment'],
+        orElse: () => EquipmentType.bodyweight,
+      ),
+      muscleGroups: (json['muscleGroups'] as List<dynamic>?)
+              ?.map(
+                (m) => MuscleGroup.values.firstWhere(
+                  (v) => v.name == m,
+                  orElse: () => MuscleGroup.chest,
+                ),
+              )
+              .toList() ??
+          const [],
+      targetSets: json['targetSets'] as int,
+      sets: (json['sets'] as List<dynamic>)
+          .map((e) => SessionSet.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      warmups: (json['warmups'] as List<dynamic>?)
+              ?.map((e) => SessionSet.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      dropSets: (json['dropSets'] as List<dynamic>?)
+              ?.map((e) => SessionSet.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      notes: (json['notes'] as String?) ?? '',
+      completed: (json['completed'] as bool?) ?? false,
+    );
+  }
 }

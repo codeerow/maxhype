@@ -38,7 +38,7 @@ class ReplaceExerciseSheet extends StatelessWidget {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         leading: TapScale(
-          scaleDown: 0.90,
+          scaleDown: TapScalePreset.icon.scale,
           onTap: () => Navigator.of(context).pop(),
           child: const Center(
             child: Icon(

@@ -145,14 +145,13 @@ class _LoggingView extends StatefulWidget {
 
 class _LoggingViewState extends State<_LoggingView>
     with TickerProviderStateMixin {
-  /// The exerciseId the screen is currently rendering. Starts at the
-  /// widget's exerciseId and gets swapped in when the user replaces
-  /// the exercise via the three-dot menu (live mode runs through the
-  /// session bloc's ReplaceExercise event; preview mode swaps through
-  /// the workout-detail bloc and the preview cubit's draft store).
-  /// Without this, the screen would either show the stale exercise
-  /// or self-pop the moment the old id disappeared from the model.
-  late String _currentExerciseId = widget.exerciseId;
+  /// The slotId the screen is currently rendering. Starts at the
+  /// widget's exerciseId (in live mode the caller passes a slotId via
+  /// this parameter — same name, slot semantics; in preview mode the
+  /// slot identity is the catalog exerciseId because preview has one
+  /// slot per template exercise). Survives Replace because the slot
+  /// keeps its id — only the underlying catalog exerciseId changes.
+  late String _currentSlotId = widget.exerciseId;
   late Future<SessionSet?> _historyFuture;
 
   /// Stable FocusNodes for WEIGHT / REPS fields keyed by `setId`
@@ -193,7 +192,7 @@ class _LoggingViewState extends State<_LoggingView>
   void initState() {
     super.initState();
     _historyFuture =
-        getIt<WorkoutSessionRepository>().lastLogFor(_currentExerciseId);
+        getIt<WorkoutSessionRepository>().lastLogFor(_currentSlotId);
 
     final bloc = context.read<WorkoutSessionBloc>();
     _prSub = bloc.prSignals.listen(_onPrSignal);
@@ -202,11 +201,11 @@ class _LoggingViewState extends State<_LoggingView>
   /// Switch the screen onto a newly replaced exercise. Re-fetches the
   /// history future so the prefill pills reflect *this* exercise's
   /// last logged set, and forces a rebuild so the rest of the body
-  /// reads from the freshly-resolved [_currentExerciseId].
+  /// reads from the freshly-resolved [_currentSlotId].
   void _switchExerciseId(String newId) {
     if (!mounted) return;
     setState(() {
-      _currentExerciseId = newId;
+      _currentSlotId = newId;
       _historyFuture =
           getIt<WorkoutSessionRepository>().lastLogFor(newId);
     });
@@ -221,9 +220,20 @@ class _LoggingViewState extends State<_LoggingView>
     }
   }
 
+  /// Catalog exerciseId of the slot currently rendered, or null when
+  /// the slot is no longer in the session (just popped, mid-replace).
+  /// PR signals key by catalog exerciseId — slot identity is local.
+  String? _currentCatalogExerciseId(BuildContext context) {
+    final state = context.read<WorkoutSessionBloc>().state;
+    if (state is! SessionActive) return null;
+    return state.session.exercises
+        .firstWhereOrNull((e) => e.slotId == _currentSlotId)
+        ?.exerciseId;
+  }
+
   void _onPrAchieved(PrAchievedSignal signal) {
-    if (signal.exerciseId != _currentExerciseId) return;
     if (!mounted) return;
+    if (signal.exerciseId != _currentCatalogExerciseId(context)) return;
     setState(() => _prSetIds.add(signal.setId));
     celebrationFor(signal.setId).forward(from: 0);
     getIt<HapticManager>().strongest();
@@ -231,8 +241,8 @@ class _LoggingViewState extends State<_LoggingView>
   }
 
   void _onPrRevoked(PrRevokedSignal signal) {
-    if (signal.exerciseId != _currentExerciseId) return;
     if (!mounted) return;
+    if (signal.exerciseId != _currentCatalogExerciseId(context)) return;
     if (!_prSetIds.contains(signal.setId)) return;
     setState(() => _prSetIds.remove(signal.setId));
     // Park the celebration controller back to 0 so any future re-PR on a
@@ -258,7 +268,7 @@ class _LoggingViewState extends State<_LoggingView>
   bool _completedFor(WorkoutSessionState s) {
     if (s is! SessionActive) return false;
     final ex = s.session.exercises.firstWhereOrNull(
-      (e) => e.exerciseId == _currentExerciseId,
+      (e) => e.slotId == _currentSlotId,
     );
     return ex?.completed ?? false;
   }
@@ -291,7 +301,7 @@ class _LoggingViewState extends State<_LoggingView>
           );
         }
         final ex = state.session.exercises.firstWhereOrNull(
-          (e) => e.exerciseId == _currentExerciseId,
+          (e) => e.slotId == _currentSlotId,
         );
         if (ex == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -319,10 +329,10 @@ class _LoggingViewState extends State<_LoggingView>
               repsFocusFor: _repsFocusFor,
               celebrationFor: celebrationFor,
               prSetIds: _prSetIds,
-              currentPr: bloc.hasFreshPr(_currentExerciseId)
-                  ? bloc.prFor(_currentExerciseId)
+              currentPr: bloc.hasFreshPr(ex.exerciseId)
+                  ? bloc.prFor(ex.exerciseId)
                   : null,
-              previousBest: bloc.previousBestFor(_currentExerciseId),
+              previousBest: bloc.previousBestFor(ex.exerciseId),
               isFreshPr: _prSetIds.isNotEmpty,
               mode: mode,
               onExerciseReplaced: _switchExerciseId,
@@ -350,15 +360,15 @@ class _LoggingViewState extends State<_LoggingView>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           final ex = workout.exercises.firstWhere(
-            (e) => e.id == _currentExerciseId,
+            (e) => e.id == _currentSlotId,
             orElse: () => workout.exercises.first,
           );
-          previewBloc.seedEffectiveSets(_currentExerciseId, ex.sets);
+          previewBloc.seedEffectiveSets(_currentSlotId, ex.sets);
         });
 
         final mode = PreviewLoggingMode(
           workout: workout,
-          exerciseId: _currentExerciseId,
+          exerciseId: _currentSlotId,
           previewBloc: previewBloc,
           sessionBloc: sessionBloc,
         );
@@ -469,19 +479,20 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                         previousBest: previousBest,
                         isFresh: isFreshPr,
                       ),
-                    // ActionChipRow shows the rest-timer / instructions /
-                    // analytics chips — only meaningful for an active
-                    // session. Preview mode hides it entirely.
-                    if (!mode.isPreview && s != null)
-                      ActionChipRow(
-                        restSeconds: s.restDurationSeconds,
-                        onRestTap: () => AppToast.show(
-                            context, 'Rest timer adjusts in card'),
-                        onInstructionTap: () => AppToast.show(
-                            context, 'Instructions — coming in Part 2'),
-                        onAnalyticsTap: () => AppToast.show(
-                            context, 'Analytics — coming in Part 2'),
-                      ),
+                    // ActionChipRow is shown in both modes so the
+                    // preview screen mirrors the live layout. In preview
+                    // the rest label is a static hint ("Rest 2:00") —
+                    // no timer ticks until Start Workout flips the
+                    // screen into live mode.
+                    ActionChipRow(
+                      restSeconds: mode.restSecondsHint,
+                      onRestTap: () => AppToast.show(
+                          context, 'Rest timer adjusts in card'),
+                      onInstructionTap: () => AppToast.show(
+                          context, 'Instructions — coming in Part 2'),
+                      onAnalyticsTap: () => AppToast.show(
+                          context, 'Analytics — coming in Part 2'),
+                    ),
                     if (exercise.warmups.isNotEmpty) ...[
                       const SizedBox(height: 18),
                       const _Hp(child: _SectionTitle(text: 'Warmup')),
@@ -497,26 +508,36 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     const _Hp(child: _Headers()),
                     const SizedBox(height: 4),
                     ..._buildSetRows(context, prefill, firstUnlogged?.id),
+                    // Drop sets flow inline directly after the effective
+                    // rows — no section title, no repeated WEIGHT/REPS
+                    // header, just the D-marker rows so the visual feels
+                    // like a continuation of the same table.
                     if (exercise.dropSets.isNotEmpty) ...[
-                      const SizedBox(height: 18),
-                      const _Hp(child: _SectionTitle(text: 'Drop sets')),
-                      const SizedBox(height: 8),
-                      const _Hp(child: _Headers()),
                       const SizedBox(height: 4),
                       ..._buildDropSetRows(context, prefill),
                     ],
-                    // Add Set is hidden in preview — structural edits
-                    // (add / delete / replace) only happen after Start
-                    // Workout. Keeps preview a pure "look at what's
-                    // planned" surface.
-                    if (!mode.isPreview) ...[
-                      const SizedBox(height: 8),
-                      _Hp(
+                    // Add Set is available in both modes. In preview it
+                    // mutates the WorkoutPreviewBloc draft (no session
+                    // exists yet); the rows carry into the live session
+                    // when the user taps Start Workout.
+                    //
+                    // KeyedSubtree pins the wrapper itself so the
+                    // AddSetButton's selector state survives the list
+                    // rebuild that fires when the user adds their first
+                    // drop set: the drop-set section pops in above and
+                    // shifts every following child's index. Putting the
+                    // key on the AddSetButton alone wouldn't help —
+                    // Flutter matches the outer _Hp by position first
+                    // and re-mounts everything below it.
+                    const SizedBox(height: 8),
+                    KeyedSubtree(
+                      key: const ValueKey('add_set_button'),
+                      child: _Hp(
                         child: AddSetButton(
                           onAddSet: (kind) => mode.onAddRow(kind),
                         ),
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 22),
                     _Hp(
                       child: NotesCard(
@@ -561,7 +582,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: TapScale(
-        scaleDown: 0.90,
+        scaleDown: TapScalePreset.icon.scale,
         onTap: () => Navigator.of(context).maybePop(),
         child: const Center(
           child: Icon(
@@ -619,22 +640,24 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
       exercise: ex,
       onReplace: (newExercise) {
         // Hand replacement to whichever store the screen is bound to:
-        // - Live mode → WorkoutSessionBloc.ReplaceExercise (preserves
-        //   logged sets, notes, warmups, drops, and the rest timer).
-        //   Screen stays on top and re-anchors on the new exerciseId.
+        // - Live mode → WorkoutSessionBloc.ReplaceExercise via slot.
+        //   The slot keeps the same slotId across the swap, so the
+        //   screen stays put — no anchor change needed. PR baselines
+        //   refresh from the bloc as the new exerciseId loads.
         // - Preview mode → WorkoutDetailBloc.ReplaceExercise (writes
-        //   the swap into the workout template). The preview pops
+        //   the swap into this detail bloc's state). The preview pops
         //   itself before we get here — we must NOT re-anchor on the
         //   new id, because widget.previewWorkout is the snapshot
         //   from preview-open time and doesn't contain the new
         //   exercise yet. Any rebuild that fires before the route
         //   finishes deactivating would then ask the snapshot for
         //   the new id and blow up.
-        final oldId = exercise.exerciseId;
-        mode.onReplaceExercise(context, oldId, newExercise);
-        if (!mode.isPreview) {
-          widget.onExerciseReplaced(newExercise.id);
-        }
+        final oldRef = mode.isPreview
+            ? exercise.exerciseId  // preview keys slots by catalog id
+            : exercise.slotId;     // live keys slots by slotId
+        mode.onReplaceExercise(context, oldRef, newExercise);
+        // Live: slotId is preserved, no re-anchor. Preview: route is
+        // popping, the higher detail-screen now reflects the swap.
       },
     );
   }
@@ -924,9 +947,10 @@ class _LoggingSetRow extends StatelessWidget {
         ),
       ),
     );
-    // Swipe-to-delete only in live mode — preview is read-only, no
-    // structural edits.
-    if (readOnly) return row;
+    // Swipe-to-delete is available in both modes. readOnly only locks
+    // the value inputs (preview mode is for browsing & adding planned
+    // rows, not entering numbers); the user can still swipe a planned
+    // row off if they added it by mistake.
     return SwipeToDelete(
       dismissKey: ValueKey('${_keyPrefix}_dismiss_${set.id}'),
       borderRadius: BorderRadius.zero,

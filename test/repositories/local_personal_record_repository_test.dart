@@ -27,6 +27,7 @@ WorkoutSession _session({
     status: SessionStatus.finished,
     exercises: [
       SessionExercise(
+        slotId: exerciseId,
         exerciseId: exerciseId,
         name: 'Bench',
         equipment: EquipmentType.barbell,
