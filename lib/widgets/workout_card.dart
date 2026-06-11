@@ -301,7 +301,7 @@ class _WorkoutCardState extends State<WorkoutCard>
         context,
         'Finish your current workout first',
         accent: AppTheme.primaryOrange,
-        bottomOffset: 64,
+        bottomOffset: 96,
       );
       return;
     }
