@@ -66,7 +66,7 @@ class _AddSetButtonState extends State<AddSetButton> {
         ),
         const SizedBox(height: 10),
         TapScale(
-          scaleDown: 0.97,
+          scaleDown: TapScalePreset.surface.scale,
           onTap: () => widget.onAddSet(_selectedKind),
           child: CustomPaint(
             painter: _DashedBorderPainter(
@@ -133,7 +133,7 @@ class _KindPill extends StatelessWidget {
         ? AppTheme.primaryOrange
         : Colors.white.withValues(alpha: 0.10);
     return TapScale(
-      scaleDown: 0.95,
+      scaleDown: TapScalePreset.cta.scale,
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),

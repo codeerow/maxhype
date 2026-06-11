@@ -101,7 +101,7 @@ class _ActiveBarState extends State<_ActiveBar> {
     return SafeArea(
       top: false,
       child: TapScale(
-        scaleDown: 0.97,
+        scaleDown: TapScalePreset.surface.scale,
         enableHaptic: true,
         onTap: () => _resume(context),
         child: Padding(

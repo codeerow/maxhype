@@ -20,7 +20,7 @@ class WarmupChoiceTile extends StatelessWidget {
     final hasChoice = current != WarmupType.none;
 
     return TapScale(
-      scaleDown: 0.98,
+      scaleDown: TapScalePreset.surface.scale,
       onTap: () => _showPicker(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

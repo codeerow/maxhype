@@ -43,7 +43,7 @@ class ExerciseOptionsSheet extends StatelessWidget {
                     ),
                   ),
                   TapScale(
-                    scaleDown: 0.90,
+                    scaleDown: TapScalePreset.icon.scale,
                     onTap: () => Navigator.of(context).pop(),
                     child: const Icon(
                       Icons.close,
@@ -106,7 +106,7 @@ class ExerciseOptionsSheet extends StatelessWidget {
     Color? textColor,
   }) {
     return TapScale(
-      scaleDown: 0.98,
+      scaleDown: TapScalePreset.surface.scale,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

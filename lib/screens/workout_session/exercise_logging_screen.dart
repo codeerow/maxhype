@@ -570,7 +570,7 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: TapScale(
-        scaleDown: 0.90,
+        scaleDown: TapScalePreset.icon.scale,
         onTap: () => Navigator.of(context).maybePop(),
         child: const Center(
           child: Icon(

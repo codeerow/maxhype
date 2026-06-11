@@ -245,7 +245,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                   );
                 }
                 return TapScale(
-                  scaleDown: 0.94,
+                  scaleDown: TapScalePreset.cta.scale,
                   enableHaptic: true,
                   onTap: () {
                     final sessionBloc = context.read<WorkoutSessionBloc>();
@@ -321,7 +321,7 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   Widget _buildAddExerciseButton(BuildContext context) {
     return TapScale(
-      scaleDown: 0.97,
+      scaleDown: TapScalePreset.surface.scale,
       onTap: () {
         // TODO: Implement add exercise
       },

@@ -31,7 +31,7 @@ class ReplaceExerciseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TapScale(
-      scaleDown: 0.97,
+      scaleDown: TapScalePreset.surface.scale,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),

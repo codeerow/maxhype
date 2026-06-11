@@ -92,6 +92,10 @@ class EffectiveSetPill extends StatelessWidget {
     );
 
     if (onTap == null) return pill;
-    return TapScale(scaleDown: 0.96, onTap: onTap, child: pill);
+    return TapScale(
+      scaleDown: TapScalePreset.cta.scale,
+      onTap: onTap,
+      child: pill,
+    );
   }
 }

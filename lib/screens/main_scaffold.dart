@@ -94,7 +94,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     final isActive = _currentIndex == index;
 
     return TapScale(
-      scaleDown: 0.95,
+      scaleDown: TapScalePreset.cta.scale,
       onTap: () {
         if (_currentIndex != index) {
           getIt<HapticManager>().selection();

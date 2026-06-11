@@ -124,7 +124,7 @@ class ExerciseCard extends StatelessWidget {
         // 3-dots button
         if (onOptionsPressed != null)
           TapScale(
-            scaleDown: 0.90,
+            scaleDown: TapScalePreset.icon.scale,
             onTap: onOptionsPressed,
             child: const SizedBox(
               width: 36,
@@ -140,7 +140,7 @@ class ExerciseCard extends StatelessWidget {
 
     if (onTap != null) {
       return TapScale(
-        scaleDown: 0.97,
+        scaleDown: TapScalePreset.surface.scale,
         onTap: onTap,
         child: content,
       );

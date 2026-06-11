@@ -159,7 +159,7 @@ class _RestTimerCardState extends State<RestTimerCard>
               ],
               const Spacer(),
               TapScale(
-                scaleDown: 0.90,
+                scaleDown: TapScalePreset.icon.scale,
                 onTap: widget.onCancel,
                 child: const SizedBox(
                   width: 28,
@@ -190,7 +190,7 @@ class _AdjustButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TapScale(
-      scaleDown: 0.94,
+      scaleDown: TapScalePreset.cta.scale,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
