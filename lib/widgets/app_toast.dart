@@ -22,7 +22,7 @@ class AppToast {
   /// baseline. New call-sites should NOT pass `bottomOffset` unless
   /// they have a reason to deviate (e.g., a screen without a bottom
   /// nav can pass `bottomOffset: 0`).
-  static const double kBottomNavOffset = 96;
+  static const double kBottomNavOffset = 48;
 
   static void show(
     BuildContext context,
