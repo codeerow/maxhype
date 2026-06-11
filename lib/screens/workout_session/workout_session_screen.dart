@@ -337,11 +337,9 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     return BlocListener<WorkoutSessionBloc, WorkoutSessionState>(
       listenWhen: (_, next) => next is SessionFinishBlockedEmpty,
       listener: (context, _) {
-        // Customer feedback: position the finish-guard pill the same
-        // way as the "Workout Completed!" toast — low on the screen,
-        // attached to / slightly overlapping the Finish button area.
-        // No extra lift; the toast lands on the same baseline as the
-        // celebration toast (`bottomOffset: 0`).
+        // Lands on the unified AppToast.kBottomNavOffset baseline —
+        // same height as every other pill in the app (celebratory
+        // and validation alike), per customer feedback.
         AppToast.showPremium(
           context,
           'Complete at least one set first',

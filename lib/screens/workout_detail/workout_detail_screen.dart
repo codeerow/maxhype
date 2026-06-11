@@ -262,12 +262,6 @@ class WorkoutDetailScreen extends StatelessWidget {
                         context,
                         'Finish your current workout first',
                         accent: AppTheme.primaryOrange,
-                        // Lift above the home tab bar so the Home/CTA
-                        // copy stays fully readable beneath the pill.
-                        // Customer feedback round 2: 64px still
-                        // overlapped the nav — 96px sits the toast
-                        // just above the bottom navigation row.
-                        bottomOffset: 96,
                       );
                       return;
                     }

@@ -245,7 +245,7 @@ class _WorkoutCardState extends State<WorkoutCard>
     required Color recoveryColor,
     required double pulseStrength,
   }) {
-    final orange = AppTheme.primaryOrange;
+    const orange = AppTheme.primaryOrange;
     final borderColor = inProgress
         ? AppTheme.recoveryGreen
         : isCompletedThisWeek
@@ -301,7 +301,6 @@ class _WorkoutCardState extends State<WorkoutCard>
         context,
         'Finish your current workout first',
         accent: AppTheme.primaryOrange,
-        bottomOffset: 96,
       );
       return;
     }
@@ -404,7 +403,7 @@ class _CompletedFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orange = AppTheme.primaryOrange;
+    const orange = AppTheme.primaryOrange;
     final brightOrange =
         Color.lerp(orange, Colors.white, 0.25 * pulseStrength)!;
     return Row(
@@ -423,7 +422,7 @@ class _CompletedFooter extends StatelessWidget {
         ),
         Text(
           ' · ${_formatDuration(completion.durationSeconds)}',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: AppTheme.textSecondary,

@@ -13,11 +13,23 @@ import '../theme/app_theme.dart';
 class AppToast {
   static OverlayEntry? _current;
 
+  /// Unified vertical placement for every toast / pill. Lifts the
+  /// bubble above the bottom navigation row so the Home/History tab
+  /// labels stay fully readable underneath. Per customer feedback,
+  /// every pill — celebratory ("Workout Completed!"), validation
+  /// ("Complete at least one set first"), navigation blockers
+  /// ("Finish your current workout first") — sits at the same
+  /// baseline. New call-sites should NOT pass `bottomOffset` unless
+  /// they have a reason to deviate (e.g., a screen without a bottom
+  /// nav can pass `bottomOffset: 0`).
+  static const double kBottomNavOffset = 96;
+
   static void show(
     BuildContext context,
     String message, {
     Duration duration = const Duration(milliseconds: 1800),
     Color? accent,
+    double bottomOffset = kBottomNavOffset,
   }) =>
       _present(
         context,
@@ -25,22 +37,18 @@ class AppToast {
         duration: duration,
         accent: accent,
         premium: false,
+        bottomOffset: bottomOffset,
       );
 
   /// Larger, glow-y variant used for celebratory moments
   /// (workout completed). Wider bubble, longer hold, accent halo.
-  ///
-  /// [bottomOffset] lifts the bubble further above the screen bottom
-  /// — pass enough room to clear a floating button (e.g., the
-  /// session screen's Finish pill) so the toast sits above it
-  /// instead of overlapping. Defaults to 0.
   static void showPremium(
     BuildContext context,
     String message, {
     String? icon,
     Color? accent,
     Duration duration = const Duration(milliseconds: 2500),
-    double bottomOffset = 0,
+    double bottomOffset = kBottomNavOffset,
   }) =>
       _present(
         context,
@@ -59,7 +67,7 @@ class AppToast {
     required bool premium,
     Color? accent,
     String? icon,
-    double bottomOffset = 0,
+    double bottomOffset = kBottomNavOffset,
   }) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
@@ -82,13 +90,15 @@ class AppToast {
     String? icon,
     Color? accent,
     Duration duration = const Duration(milliseconds: 2500),
+    double bottomOffset = kBottomNavOffset,
   }) {
     _insert(overlay,
         message: message,
         duration: duration,
         premium: true,
         accent: accent,
-        icon: icon);
+        icon: icon,
+        bottomOffset: bottomOffset);
   }
 
   /// Standard (non-premium) toast on a pre-resolved [OverlayState].
@@ -97,12 +107,14 @@ class AppToast {
     String message, {
     Color? accent,
     Duration duration = const Duration(milliseconds: 1800),
+    double bottomOffset = kBottomNavOffset,
   }) {
     _insert(overlay,
         message: message,
         duration: duration,
         premium: false,
-        accent: accent);
+        accent: accent,
+        bottomOffset: bottomOffset);
   }
 
   static void _insert(
@@ -112,7 +124,7 @@ class AppToast {
     required bool premium,
     Color? accent,
     String? icon,
-    double bottomOffset = 0,
+    double bottomOffset = kBottomNavOffset,
   }) {
     _current?.remove();
     final entry = OverlayEntry(

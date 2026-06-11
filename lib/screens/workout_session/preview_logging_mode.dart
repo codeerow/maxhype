@@ -110,9 +110,6 @@ class PreviewLoggingMode extends LoggingMode {
         context,
         'Finish your current workout first',
         accent: AppTheme.primaryOrange,
-        // Same lift as the detail-screen Start blocker so the home
-        // tab row stays fully readable.
-        bottomOffset: 96,
       );
       return;
     }
