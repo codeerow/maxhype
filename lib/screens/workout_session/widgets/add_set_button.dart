@@ -4,14 +4,16 @@ import '../../../models/session/session_set.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/tap_scale.dart';
 
-/// "Add Set" composite control — an inline type selector (Set / Warm-Up /
-/// Drop Set pills with coloured dots) sitting above the dashed Add Set
-/// pill. The selector is always visible: tapping a pill picks the type
-/// the next Add Set tap will append. Selection persists between adds so
-/// the user can fire multiple drop sets in a row without re-selecting.
+/// "Add Set" composite control. Default state shows just the dashed
+/// `+ Add Set` row. Tapping it expands a temporary inline selector
+/// above the button with three pills — Set (green), Warm-Up (yellow),
+/// Drop Set (orange). The user picks a type, then taps `+ Add Set`
+/// again to commit; that commit collapses the selector back. A tap
+/// anywhere outside the control also collapses it.
 ///
-/// Replaces the previous CupertinoActionSheet flow (milestone Phase 3
-/// Part 3, Item 8 — customer asked for the inline MaxHype-web variant).
+/// Customer brief (M5 follow-up clarification on item 4): the pills
+/// must be a temporary inline expansion, not a permanent row. No
+/// iOS/Cupertino action sheet.
 class AddSetButton extends StatefulWidget {
   final ValueChanged<SetKind> onAddSet;
 
@@ -25,95 +27,130 @@ class AddSetButton extends StatefulWidget {
 }
 
 class _AddSetButtonState extends State<AddSetButton> {
-  /// Current type the Add Set button will append. Lives across multiple
-  /// taps so the user doesn't have to re-pick after every add.
+  /// Whether the inline selector is currently shown. Toggled by the
+  /// Add Set button itself (first tap opens; second tap commits and
+  /// closes) and by a tap-outside region listener.
+  bool _expanded = false;
+
+  /// Last picked type. Survives a collapse so re-opening the selector
+  /// shows the user's previous choice — a small quality-of-life nudge
+  /// that doesn't violate the "default state is just Add Set" rule.
   SetKind _selectedKind = SetKind.effective;
 
-  void _select(SetKind kind) {
+  void _selectKind(SetKind kind) {
     if (_selectedKind == kind) return;
     setState(() => _selectedKind = kind);
   }
 
+  void _handleAddSetTap() {
+    if (!_expanded) {
+      setState(() => _expanded = true);
+      return;
+    }
+    widget.onAddSet(_selectedKind);
+    setState(() => _expanded = false);
+  }
+
+  void _handleTapOutside() {
+    if (!_expanded) return;
+    setState(() => _expanded = false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _KindPill(
-              label: 'Set',
-              dotColor: AppTheme.recoveryGreen,
-              isSelected: _selectedKind == SetKind.effective,
-              onTap: () => _select(SetKind.effective),
-            ),
-            const SizedBox(width: 8),
-            _KindPill(
-              label: 'Warm-Up',
-              dotColor: AppTheme.recoveryYellow,
-              isSelected: _selectedKind == SetKind.warmup,
-              onTap: () => _select(SetKind.warmup),
-            ),
-            const SizedBox(width: 8),
-            _KindPill(
-              label: 'Drop Set',
-              dotColor: AppTheme.primaryOrange,
-              isSelected: _selectedKind == SetKind.dropSet,
-              onTap: () => _select(SetKind.dropSet),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        TapScale(
-          scaleDown: TapScalePreset.surface.scale,
-          onTap: () => widget.onAddSet(_selectedKind),
-          child: CustomPaint(
-            painter: _DashedBorderPainter(
-              color: AppTheme.primaryOrange.withValues(alpha: 0.55),
-              strokeWidth: 1,
-              radius: 22,
-              dashLength: 5,
-              gapLength: 4,
-            ),
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryOrange.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              alignment: Alignment.center,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Add Set',
-                    style: TextStyle(
-                      color: AppTheme.primaryOrange,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
+    return TapRegion(
+      onTapOutside: (_) => _handleTapOutside(),
+      child: Column(
+        children: [
+          // Inline selector — animated in/out so the expansion reads
+          // as a single fluid gesture rather than a hard pop.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.bottomCenter,
+            child: _expanded
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _KindPill(
+                          label: 'Set',
+                          dotColor: AppTheme.recoveryGreen,
+                          isSelected: _selectedKind == SetKind.effective,
+                          onTap: () => _selectKind(SetKind.effective),
+                        ),
+                        const SizedBox(width: 8),
+                        _KindPill(
+                          label: 'Warm-Up',
+                          dotColor: AppTheme.recoveryYellow,
+                          isSelected: _selectedKind == SetKind.warmup,
+                          onTap: () => _selectKind(SetKind.warmup),
+                        ),
+                        const SizedBox(width: 8),
+                        _KindPill(
+                          label: 'Drop Set',
+                          dotColor: AppTheme.primaryOrange,
+                          isSelected: _selectedKind == SetKind.dropSet,
+                          onTap: () => _selectKind(SetKind.dropSet),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  )
+                : const SizedBox(width: double.infinity, height: 0),
+          ),
+          TapScale(
+            scaleDown: TapScalePreset.surface.scale,
+            onTap: _handleAddSetTap,
+            child: CustomPaint(
+              painter: _DashedBorderPainter(
+                color: AppTheme.primaryOrange.withValues(alpha: 0.55),
+                strokeWidth: 1,
+                radius: 22,
+                dashLength: 5,
+                gapLength: 4,
+              ),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryOrange.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                alignment: Alignment.center,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Add Set',
+                      style: TextStyle(
+                        color: AppTheme.primaryOrange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// Small capsule with a coloured dot + label, used in the row above
-/// Add Set. Selected state gets the orange border + soft glow.
+/// Small capsule with a coloured dot + label, shown in the temporary
+/// selector above Add Set. Selected state gets the orange border +
+/// soft glow.
 class _KindPill extends StatelessWidget {
   final String label;
   final Color dotColor;
