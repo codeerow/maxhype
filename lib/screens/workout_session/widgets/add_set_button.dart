@@ -47,8 +47,10 @@ class _AddSetButtonState extends State<AddSetButton> {
       setState(() => _expanded = true);
       return;
     }
+    // Selector is open — commit the current pick but keep it open so
+    // the user can fire several sets in a row. Only a tap-outside
+    // collapses it back to the default state.
     widget.onAddSet(_selectedKind);
-    setState(() => _expanded = false);
   }
 
   void _handleTapOutside() {
