@@ -406,29 +406,37 @@ class _CompletedFooter extends StatelessWidget {
     const orange = AppTheme.primaryOrange;
     final brightOrange =
         Color.lerp(orange, Colors.white, 0.25 * pulseStrength)!;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.check_circle, color: brightOrange, size: 18),
-        const SizedBox(width: 8),
-        Text(
-          'Completed',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: brightOrange,
-            letterSpacing: 0.3,
+    // SizedBox(width: double.infinity) forces the row to stretch to
+    // the card's full inner width — without it, MainAxisSize.min would
+    // shrink the parent Column to fit only the "✓ Completed · 17 mins"
+    // text, leaving the completed card narrower than the
+    // recovery-footer variant whose Container takes the parent width.
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, color: brightOrange, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            'Completed',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: brightOrange,
+              letterSpacing: 0.3,
+            ),
           ),
-        ),
-        Text(
-          ' · ${_formatDuration(completion.durationSeconds)}',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppTheme.textSecondary,
+          Text(
+            ' · ${_formatDuration(completion.durationSeconds)}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
