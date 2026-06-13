@@ -36,12 +36,21 @@ class PreviewLoggingMode extends LoggingMode {
     required this.exerciseId,
     required this.previewBloc,
     required this.sessionBloc,
+    this.isCompletedThisWeek = false,
   });
 
   final Workout workout;
   final String exerciseId;
   final WorkoutPreviewBloc previewBloc;
   final WorkoutSessionBloc sessionBloc;
+
+  /// True when the workout that hosts this exercise has already been
+  /// finished in the current ISO week. Locks the Start Workout button
+  /// on the preview screen so the user can't kick off a duplicate
+  /// session by drilling into an exercise of a completed workout
+  /// (customer report follow-up to fix #7 — the detail-screen Start
+  /// CTA was locked, but the per-exercise preview Start wasn't).
+  final bool isCompletedThisWeek;
 
   @override
   bool get isPreview => true;
@@ -93,13 +102,19 @@ class PreviewLoggingMode extends LoggingMode {
   }
 
   @override
-  String get bottomLabel => 'Start Workout';
+  String get bottomLabel =>
+      isCompletedThisWeek ? 'Completed' : 'Start Workout';
 
   @override
-  bool get bottomEnabled => true;
+  bool get bottomEnabled => !isCompletedThisWeek;
 
   @override
   void onBottomTap(BuildContext context) {
+    // Locked: the workout was already finished this week. The
+    // detail-screen Start CTA blocks the same path at the workout
+    // level; this guard catches the user who drilled into a single
+    // exercise of a completed workout before backing out.
+    if (isCompletedThisWeek) return;
     final cur = sessionBloc.state;
     if (cur is SessionActive && cur.session.workoutId != workout.id) {
       // Brief §4 — block second-workout starts with the premium

@@ -23,6 +23,7 @@ import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
 import '../../models/workout.dart';
 import '../workout_detail/bloc/workout_detail_bloc.dart';
+import '../workout_detail/bloc/workout_detail_state.dart';
 import '../workout_detail/bloc/workout_preview_bloc.dart';
 import '../workout_detail/widgets/exercise_navigation.dart';
 import 'live_logging_mode.dart';
@@ -346,6 +347,14 @@ class _LoggingViewState extends State<_LoggingView>
   Widget _buildPreview(BuildContext context) {
     final sessionBloc = context.read<WorkoutSessionBloc>();
     final previewBloc = context.read<WorkoutPreviewBloc>();
+    // Read completion flag off the workout-detail bloc so the
+    // preview's Start Workout CTA stays locked when the user drills
+    // into an exercise of a workout already finished this week.
+    // Without this, the lock added by fix #7 (detail-screen Start
+    // pill) could be bypassed by tapping any exercise card first.
+    final detailState = context.read<WorkoutDetailBloc>().state;
+    final isCompletedThisWeek = detailState is WorkoutDetailSuccess &&
+        detailState.completionThisWeek != null;
     // Preview screen pops itself the moment the user picks Replace
     // (mirrors workout-detail's flow), so we don't need to subscribe
     // to WorkoutDetailBloc for live template updates — the workout
@@ -371,6 +380,7 @@ class _LoggingViewState extends State<_LoggingView>
           exerciseId: _currentSlotId,
           previewBloc: previewBloc,
           sessionBloc: sessionBloc,
+          isCompletedThisWeek: isCompletedThisWeek,
         );
         final ex = mode.exerciseSnapshot;
         return FutureBuilder<SessionSet?>(
