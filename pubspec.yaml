@@ -120,6 +120,9 @@ flutter:
   # missing.
   assets:
     - assets/audio/boxing_bell.mp3
+    # MaxHype generator library (187 exercises + metadata tables + PPL
+    # templates). Consumed by AssetExerciseRepository.
+    - assets/data/exercise_library.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

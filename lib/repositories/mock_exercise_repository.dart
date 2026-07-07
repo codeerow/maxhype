@@ -3,7 +3,8 @@ import '../models/muscle_group.dart';
 import '../models/equipment_type.dart';
 import 'exercise_repository.dart';
 
-class MockExerciseRepository implements ExerciseRepository {
+class MockExerciseRepository extends ExerciseRepository
+    with NoGeneratorMetadata {
   static final List<Exercise> _exercises = [
     // ===== CHEST EXERCISES =====
     Exercise(

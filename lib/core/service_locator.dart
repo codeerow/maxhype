@@ -5,6 +5,9 @@ import '../repositories/workout_repository.dart';
 import '../repositories/mock_workout_repository.dart';
 import '../repositories/exercise_repository.dart';
 import '../repositories/mock_exercise_repository.dart';
+import '../repositories/asset_exercise_repository.dart';
+import '../repositories/fitness_plan_repository.dart';
+import '../repositories/local_fitness_plan_repository.dart';
 import '../repositories/workout_session_repository.dart';
 import '../repositories/local_workout_session_repository.dart';
 import '../repositories/personal_record_repository.dart';
@@ -30,6 +33,21 @@ Future<void> setupDependencies() async {
 
   getIt.registerLazySingleton<ExerciseRepository>(
     () => MockExerciseRepository(),
+  );
+
+  // Generator library (Phase 4 Part 1). Registered under its concrete type so
+  // it coexists with the hand-curated MockExerciseRepository (which the home
+  // workouts depend on). The JSON asset is loaded eagerly below so lookups are
+  // synchronous. Part 2's generator reads exercises, metadata tables, and PPL
+  // templates from here.
+  getIt.registerLazySingleton<AssetExerciseRepository>(
+    () => AssetExerciseRepository(),
+  );
+
+  // Persistent user fitness plan (split, days/week, duration, experience,
+  // units, sex, age, weight). Survives restarts via fitness_plan.json.
+  getIt.registerLazySingleton<FitnessPlanRepository>(
+    () => LocalFitnessPlanRepository(),
   );
 
   getIt.registerLazySingleton<WorkoutSessionRepository>(
@@ -96,4 +114,9 @@ Future<void> setupDependencies() async {
       completionRepository: getIt<WorkoutCompletionRepository>(),
     ),
   );
+
+  // Eagerly load the generator library asset so its queries are synchronous
+  // once the app is running. Cheap (one bundled JSON read) and keeps Part 2's
+  // generator free of async plumbing on every lookup.
+  await getIt<AssetExerciseRepository>().load();
 }
