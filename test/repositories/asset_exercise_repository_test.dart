@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maxhype/models/generator/experience_level.dart';
 import 'package:maxhype/models/generator/exercise_taxonomy.dart';
+import 'package:maxhype/models/generator/generator_slot.dart';
 import 'package:maxhype/repositories/asset_exercise_repository.dart';
 
 /// Loads the real bundled asset from disk (via the jsonLoader seam) so these
@@ -202,6 +203,102 @@ void main() {
               reason: '${t.name}: ${slot.defaultExercise} not in library');
         }
       }
+    });
+  });
+
+  group('slot plans (2A)', () {
+    const durations = [45, 60, 75, 90, 105, 120];
+    const splits = ['Push Day', 'Pull Day', 'Legs + Core'];
+
+    test('every PPL split × duration has a non-empty ordered slot list',
+        () async {
+      final repo = await loadedRepo();
+      for (final split in splits) {
+        for (final mins in durations) {
+          final slots = repo.slotPlans.slotsFor(split, mins);
+          expect(slots, isNotEmpty, reason: '$split @ $mins has no slots');
+          expect(slots.every((s) => s.slotType != null), isTrue);
+        }
+      }
+    });
+
+    test('slot counts grow with duration (per prototype)', () async {
+      final repo = await loadedRepo();
+      // Push 5/6/7/8/9/9, Legs 5/6/7/8/8/9 — monotonic non-decreasing.
+      for (final split in splits) {
+        var prev = 0;
+        for (final mins in durations) {
+          final n = repo.slotPlans.slotsFor(split, mins).length;
+          expect(n, greaterThanOrEqualTo(prev), reason: '$split @ $mins');
+          prev = n;
+        }
+      }
+    });
+
+    test('every slot default resolves to a real library exercise', () async {
+      final repo = await loadedRepo();
+      for (final split in splits) {
+        for (final mins in durations) {
+          for (final slot in repo.slotPlans.slotsFor(split, mins)) {
+            if (slot.defaultExercise != null) {
+              expect(repo.getExerciseByName(slot.defaultExercise!), isNotNull,
+                  reason: '$split@$mins ${slot.defaultExercise} missing');
+            }
+          }
+        }
+      }
+    });
+
+    test('Legs + Core places the core slot last at every duration', () async {
+      final repo = await loadedRepo();
+      for (final mins in durations) {
+        final slots = repo.slotPlans.slotsFor('Legs + Core', mins);
+        expect(slots.last.slotType, contains('core'),
+            reason: 'core not last at $mins: '
+                '${slots.map((s) => s.slotType).toList()}');
+      }
+    });
+
+    test('Push triceps_push carries a random variant with probability 0.3',
+        () async {
+      final repo = await loadedRepo();
+      final slots = repo.slotPlans.slotsFor('Push Day', 90);
+      final tp = slots.firstWhere((s) => s.slotType == 'triceps_push');
+      expect(tp.randomVariant, isNotNull);
+      expect(tp.randomVariant!.probability, 0.3);
+      // The alt swaps the category order toward compound press.
+      expect(tp.randomVariant!.alt.categories.first, 'compound press');
+    });
+  });
+
+  group('set-density table (2A)', () {
+    test('primary compound sets match the prototype table', () async {
+      final repo = await loadedRepo();
+      final t = repo.setDensity;
+      const expected = {45: 3, 60: 4, 75: 4, 90: 4, 105: 5, 120: 5};
+      expected.forEach((mins, sets) {
+        expect(t.setsFor(SlotRole.primaryCompound, mins), sets,
+            reason: 'primary @ $mins');
+      });
+    });
+
+    test('isolation applies the +1 display compensation', () async {
+      final repo = await loadedRepo();
+      // Raw isolation @45 is 2 in the table; displayed is 3.
+      expect(repo.setDensity.setsFor(SlotRole.isolation, 45), 3);
+      expect(repo.setDensity.setsFor(SlotRole.isolation, 120), 4);
+    });
+
+    test('core is exempt from the +1 compensation', () async {
+      final repo = await loadedRepo();
+      expect(repo.setDensity.setsFor(SlotRole.core, 45), 3);
+      expect(repo.setDensity.setsFor(SlotRole.core, 120), 4);
+    });
+
+    test('unknown duration falls back to nearest tier', () async {
+      final repo = await loadedRepo();
+      expect(repo.setDensity.setsFor(SlotRole.primaryCompound, 63),
+          repo.setDensity.setsFor(SlotRole.primaryCompound, 60));
     });
   });
 

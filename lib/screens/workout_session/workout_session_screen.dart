@@ -13,6 +13,7 @@ import '../../models/session/session_exercise.dart';
 import '../../models/session/workout_session.dart';
 import '../../models/workout.dart';
 import '../../repositories/exercise_repository.dart';
+import '../../repositories/asset_exercise_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/animations/animations.dart';
 import '../../widgets/app_toast.dart';
@@ -76,7 +77,8 @@ class WorkoutSessionScreen extends StatelessWidget {
       // to start. Only dispatch StartSession when there's no active session,
       // or it belongs to a different workout — in which case the bloc replaces
       // the session.
-      final shouldStart = current is! SessionActive ||
+      final shouldStart =
+          current is! SessionActive ||
           current.session.workoutId != startWorkout!.id;
       if (shouldStart) {
         bloc.add(StartSession(startWorkout!));
@@ -330,7 +332,6 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     final session = widget.state.session;
@@ -375,9 +376,8 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
                     const SizedBox(height: 8),
                     WarmupChoiceTile(
                       current: session.warmup,
-                      onSelected: (t) => context
-                          .read<WorkoutSessionBloc>()
-                          .add(SetWarmup(t)),
+                      onSelected: (t) =>
+                          context.read<WorkoutSessionBloc>().add(SetWarmup(t)),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -405,9 +405,9 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
             child: Center(
               child: SafeArea(
                 child: SessionFinishButton(
-                  onTap: () => context
-                      .read<WorkoutSessionBloc>()
-                      .add(const FinishWorkout()),
+                  onTap: () => context.read<WorkoutSessionBloc>().add(
+                    const FinishWorkout(),
+                  ),
                 ),
               ),
             ),
@@ -431,20 +431,16 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
           // into a second slot) don't collide on the same ValueKey.
           dismissKey: ValueKey('exercise_dismiss_${ex.slotId}'),
           borderRadius: BorderRadius.circular(14),
-          onDismissed: () => context
-              .read<WorkoutSessionBloc>()
-              .add(DeleteExercise(ex.slotId)),
+          onDismissed: () =>
+              context.read<WorkoutSessionBloc>().add(DeleteExercise(ex.slotId)),
           child: SessionExerciseCard(
             // Stable GlobalKey per slot — survives active/completed
             // transitions so the card's State (and its animation
             // controllers) is preserved across rebuilds.
             key: _cardKeyFor(ex.slotId),
             exercise: ex,
-            isActive:
-                session.activeExerciseId == ex.slotId && !ex.completed,
-            hasPr: context
-                .read<WorkoutSessionBloc>()
-                .hasFreshPr(ex.exerciseId),
+            isActive: session.activeExerciseId == ex.slotId && !ex.completed,
+            hasPr: context.read<WorkoutSessionBloc>().hasFreshPr(ex.exerciseId),
             onTap: () => _openLogging(context, ex),
             onOptions: () => _showOptionsMenu(context, ex),
           ),
@@ -507,8 +503,12 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
   /// snapshot (name + equipment + muscleGroups) for items that have already
   /// been replaced once and are no longer in the catalog under this id.
   Exercise _exerciseFromSession(SessionExercise ex) {
-    final repo = getIt<ExerciseRepository>();
-    final found = repo.getExerciseById(ex.exerciseId);
+    // By name from the generator library first — generated ids (ex_001..187)
+    // collide with the mock catalog's ids, so a by-id lookup would surface the
+    // wrong exercise. Fall back to the mock catalog by id, then the snapshot.
+    final found =
+        getIt<AssetExerciseRepository>().getExerciseByName(ex.name) ??
+        getIt<ExerciseRepository>().getExerciseById(ex.exerciseId);
     if (found != null) return found;
     return Exercise(
       id: ex.exerciseId,

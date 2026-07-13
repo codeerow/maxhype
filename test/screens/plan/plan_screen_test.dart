@@ -1,0 +1,114 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:maxhype/core/service_locator.dart';
+import 'package:maxhype/models/generator/experience_level.dart';
+import 'package:maxhype/models/generator/fitness_plan.dart';
+import 'package:maxhype/repositories/asset_exercise_repository.dart';
+import 'package:maxhype/repositories/fitness_plan_repository.dart';
+import 'package:maxhype/repositories/generated_workout_repository.dart';
+import 'package:maxhype/repositories/workout_repository.dart';
+import 'package:maxhype/screens/plan/plan_screen.dart';
+import 'package:maxhype/services/generator/workout_assembler.dart';
+import 'package:maxhype/services/generator/workout_generator_service.dart';
+
+class _FakePlanRepo implements FitnessPlanRepository {
+  FitnessPlan plan = FitnessPlan.defaults();
+  int saves = 0;
+  @override
+  Future<FitnessPlan> load() async => plan;
+  @override
+  Future<void> save(FitnessPlan p) async {
+    plan = p;
+    saves++;
+  }
+}
+
+void main() {
+  late _FakePlanRepo planRepo;
+  late GeneratedWorkoutRepository workoutRepo;
+
+  setUp(() async {
+    await getIt.reset();
+    final assetRepo = AssetExerciseRepository(
+      jsonLoader: () async =>
+          File('assets/data/exercise_library.json').readAsString(),
+    );
+    await assetRepo.load();
+    planRepo = _FakePlanRepo();
+    workoutRepo = GeneratedWorkoutRepository(
+      planRepository: planRepo,
+      assembler: WorkoutAssembler(AssetWorkoutGeneratorService(assetRepo)),
+    );
+    getIt.registerSingleton<FitnessPlanRepository>(planRepo);
+    getIt.registerSingleton<WorkoutRepository>(workoutRepo);
+  });
+
+  tearDown(() => getIt.reset());
+
+  testWidgets('renders current plan and saves an edit', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: PlanScreen()));
+    await tester.pumpAndSettle();
+
+    // Loaded state shows the section headings.
+    expect(find.text('Fitness Plan'), findsOneWidget);
+    expect(find.text('Days per week'), findsOneWidget);
+    expect(find.text('Experience'), findsOneWidget);
+
+    // Change experience to Advanced.
+    await tester.tap(find.text(ExperienceLevel.advanced.displayName));
+    await tester.pump();
+
+    // Save.
+    await tester.scrollUntilVisible(
+      find.text('Save & Regenerate'),
+      300,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save & Regenerate'));
+    // Save is async; pump a few frames for it to complete. We avoid
+    // pumpAndSettle because the success toast schedules a 2.5s auto-dismiss
+    // timer that would otherwise keep the tree from ever settling.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(planRepo.saves, greaterThan(0));
+    expect(planRepo.plan.experience, ExperienceLevel.advanced);
+
+    // Drain the toast's auto-dismiss timer so it doesn't outlive the test.
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('save regenerates the workout cards', (tester) async {
+    // Prime the cache at the default (3-day) plan.
+    final before = await workoutRepo.getWorkouts();
+    expect(before.length, 3);
+
+    await tester.pumpWidget(const MaterialApp(home: PlanScreen()));
+    await tester.pumpAndSettle();
+
+    // Switch to a 5-day plan and save.
+    await tester.tap(find.text('5'));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('Save & Regenerate'),
+      300,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save & Regenerate'));
+    // Save is async; pump a few frames for it to complete. We avoid
+    // pumpAndSettle because the success toast schedules a 2.5s auto-dismiss
+    // timer that would otherwise keep the tree from ever settling.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final after = await workoutRepo.getWorkouts();
+    expect(after.length, 5);
+
+    // Drain the toast's auto-dismiss timer so it doesn't outlive the test.
+    await tester.pump(const Duration(seconds: 3));
+  });
+}

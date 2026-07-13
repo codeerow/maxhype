@@ -13,6 +13,7 @@ import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
 import '../../models/session/workout_session.dart';
 import '../../repositories/exercise_repository.dart';
+import '../../repositories/asset_exercise_repository.dart';
 import '../../repositories/workout_session_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
@@ -80,8 +81,7 @@ class ExerciseLoggingScreen extends StatelessWidget {
   factory ExerciseLoggingScreen.live({
     required String exerciseId,
     required WorkoutSessionBloc bloc,
-  }) =>
-      ExerciseLoggingScreen._(exerciseId: exerciseId, bloc: bloc);
+  }) => ExerciseLoggingScreen._(exerciseId: exerciseId, bloc: bloc);
 
   factory ExerciseLoggingScreen.preview({
     required String exerciseId,
@@ -89,15 +89,14 @@ class ExerciseLoggingScreen extends StatelessWidget {
     required WorkoutPreviewBloc previewBloc,
     required WorkoutSessionBloc sessionBloc,
     required WorkoutDetailBloc detailBloc,
-  }) =>
-      ExerciseLoggingScreen._(
-        exerciseId: exerciseId,
-        bloc: sessionBloc,
-        previewMode: true,
-        previewWorkout: workout,
-        previewBloc: previewBloc,
-        detailBloc: detailBloc,
-      );
+  }) => ExerciseLoggingScreen._(
+    exerciseId: exerciseId,
+    bloc: sessionBloc,
+    previewMode: true,
+    previewWorkout: workout,
+    previewBloc: previewBloc,
+    detailBloc: detailBloc,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +191,9 @@ class _LoggingViewState extends State<_LoggingView>
   @override
   void initState() {
     super.initState();
-    _historyFuture =
-        getIt<WorkoutSessionRepository>().lastLogFor(_currentSlotId);
+    _historyFuture = getIt<WorkoutSessionRepository>().lastLogFor(
+      _currentSlotId,
+    );
 
     final bloc = context.read<WorkoutSessionBloc>();
     _prSub = bloc.prSignals.listen(_onPrSignal);
@@ -207,8 +207,7 @@ class _LoggingViewState extends State<_LoggingView>
     if (!mounted) return;
     setState(() {
       _currentSlotId = newId;
-      _historyFuture =
-          getIt<WorkoutSessionRepository>().lastLogFor(newId);
+      _historyFuture = getIt<WorkoutSessionRepository>().lastLogFor(newId);
     });
   }
 
@@ -287,8 +286,7 @@ class _LoggingViewState extends State<_LoggingView>
       // Listen for the exercise's `completed` flag flipping false → true.
       // That's the single source of truth: when the exercise is done, we
       // pop the logging screen.
-      listenWhen: (prev, next) =>
-          !_completedFor(prev) && _completedFor(next),
+      listenWhen: (prev, next) => !_completedFor(prev) && _completedFor(next),
       listener: (context, state) {
         if (Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
@@ -353,7 +351,8 @@ class _LoggingViewState extends State<_LoggingView>
     // Without this, the lock added by fix #7 (detail-screen Start
     // pill) could be bypassed by tapping any exercise card first.
     final detailState = context.read<WorkoutDetailBloc>().state;
-    final isCompletedThisWeek = detailState is WorkoutDetailSuccess &&
+    final isCompletedThisWeek =
+        detailState is WorkoutDetailSuccess &&
         detailState.completionThisWeek != null;
     // Preview screen pops itself the moment the user picks Replace
     // (mirrors workout-detail's flow), so we don't need to subscribe
@@ -462,7 +461,8 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
     final firstUnlogged = exercise.firstUnloggedSet;
 
     final s = session;
-    final restActive = s != null &&
+    final restActive =
+        s != null &&
         s.activeRestEndsAt != null &&
         s.activeRestEndsAt!.isAfter(DateTime.now());
 
@@ -496,12 +496,16 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     // screen into live mode.
                     ActionChipRow(
                       restSeconds: mode.restSecondsHint,
-                      onRestTap: () => AppToast.show(
-                          context, 'Rest timer adjusts in card'),
+                      onRestTap: () =>
+                          AppToast.show(context, 'Rest timer adjusts in card'),
                       onInstructionTap: () => AppToast.show(
-                          context, 'Instructions — coming in Part 2'),
+                        context,
+                        'Instructions — coming in Part 2',
+                      ),
                       onAnalyticsTap: () => AppToast.show(
-                          context, 'Analytics — coming in Part 2'),
+                        context,
+                        'Analytics — coming in Part 2',
+                      ),
                     ),
                     if (exercise.warmups.isNotEmpty) ...[
                       const SizedBox(height: 18),
@@ -566,9 +570,9 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
                     child: RestTimerCard(
                       endsAt: s.activeRestEndsAt!,
                       totalSeconds: s.restDurationSeconds,
-                      onCancel: () => context
-                          .read<WorkoutSessionBloc>()
-                          .add(const CancelRestTimer()),
+                      onCancel: () => context.read<WorkoutSessionBloc>().add(
+                        const CancelRestTimer(),
+                      ),
                       onAdjust: (delta) => context
                           .read<WorkoutSessionBloc>()
                           .add(AdjustRestTimer(delta)),
@@ -631,9 +635,15 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   }
 
   void _openExerciseOptions(BuildContext context) {
-    final repo = getIt<ExerciseRepository>();
-    final catalog = repo.getExerciseById(exercise.exerciseId);
-    final ex = catalog ??
+    // Resolve the catalog entry from whichever store owns it: generated
+    // workouts live in the asset library (by name), the hand-curated catalog in
+    // the mock repo (by id). Falls back to a minimal Exercise built from the
+    // session row when neither resolves.
+    final catalog =
+        getIt<AssetExerciseRepository>().getExerciseByName(exercise.name) ??
+        getIt<ExerciseRepository>().getExerciseById(exercise.exerciseId);
+    final ex =
+        catalog ??
         Exercise(
           id: exercise.exerciseId,
           name: exercise.name,
@@ -663,8 +673,9 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
         //   finishes deactivating would then ask the snapshot for
         //   the new id and blow up.
         final oldRef = mode.isPreview
-            ? exercise.exerciseId  // preview keys slots by catalog id
-            : exercise.slotId;     // live keys slots by slotId
+            ? exercise
+                  .exerciseId // preview keys slots by catalog id
+            : exercise.slotId; // live keys slots by slotId
         mode.onReplaceExercise(context, oldRef, newExercise);
         // Live: slotId is preserved, no re-anchor. Preview: route is
         // popping, the higher detail-screen now reflects the swap.
@@ -744,8 +755,8 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
           marker: '${i + 1}',
           kind: SetKind.effective,
           // Warmup pending → no effective row is "current" yet.
-          isCurrent: !exercise.hasWarmupPending &&
-              exercise.sets[i].id == currentSetId,
+          isCurrent:
+              !exercise.hasWarmupPending && exercise.sets[i].id == currentSetId,
           isPr: prSetIds.contains(exercise.sets[i].id),
           prefill: prefill,
           focusKey: exercise.sets[i].id,
@@ -762,7 +773,8 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
           set: exercise.dropSets[i],
           marker: 'D',
           kind: SetKind.dropSet,
-          isCurrent: !exercise.hasWarmupPending &&
+          isCurrent:
+              !exercise.hasWarmupPending &&
               exercise.firstUnloggedSet == null &&
               exercise.dropSets[i].id == firstUnlogged?.id,
           isPr: false,
@@ -789,16 +801,16 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
   /// Pre-fill order:
   ///   1. Last logged set in *this* session (so set #2 picks up set #1).
   ///   2. Last logged set from history (previous finished session).
-  ///   3. Catalog plan (Exercise.weight / Exercise.reps).
+  ///   3. Planned prescription from the mode — sourced straight off the
+  ///      workout's exercise, so it works for both generated and hand-curated
+  ///      workouts without a repository lookup by id.
   _Prefill _resolvePrefill(SessionExercise ex) {
     final last = ex.lastLoggedSet;
     if (last != null) return (weight: last.weight, reps: last.reps);
     if (historyLastLog != null) {
       return (weight: historyLastLog!.weight, reps: historyLastLog!.reps);
     }
-    final repo = getIt<ExerciseRepository>();
-    final Exercise? plan = repo.getExerciseById(ex.exerciseId);
-    return (weight: plan?.weight, reps: plan?.reps);
+    return (weight: widget.mode.plannedWeight, reps: widget.mode.plannedReps);
   }
 }
 

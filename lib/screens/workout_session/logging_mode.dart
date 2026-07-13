@@ -32,6 +32,14 @@ abstract class LoggingMode {
   /// no timer ticks until Start Workout flips the screen into live.
   int get restSecondsHint;
 
+  /// Planned weight/reps for the current exercise, used as the muted
+  /// placeholder on empty rows when there's no logged/history value yet.
+  /// Sourced from the workout's exercise (its `weight` / `reps`), so it's
+  /// correct for generated and hand-curated workouts alike. Null when the
+  /// exercise carries no planned prescription.
+  double? get plannedWeight;
+  int? get plannedReps;
+
   /// Bottom-button label.
   String get bottomLabel;
 

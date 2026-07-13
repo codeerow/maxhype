@@ -6,6 +6,7 @@ import '../widgets/tap_scale.dart';
 import '../widgets/workout_in_progress_bar.dart';
 import 'home/home_screen.dart';
 import 'history/history_screen.dart';
+import 'plan/plan_screen.dart';
 import 'home_tab_visibility.dart';
 
 class MainScaffold extends StatefulWidget {
@@ -22,6 +23,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   final List<Widget> _screens = const [
     HomeScreen(),
     HistoryScreen(),
+    PlanScreen(),
   ];
 
   @override
@@ -77,6 +79,11 @@ class _MainScaffoldState extends State<MainScaffold> {
                   icon: Icons.bar_chart_rounded,
                   label: 'History',
                   index: 1,
+                ),
+                _buildNavItem(
+                  icon: Icons.tune_rounded,
+                  label: 'Plan',
+                  index: 2,
                 ),
               ],
             ),

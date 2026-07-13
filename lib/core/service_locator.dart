@@ -2,12 +2,14 @@ import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'haptic_manager.dart';
 import '../repositories/workout_repository.dart';
-import '../repositories/mock_workout_repository.dart';
+import '../repositories/generated_workout_repository.dart';
 import '../repositories/exercise_repository.dart';
 import '../repositories/mock_exercise_repository.dart';
 import '../repositories/asset_exercise_repository.dart';
 import '../repositories/fitness_plan_repository.dart';
 import '../repositories/local_fitness_plan_repository.dart';
+import '../services/generator/workout_generator_service.dart';
+import '../services/generator/workout_assembler.dart';
 import '../repositories/workout_session_repository.dart';
 import '../repositories/local_workout_session_repository.dart';
 import '../repositories/personal_record_repository.dart';
@@ -27,10 +29,6 @@ Future<void> setupDependencies() async {
   // Register repositories
   // Using registerLazySingleton means the instance is created only when first accessed
   // and then reused. For repositories that maintain state or connections, this is ideal.
-  getIt.registerLazySingleton<WorkoutRepository>(
-    () => MockWorkoutRepository(),
-  );
-
   getIt.registerLazySingleton<ExerciseRepository>(
     () => MockExerciseRepository(),
   );
@@ -48,6 +46,23 @@ Future<void> setupDependencies() async {
   // units, sex, age, weight). Survives restarts via fitness_plan.json.
   getIt.registerLazySingleton<FitnessPlanRepository>(
     () => LocalFitnessPlanRepository(),
+  );
+
+  // PPL workout generator (Phase 4 Part 2A). Reads the loaded generator library
+  // + the user's fitness plan and produces the home cards, replacing the mock
+  // catalog. Registered under WorkoutRepository so every existing consumer
+  // (home, detail, session, logging, completion, Replace) is unchanged.
+  getIt.registerLazySingleton<WorkoutGeneratorService>(
+    () => AssetWorkoutGeneratorService(getIt<AssetExerciseRepository>()),
+  );
+  getIt.registerLazySingleton<WorkoutAssembler>(
+    () => WorkoutAssembler(getIt<WorkoutGeneratorService>()),
+  );
+  getIt.registerLazySingleton<WorkoutRepository>(
+    () => GeneratedWorkoutRepository(
+      planRepository: getIt<FitnessPlanRepository>(),
+      assembler: getIt<WorkoutAssembler>(),
+    ),
   );
 
   getIt.registerLazySingleton<WorkoutSessionRepository>(

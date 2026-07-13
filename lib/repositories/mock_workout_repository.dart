@@ -27,6 +27,13 @@ class MockWorkoutRepository implements WorkoutRepository {
     return List<Workout>.unmodifiable(_ensureSeeded());
   }
 
+  // Static mock catalog never changes at runtime, so the reactive view emits
+  // the current list once and then idles.
+  @override
+  Stream<List<Workout>> watchWorkouts() async* {
+    yield List<Workout>.unmodifiable(_ensureSeeded());
+  }
+
   @override
   Future<List<MonthlyData>> getMonthlyData() async {
     // Simulate network delay

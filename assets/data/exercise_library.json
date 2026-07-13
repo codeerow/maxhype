@@ -4206,6 +4206,24 @@
       "hip abduction": 3,
       "hip adduction": 3
     },
+    "compositeCategories": {
+      "abs": [
+        "crunch",
+        "dynamic core",
+        "rotation",
+        "leg raise",
+        "plank"
+      ],
+      "core accessory": [
+        "crunch",
+        "dynamic core",
+        "rotation",
+        "leg raise",
+        "plank",
+        "hip abduction",
+        "hip adduction"
+      ]
+    },
     "durationProfiles": {
       "none": {
         "Push Day": {
@@ -4965,7 +4983,50 @@
       "beginner": 1,
       "intermediate": 2,
       "advanced": 3
-    }
+    },
+    "setsByRole": {
+      "primary_compound": {
+        "45": 3,
+        "60": 4,
+        "75": 4,
+        "90": 4,
+        "105": 5,
+        "120": 5
+      },
+      "secondary_compound": {
+        "45": 3,
+        "60": 3,
+        "75": 4,
+        "90": 4,
+        "105": 4,
+        "120": 5
+      },
+      "isolation": {
+        "45": 2,
+        "60": 2,
+        "75": 2,
+        "90": 3,
+        "105": 3,
+        "120": 3
+      },
+      "accessory": {
+        "45": 2,
+        "60": 2,
+        "75": 2,
+        "90": 3,
+        "105": 3,
+        "120": 3
+      },
+      "core": {
+        "45": 3,
+        "60": 3,
+        "75": 3,
+        "90": 3,
+        "105": 4,
+        "120": 4
+      }
+    },
+    "isolationDisplayCompensation": 1
   },
   "templates": [
     {
@@ -5148,5 +5209,2239 @@
         }
       ]
     }
-  ]
+  ],
+  "slotPlans": {
+    "Push Day": {
+      "45": [
+        {
+          "slotType": "chest_compound",
+          "role": "primary_compound",
+          "categories": [
+            "chest press",
+            "incline press",
+            "decline press"
+          ],
+          "category": "chest press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Bench Press",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "shoulder_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "shoulder press"
+          ],
+          "category": "shoulder press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shoulder Press",
+          "defaultPerf": "95 x 6"
+        },
+        {
+          "slotType": "shoulder_iso_lateral",
+          "role": "isolation",
+          "categories": [
+            "side delt"
+          ],
+          "category": "side delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lateral Raise",
+          "defaultPerf": "20 x 12"
+        },
+        {
+          "slotType": "chest_iso",
+          "role": "isolation",
+          "categories": [
+            "chest fly"
+          ],
+          "category": "chest fly",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Crossover Fly",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "triceps_stretch",
+          "role": "isolation",
+          "categories": [
+            "triceps"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_pushdown",
+            "tri_kickback",
+            "tri_compound"
+          ],
+          "includeNameKeywords": [
+            "overhead",
+            "skullcrusher",
+            "extension"
+          ],
+          "defaultExercise": "Cable Overhead Tricep Extension",
+          "defaultPerf": "30 x 12"
+        }
+      ],
+      "60": [
+        {
+          "slotType": "chest_compound",
+          "role": "primary_compound",
+          "categories": [
+            "chest press",
+            "incline press",
+            "decline press"
+          ],
+          "category": "chest press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Bench Press",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "chest_iso",
+          "role": "isolation",
+          "categories": [
+            "chest fly"
+          ],
+          "category": "chest fly",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Crossover Fly",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "shoulder_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "shoulder press"
+          ],
+          "category": "shoulder press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shoulder Press",
+          "defaultPerf": "95 x 6"
+        },
+        {
+          "slotType": "shoulder_iso_lateral",
+          "role": "isolation",
+          "categories": [
+            "side delt"
+          ],
+          "category": "side delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lateral Raise",
+          "defaultPerf": "20 x 12"
+        },
+        {
+          "slotType": "triceps_balanced",
+          "role": "isolation",
+          "categories": [
+            "triceps"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Tricep Pushdown",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "chest_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "incline press",
+            "decline press",
+            "chest press"
+          ],
+          "category": "incline press",
+          "unifyPool": true,
+          "categoryBias": {
+            "incline press": 8,
+            "decline press": -6,
+            "chest press": 0
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Incline Bench Press",
+          "defaultPerf": "50 x 10"
+        }
+      ],
+      "75": [
+        {
+          "slotType": "chest_compound",
+          "role": "primary_compound",
+          "categories": [
+            "chest press",
+            "incline press",
+            "decline press"
+          ],
+          "category": "chest press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Bench Press",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "chest_iso",
+          "role": "isolation",
+          "categories": [
+            "chest fly"
+          ],
+          "category": "chest fly",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Crossover Fly",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "shoulder_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "shoulder press"
+          ],
+          "category": "shoulder press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shoulder Press",
+          "defaultPerf": "95 x 6"
+        },
+        {
+          "slotType": "shoulder_iso_lateral",
+          "role": "isolation",
+          "categories": [
+            "side delt"
+          ],
+          "category": "side delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lateral Raise",
+          "defaultPerf": "20 x 12"
+        },
+        {
+          "slotType": "triceps_stretch",
+          "role": "isolation",
+          "categories": [
+            "triceps"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_pushdown",
+            "tri_kickback",
+            "tri_compound"
+          ],
+          "includeNameKeywords": [
+            "overhead",
+            "skullcrusher",
+            "extension"
+          ],
+          "defaultExercise": "Cable Overhead Tricep Extension",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "chest_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "incline press",
+            "decline press",
+            "chest press"
+          ],
+          "category": "incline press",
+          "unifyPool": true,
+          "categoryBias": {
+            "incline press": 8,
+            "decline press": -6,
+            "chest press": 0
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Incline Bench Press",
+          "defaultPerf": "50 x 10"
+        },
+        {
+          "slotType": "triceps_push",
+          "role": "isolation",
+          "categories": [
+            "triceps",
+            "compound press"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_overhead",
+            "skullcrusher"
+          ],
+          "includeNameKeywords": [
+            "pushdown",
+            "kickback",
+            "dip",
+            "extension"
+          ],
+          "defaultExercise": "Tricep Pushdown",
+          "defaultPerf": "40 x 12",
+          "randomVariant": {
+            "probability": 0.3,
+            "alt": {
+              "slotType": "triceps_push",
+              "role": "isolation",
+              "categories": [
+                "compound press",
+                "triceps"
+              ],
+              "category": "compound press",
+              "unifyPool": false,
+              "categoryBias": null,
+              "excludeMovementGroups": [
+                "tri_overhead",
+                "skullcrusher"
+              ],
+              "includeNameKeywords": [],
+              "defaultExercise": "Close Grip Bench Press",
+              "defaultPerf": "95 x 8"
+            }
+          }
+        }
+      ],
+      "90": [
+        {
+          "slotType": "chest_compound",
+          "role": "primary_compound",
+          "categories": [
+            "chest press",
+            "incline press",
+            "decline press"
+          ],
+          "category": "chest press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Bench Press",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "chest_iso",
+          "role": "isolation",
+          "categories": [
+            "chest fly"
+          ],
+          "category": "chest fly",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Crossover Fly",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "shoulder_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "shoulder press"
+          ],
+          "category": "shoulder press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shoulder Press",
+          "defaultPerf": "95 x 6"
+        },
+        {
+          "slotType": "shoulder_iso_lateral",
+          "role": "isolation",
+          "categories": [
+            "side delt"
+          ],
+          "category": "side delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lateral Raise",
+          "defaultPerf": "20 x 12"
+        },
+        {
+          "slotType": "triceps_stretch",
+          "role": "isolation",
+          "categories": [
+            "triceps"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_pushdown",
+            "tri_kickback",
+            "tri_compound"
+          ],
+          "includeNameKeywords": [
+            "overhead",
+            "skullcrusher",
+            "extension"
+          ],
+          "defaultExercise": "Cable Overhead Tricep Extension",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "triceps_push",
+          "role": "isolation",
+          "categories": [
+            "triceps",
+            "compound press"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_overhead",
+            "skullcrusher"
+          ],
+          "includeNameKeywords": [
+            "pushdown",
+            "kickback",
+            "dip",
+            "extension"
+          ],
+          "defaultExercise": "Tricep Pushdown",
+          "defaultPerf": "40 x 12",
+          "randomVariant": {
+            "probability": 0.3,
+            "alt": {
+              "slotType": "triceps_push",
+              "role": "isolation",
+              "categories": [
+                "compound press",
+                "triceps"
+              ],
+              "category": "compound press",
+              "unifyPool": false,
+              "categoryBias": null,
+              "excludeMovementGroups": [
+                "tri_overhead",
+                "skullcrusher"
+              ],
+              "includeNameKeywords": [],
+              "defaultExercise": "Close Grip Bench Press",
+              "defaultPerf": "95 x 8"
+            }
+          }
+        },
+        {
+          "slotType": "shoulder_iso_non_lateral",
+          "role": "isolation",
+          "categories": [
+            "front delt"
+          ],
+          "category": "front delt",
+          "unifyPool": true,
+          "categoryBias": {
+            "front delt": 5
+          },
+          "excludeMovementGroups": [
+            "lateral_raise"
+          ],
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Front Raise",
+          "defaultPerf": "15 x 12"
+        },
+        {
+          "slotType": "chest_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "incline press",
+            "decline press",
+            "chest press"
+          ],
+          "category": "incline press",
+          "unifyPool": true,
+          "categoryBias": {
+            "incline press": 8,
+            "decline press": -6,
+            "chest press": 0
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Incline Bench Press",
+          "defaultPerf": "50 x 10"
+        }
+      ],
+      "105": [
+        {
+          "slotType": "chest_compound",
+          "role": "primary_compound",
+          "categories": [
+            "chest press",
+            "incline press",
+            "decline press"
+          ],
+          "category": "chest press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Bench Press",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "chest_iso",
+          "role": "isolation",
+          "categories": [
+            "chest fly"
+          ],
+          "category": "chest fly",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Crossover Fly",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "shoulder_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "shoulder press"
+          ],
+          "category": "shoulder press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shoulder Press",
+          "defaultPerf": "95 x 6"
+        },
+        {
+          "slotType": "shoulder_iso_lateral",
+          "role": "isolation",
+          "categories": [
+            "side delt"
+          ],
+          "category": "side delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lateral Raise",
+          "defaultPerf": "20 x 12"
+        },
+        {
+          "slotType": "triceps_stretch",
+          "role": "isolation",
+          "categories": [
+            "triceps"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_pushdown",
+            "tri_kickback",
+            "tri_compound"
+          ],
+          "includeNameKeywords": [
+            "overhead",
+            "skullcrusher",
+            "extension"
+          ],
+          "defaultExercise": "Cable Overhead Tricep Extension",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "triceps_push",
+          "role": "isolation",
+          "categories": [
+            "triceps",
+            "compound press"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_overhead",
+            "skullcrusher"
+          ],
+          "includeNameKeywords": [
+            "pushdown",
+            "kickback",
+            "dip",
+            "extension"
+          ],
+          "defaultExercise": "Tricep Pushdown",
+          "defaultPerf": "40 x 12",
+          "randomVariant": {
+            "probability": 0.3,
+            "alt": {
+              "slotType": "triceps_push",
+              "role": "isolation",
+              "categories": [
+                "compound press",
+                "triceps"
+              ],
+              "category": "compound press",
+              "unifyPool": false,
+              "categoryBias": null,
+              "excludeMovementGroups": [
+                "tri_overhead",
+                "skullcrusher"
+              ],
+              "includeNameKeywords": [],
+              "defaultExercise": "Close Grip Bench Press",
+              "defaultPerf": "95 x 8"
+            }
+          }
+        },
+        {
+          "slotType": "shoulder_iso_non_lateral",
+          "role": "isolation",
+          "categories": [
+            "front delt"
+          ],
+          "category": "front delt",
+          "unifyPool": true,
+          "categoryBias": {
+            "front delt": 5
+          },
+          "excludeMovementGroups": [
+            "lateral_raise"
+          ],
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Front Raise",
+          "defaultPerf": "15 x 12"
+        },
+        {
+          "slotType": "chest_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "incline press",
+            "decline press",
+            "chest press"
+          ],
+          "category": "incline press",
+          "unifyPool": true,
+          "categoryBias": {
+            "incline press": 8,
+            "decline press": -6,
+            "chest press": 0
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Incline Bench Press",
+          "defaultPerf": "50 x 10"
+        },
+        {
+          "slotType": "shoulder_iso_non_lateral",
+          "role": "isolation",
+          "categories": [
+            "front delt"
+          ],
+          "category": "front delt",
+          "unifyPool": true,
+          "categoryBias": {
+            "front delt": 5
+          },
+          "excludeMovementGroups": [
+            "lateral_raise"
+          ],
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Front Raise",
+          "defaultPerf": "15 x 12"
+        }
+      ],
+      "120": [
+        {
+          "slotType": "chest_compound",
+          "role": "primary_compound",
+          "categories": [
+            "chest press",
+            "incline press",
+            "decline press"
+          ],
+          "category": "chest press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Bench Press",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "chest_iso",
+          "role": "isolation",
+          "categories": [
+            "chest fly"
+          ],
+          "category": "chest fly",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Crossover Fly",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "shoulder_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "shoulder press"
+          ],
+          "category": "shoulder press",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shoulder Press",
+          "defaultPerf": "95 x 6"
+        },
+        {
+          "slotType": "shoulder_iso_lateral",
+          "role": "isolation",
+          "categories": [
+            "side delt"
+          ],
+          "category": "side delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lateral Raise",
+          "defaultPerf": "20 x 12"
+        },
+        {
+          "slotType": "triceps_stretch",
+          "role": "isolation",
+          "categories": [
+            "triceps"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_pushdown",
+            "tri_kickback",
+            "tri_compound"
+          ],
+          "includeNameKeywords": [
+            "overhead",
+            "skullcrusher",
+            "extension"
+          ],
+          "defaultExercise": "Cable Overhead Tricep Extension",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "triceps_push",
+          "role": "isolation",
+          "categories": [
+            "triceps",
+            "compound press"
+          ],
+          "category": "triceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": [
+            "tri_overhead",
+            "skullcrusher"
+          ],
+          "includeNameKeywords": [
+            "pushdown",
+            "kickback",
+            "dip",
+            "extension"
+          ],
+          "defaultExercise": "Tricep Pushdown",
+          "defaultPerf": "40 x 12",
+          "randomVariant": {
+            "probability": 0.3,
+            "alt": {
+              "slotType": "triceps_push",
+              "role": "isolation",
+              "categories": [
+                "compound press",
+                "triceps"
+              ],
+              "category": "compound press",
+              "unifyPool": false,
+              "categoryBias": null,
+              "excludeMovementGroups": [
+                "tri_overhead",
+                "skullcrusher"
+              ],
+              "includeNameKeywords": [],
+              "defaultExercise": "Close Grip Bench Press",
+              "defaultPerf": "95 x 8"
+            }
+          }
+        },
+        {
+          "slotType": "shoulder_iso_non_lateral",
+          "role": "isolation",
+          "categories": [
+            "front delt"
+          ],
+          "category": "front delt",
+          "unifyPool": true,
+          "categoryBias": {
+            "front delt": 5
+          },
+          "excludeMovementGroups": [
+            "lateral_raise"
+          ],
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Front Raise",
+          "defaultPerf": "15 x 12"
+        },
+        {
+          "slotType": "chest_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "incline press",
+            "decline press",
+            "chest press"
+          ],
+          "category": "incline press",
+          "unifyPool": true,
+          "categoryBias": {
+            "incline press": 8,
+            "decline press": -6,
+            "chest press": 0
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Incline Bench Press",
+          "defaultPerf": "50 x 10"
+        },
+        {
+          "slotType": "shoulder_iso_non_lateral",
+          "role": "isolation",
+          "categories": [
+            "front delt"
+          ],
+          "category": "front delt",
+          "unifyPool": true,
+          "categoryBias": {
+            "front delt": 5
+          },
+          "excludeMovementGroups": [
+            "lateral_raise"
+          ],
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Front Raise",
+          "defaultPerf": "15 x 12"
+        }
+      ]
+    },
+    "Pull Day": {
+      "45": [
+        {
+          "slotType": "pull_row_primary",
+          "role": "primary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Row",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "pull_lat_pull",
+          "role": "primary_compound",
+          "categories": [
+            "pulldown"
+          ],
+          "category": "pulldown",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Lat Pulldown",
+          "defaultPerf": "120 x 10"
+        },
+        {
+          "slotType": "pull_rear_delt",
+          "role": "isolation",
+          "categories": [
+            "rear delt"
+          ],
+          "category": "rear delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Machine Reverse Fly",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "pull_biceps_primary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Curl",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_support_or_biceps",
+          "role": "isolation",
+          "categories": [
+            "biceps",
+            "shrug",
+            "forearms",
+            "upright row"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hammer Curl",
+          "defaultPerf": "30 x 10"
+        }
+      ],
+      "60": [
+        {
+          "slotType": "pull_row_primary",
+          "role": "primary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Row",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "pull_lat_pull",
+          "role": "primary_compound",
+          "categories": [
+            "pulldown"
+          ],
+          "category": "pulldown",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Lat Pulldown",
+          "defaultPerf": "120 x 10"
+        },
+        {
+          "slotType": "pull_rear_delt",
+          "role": "isolation",
+          "categories": [
+            "rear delt"
+          ],
+          "category": "rear delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Machine Reverse Fly",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "pull_biceps_primary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Curl",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_row_secondary",
+          "role": "secondary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Row",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_support_or_biceps",
+          "role": "isolation",
+          "categories": [
+            "biceps",
+            "shrug",
+            "forearms",
+            "upright row"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hammer Curl",
+          "defaultPerf": "30 x 10"
+        }
+      ],
+      "75": [
+        {
+          "slotType": "pull_row_primary",
+          "role": "primary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Row",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "pull_lat_pull",
+          "role": "primary_compound",
+          "categories": [
+            "pulldown"
+          ],
+          "category": "pulldown",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Lat Pulldown",
+          "defaultPerf": "120 x 10"
+        },
+        {
+          "slotType": "pull_rear_delt",
+          "role": "isolation",
+          "categories": [
+            "rear delt"
+          ],
+          "category": "rear delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Machine Reverse Fly",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "pull_biceps_primary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Curl",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_row_secondary",
+          "role": "secondary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Row",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_biceps_secondary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hammer Curl",
+          "defaultPerf": "30 x 10"
+        },
+        {
+          "slotType": "pull_support",
+          "role": "accessory",
+          "categories": [
+            "shrug",
+            "forearms",
+            "upright row",
+            "back extension"
+          ],
+          "category": "shrug",
+          "unifyPool": true,
+          "categoryBias": {
+            "shrug": 5,
+            "forearms": 3,
+            "upright row": 3,
+            "back extension": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shrug",
+          "defaultPerf": "135 x 12"
+        }
+      ],
+      "90": [
+        {
+          "slotType": "pull_row_primary",
+          "role": "primary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Row",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "pull_lat_pull",
+          "role": "primary_compound",
+          "categories": [
+            "pulldown"
+          ],
+          "category": "pulldown",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Lat Pulldown",
+          "defaultPerf": "120 x 10"
+        },
+        {
+          "slotType": "pull_rear_delt",
+          "role": "isolation",
+          "categories": [
+            "rear delt"
+          ],
+          "category": "rear delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Machine Reverse Fly",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "pull_biceps_primary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Curl",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_row_secondary",
+          "role": "secondary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Row",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_lat_or_upper_back_accessory",
+          "role": "accessory",
+          "categories": [
+            "pulldown",
+            "row"
+          ],
+          "category": "pulldown",
+          "unifyPool": true,
+          "categoryBias": {
+            "pulldown": 4,
+            "row": 4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Row",
+          "defaultPerf": "50 x 12"
+        },
+        {
+          "slotType": "pull_biceps_secondary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hammer Curl",
+          "defaultPerf": "30 x 10"
+        },
+        {
+          "slotType": "pull_support",
+          "role": "accessory",
+          "categories": [
+            "shrug",
+            "forearms",
+            "upright row",
+            "back extension"
+          ],
+          "category": "shrug",
+          "unifyPool": true,
+          "categoryBias": {
+            "shrug": 5,
+            "forearms": 3,
+            "upright row": 3,
+            "back extension": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shrug",
+          "defaultPerf": "135 x 12"
+        }
+      ],
+      "105": [
+        {
+          "slotType": "pull_row_primary",
+          "role": "primary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Row",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "pull_lat_pull",
+          "role": "primary_compound",
+          "categories": [
+            "pulldown"
+          ],
+          "category": "pulldown",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Lat Pulldown",
+          "defaultPerf": "120 x 10"
+        },
+        {
+          "slotType": "pull_rear_delt",
+          "role": "isolation",
+          "categories": [
+            "rear delt"
+          ],
+          "category": "rear delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Machine Reverse Fly",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "pull_biceps_primary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Curl",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_row_secondary",
+          "role": "secondary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Row",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_lat_or_upper_back_accessory",
+          "role": "accessory",
+          "categories": [
+            "pulldown",
+            "row"
+          ],
+          "category": "pulldown",
+          "unifyPool": true,
+          "categoryBias": {
+            "pulldown": 4,
+            "row": 4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Row",
+          "defaultPerf": "50 x 12"
+        },
+        {
+          "slotType": "pull_biceps_secondary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hammer Curl",
+          "defaultPerf": "30 x 10"
+        },
+        {
+          "slotType": "pull_support",
+          "role": "accessory",
+          "categories": [
+            "shrug",
+            "forearms",
+            "upright row",
+            "back extension"
+          ],
+          "category": "shrug",
+          "unifyPool": true,
+          "categoryBias": {
+            "shrug": 5,
+            "forearms": 3,
+            "upright row": 3,
+            "back extension": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shrug",
+          "defaultPerf": "135 x 12"
+        }
+      ],
+      "120": [
+        {
+          "slotType": "pull_row_primary",
+          "role": "primary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Row",
+          "defaultPerf": "135 x 8"
+        },
+        {
+          "slotType": "pull_lat_pull",
+          "role": "primary_compound",
+          "categories": [
+            "pulldown"
+          ],
+          "category": "pulldown",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Lat Pulldown",
+          "defaultPerf": "120 x 10"
+        },
+        {
+          "slotType": "pull_rear_delt",
+          "role": "isolation",
+          "categories": [
+            "rear delt"
+          ],
+          "category": "rear delt",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Machine Reverse Fly",
+          "defaultPerf": "40 x 12"
+        },
+        {
+          "slotType": "pull_biceps_primary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Curl",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_row_secondary",
+          "role": "secondary_compound",
+          "categories": [
+            "row"
+          ],
+          "category": "row",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Row",
+          "defaultPerf": "60 x 10"
+        },
+        {
+          "slotType": "pull_lat_or_upper_back_accessory",
+          "role": "accessory",
+          "categories": [
+            "pulldown",
+            "row"
+          ],
+          "category": "pulldown",
+          "unifyPool": true,
+          "categoryBias": {
+            "pulldown": 4,
+            "row": 4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Cable Row",
+          "defaultPerf": "50 x 12"
+        },
+        {
+          "slotType": "pull_biceps_secondary",
+          "role": "isolation",
+          "categories": [
+            "biceps"
+          ],
+          "category": "biceps",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hammer Curl",
+          "defaultPerf": "30 x 10"
+        },
+        {
+          "slotType": "pull_support",
+          "role": "accessory",
+          "categories": [
+            "shrug",
+            "forearms",
+            "upright row",
+            "back extension"
+          ],
+          "category": "shrug",
+          "unifyPool": true,
+          "categoryBias": {
+            "shrug": 5,
+            "forearms": 3,
+            "upright row": 3,
+            "back extension": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Shrug",
+          "defaultPerf": "135 x 12"
+        }
+      ]
+    },
+    "Legs + Core": {
+      "45": [
+        {
+          "slotType": "legs_squat",
+          "role": "primary_compound",
+          "categories": [
+            "squat",
+            "quad"
+          ],
+          "category": "squat",
+          "unifyPool": true,
+          "categoryBias": {
+            "squat": 8,
+            "quad": -4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "squat",
+            "leg press"
+          ],
+          "defaultExercise": "Back Squat",
+          "defaultPerf": "185 x 6"
+        },
+        {
+          "slotType": "legs_hinge",
+          "role": "secondary_compound",
+          "categories": [
+            "hinge",
+            "back extension"
+          ],
+          "category": "hinge",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Romanian Deadlift",
+          "defaultPerf": "155 x 8"
+        },
+        {
+          "slotType": "legs_hamstring_curl",
+          "role": "isolation",
+          "categories": [
+            "hamstring curl"
+          ],
+          "category": "hamstring curl",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Seated Leg Curl",
+          "defaultPerf": "80 x 10"
+        },
+        {
+          "slotType": "legs_calf",
+          "role": "accessory",
+          "categories": [
+            "calf raise"
+          ],
+          "category": "calf raise",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Calf Raise",
+          "defaultPerf": "95 x 15"
+        },
+        {
+          "slotType": "legs_core",
+          "role": "core",
+          "categories": [
+            "abs",
+            "core accessory"
+          ],
+          "category": "abs",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hanging Leg Raise",
+          "defaultPerf": "BW x 12"
+        }
+      ],
+      "60": [
+        {
+          "slotType": "legs_squat",
+          "role": "primary_compound",
+          "categories": [
+            "squat",
+            "quad"
+          ],
+          "category": "squat",
+          "unifyPool": true,
+          "categoryBias": {
+            "squat": 8,
+            "quad": -4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "squat",
+            "leg press"
+          ],
+          "defaultExercise": "Back Squat",
+          "defaultPerf": "185 x 6"
+        },
+        {
+          "slotType": "legs_hinge",
+          "role": "secondary_compound",
+          "categories": [
+            "hinge",
+            "back extension"
+          ],
+          "category": "hinge",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Romanian Deadlift",
+          "defaultPerf": "155 x 8"
+        },
+        {
+          "slotType": "legs_lunge",
+          "role": "secondary_compound",
+          "categories": [
+            "lunge",
+            "step up"
+          ],
+          "category": "lunge",
+          "unifyPool": true,
+          "categoryBias": {
+            "lunge": 8,
+            "step up": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lunge",
+          "defaultPerf": "40 x 10"
+        },
+        {
+          "slotType": "legs_hamstring_curl",
+          "role": "isolation",
+          "categories": [
+            "hamstring curl"
+          ],
+          "category": "hamstring curl",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Seated Leg Curl",
+          "defaultPerf": "80 x 10"
+        },
+        {
+          "slotType": "legs_calf",
+          "role": "accessory",
+          "categories": [
+            "calf raise"
+          ],
+          "category": "calf raise",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Calf Raise",
+          "defaultPerf": "95 x 15"
+        },
+        {
+          "slotType": "legs_core",
+          "role": "core",
+          "categories": [
+            "abs",
+            "core accessory"
+          ],
+          "category": "abs",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hanging Leg Raise",
+          "defaultPerf": "BW x 12"
+        }
+      ],
+      "75": [
+        {
+          "slotType": "legs_squat",
+          "role": "primary_compound",
+          "categories": [
+            "squat",
+            "quad"
+          ],
+          "category": "squat",
+          "unifyPool": true,
+          "categoryBias": {
+            "squat": 8,
+            "quad": -4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "squat",
+            "leg press"
+          ],
+          "defaultExercise": "Back Squat",
+          "defaultPerf": "185 x 6"
+        },
+        {
+          "slotType": "legs_hinge",
+          "role": "secondary_compound",
+          "categories": [
+            "hinge",
+            "back extension"
+          ],
+          "category": "hinge",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Romanian Deadlift",
+          "defaultPerf": "155 x 8"
+        },
+        {
+          "slotType": "legs_lunge",
+          "role": "secondary_compound",
+          "categories": [
+            "lunge",
+            "step up"
+          ],
+          "category": "lunge",
+          "unifyPool": true,
+          "categoryBias": {
+            "lunge": 8,
+            "step up": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lunge",
+          "defaultPerf": "40 x 10"
+        },
+        {
+          "slotType": "legs_hamstring_curl",
+          "role": "isolation",
+          "categories": [
+            "hamstring curl"
+          ],
+          "category": "hamstring curl",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Seated Leg Curl",
+          "defaultPerf": "80 x 10"
+        },
+        {
+          "slotType": "legs_quad_iso",
+          "role": "isolation",
+          "categories": [
+            "quad",
+            "leg extension"
+          ],
+          "category": "quad",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "leg extension",
+            "extension"
+          ],
+          "defaultExercise": "Leg Extension",
+          "defaultPerf": "90 x 12"
+        },
+        {
+          "slotType": "legs_calf",
+          "role": "accessory",
+          "categories": [
+            "calf raise"
+          ],
+          "category": "calf raise",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Calf Raise",
+          "defaultPerf": "95 x 15"
+        },
+        {
+          "slotType": "legs_core",
+          "role": "core",
+          "categories": [
+            "abs",
+            "core accessory"
+          ],
+          "category": "abs",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hanging Leg Raise",
+          "defaultPerf": "BW x 12"
+        }
+      ],
+      "90": [
+        {
+          "slotType": "legs_squat",
+          "role": "primary_compound",
+          "categories": [
+            "squat",
+            "quad"
+          ],
+          "category": "squat",
+          "unifyPool": true,
+          "categoryBias": {
+            "squat": 8,
+            "quad": -4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "squat",
+            "leg press"
+          ],
+          "defaultExercise": "Back Squat",
+          "defaultPerf": "185 x 6"
+        },
+        {
+          "slotType": "legs_hinge",
+          "role": "secondary_compound",
+          "categories": [
+            "hinge",
+            "back extension"
+          ],
+          "category": "hinge",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Romanian Deadlift",
+          "defaultPerf": "155 x 8"
+        },
+        {
+          "slotType": "legs_lunge",
+          "role": "secondary_compound",
+          "categories": [
+            "lunge",
+            "step up"
+          ],
+          "category": "lunge",
+          "unifyPool": true,
+          "categoryBias": {
+            "lunge": 8,
+            "step up": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lunge",
+          "defaultPerf": "40 x 10"
+        },
+        {
+          "slotType": "legs_hamstring_curl",
+          "role": "isolation",
+          "categories": [
+            "hamstring curl"
+          ],
+          "category": "hamstring curl",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Seated Leg Curl",
+          "defaultPerf": "80 x 10"
+        },
+        {
+          "slotType": "legs_quad_iso",
+          "role": "isolation",
+          "categories": [
+            "quad",
+            "leg extension"
+          ],
+          "category": "quad",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "leg extension",
+            "extension"
+          ],
+          "defaultExercise": "Leg Extension",
+          "defaultPerf": "90 x 12"
+        },
+        {
+          "slotType": "legs_glute_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "hip thrust"
+          ],
+          "category": "hip thrust",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "hip thrust",
+            "glute bridge",
+            "bridge"
+          ],
+          "defaultExercise": "Barbell Hip Thrust",
+          "defaultPerf": "135 x 10"
+        },
+        {
+          "slotType": "legs_calf",
+          "role": "accessory",
+          "categories": [
+            "calf raise"
+          ],
+          "category": "calf raise",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Calf Raise",
+          "defaultPerf": "95 x 15"
+        },
+        {
+          "slotType": "legs_core",
+          "role": "core",
+          "categories": [
+            "abs",
+            "core accessory"
+          ],
+          "category": "abs",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hanging Leg Raise",
+          "defaultPerf": "BW x 12"
+        }
+      ],
+      "105": [
+        {
+          "slotType": "legs_squat",
+          "role": "primary_compound",
+          "categories": [
+            "squat",
+            "quad"
+          ],
+          "category": "squat",
+          "unifyPool": true,
+          "categoryBias": {
+            "squat": 8,
+            "quad": -4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "squat",
+            "leg press"
+          ],
+          "defaultExercise": "Back Squat",
+          "defaultPerf": "185 x 6"
+        },
+        {
+          "slotType": "legs_hinge",
+          "role": "secondary_compound",
+          "categories": [
+            "hinge",
+            "back extension"
+          ],
+          "category": "hinge",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Romanian Deadlift",
+          "defaultPerf": "155 x 8"
+        },
+        {
+          "slotType": "legs_lunge",
+          "role": "secondary_compound",
+          "categories": [
+            "lunge",
+            "step up"
+          ],
+          "category": "lunge",
+          "unifyPool": true,
+          "categoryBias": {
+            "lunge": 8,
+            "step up": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lunge",
+          "defaultPerf": "40 x 10"
+        },
+        {
+          "slotType": "legs_hamstring_curl",
+          "role": "isolation",
+          "categories": [
+            "hamstring curl"
+          ],
+          "category": "hamstring curl",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Seated Leg Curl",
+          "defaultPerf": "80 x 10"
+        },
+        {
+          "slotType": "legs_quad_iso",
+          "role": "isolation",
+          "categories": [
+            "quad",
+            "leg extension"
+          ],
+          "category": "quad",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "leg extension",
+            "extension"
+          ],
+          "defaultExercise": "Leg Extension",
+          "defaultPerf": "90 x 12"
+        },
+        {
+          "slotType": "legs_glute_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "hip thrust"
+          ],
+          "category": "hip thrust",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "hip thrust",
+            "glute bridge",
+            "bridge"
+          ],
+          "defaultExercise": "Barbell Hip Thrust",
+          "defaultPerf": "135 x 10"
+        },
+        {
+          "slotType": "legs_calf",
+          "role": "accessory",
+          "categories": [
+            "calf raise"
+          ],
+          "category": "calf raise",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Calf Raise",
+          "defaultPerf": "95 x 15"
+        },
+        {
+          "slotType": "legs_core",
+          "role": "core",
+          "categories": [
+            "abs",
+            "core accessory"
+          ],
+          "category": "abs",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hanging Leg Raise",
+          "defaultPerf": "BW x 12"
+        }
+      ],
+      "120": [
+        {
+          "slotType": "legs_squat",
+          "role": "primary_compound",
+          "categories": [
+            "squat",
+            "quad"
+          ],
+          "category": "squat",
+          "unifyPool": true,
+          "categoryBias": {
+            "squat": 8,
+            "quad": -4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "squat",
+            "leg press"
+          ],
+          "defaultExercise": "Back Squat",
+          "defaultPerf": "185 x 6"
+        },
+        {
+          "slotType": "legs_hinge",
+          "role": "secondary_compound",
+          "categories": [
+            "hinge",
+            "back extension"
+          ],
+          "category": "hinge",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Romanian Deadlift",
+          "defaultPerf": "155 x 8"
+        },
+        {
+          "slotType": "legs_lunge",
+          "role": "secondary_compound",
+          "categories": [
+            "lunge",
+            "step up"
+          ],
+          "category": "lunge",
+          "unifyPool": true,
+          "categoryBias": {
+            "lunge": 8,
+            "step up": -2
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Dumbbell Lunge",
+          "defaultPerf": "40 x 10"
+        },
+        {
+          "slotType": "legs_glute_compound",
+          "role": "secondary_compound",
+          "categories": [
+            "hip thrust"
+          ],
+          "category": "hip thrust",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "hip thrust",
+            "glute bridge",
+            "bridge"
+          ],
+          "defaultExercise": "Barbell Hip Thrust",
+          "defaultPerf": "135 x 10"
+        },
+        {
+          "slotType": "legs_hamstring_curl",
+          "role": "isolation",
+          "categories": [
+            "hamstring curl"
+          ],
+          "category": "hamstring curl",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Seated Leg Curl",
+          "defaultPerf": "80 x 10"
+        },
+        {
+          "slotType": "legs_quad_iso",
+          "role": "isolation",
+          "categories": [
+            "quad",
+            "leg extension"
+          ],
+          "category": "quad",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "leg extension",
+            "extension"
+          ],
+          "defaultExercise": "Leg Extension",
+          "defaultPerf": "90 x 12"
+        },
+        {
+          "slotType": "legs_calf",
+          "role": "accessory",
+          "categories": [
+            "calf raise"
+          ],
+          "category": "calf raise",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Barbell Calf Raise",
+          "defaultPerf": "95 x 15"
+        },
+        {
+          "slotType": "legs_glute_accessory",
+          "role": "accessory",
+          "categories": [
+            "kickback",
+            "hip abduction",
+            "hip adduction"
+          ],
+          "category": "kickback",
+          "unifyPool": true,
+          "categoryBias": {
+            "kickback": 4,
+            "hip abduction": 4,
+            "hip adduction": 4
+          },
+          "excludeMovementGroups": null,
+          "includeNameKeywords": [
+            "kickback",
+            "abduction",
+            "adduction"
+          ],
+          "defaultExercise": "Cable Kickback",
+          "defaultPerf": "30 x 12"
+        },
+        {
+          "slotType": "legs_core",
+          "role": "core",
+          "categories": [
+            "abs",
+            "core accessory"
+          ],
+          "category": "abs",
+          "unifyPool": false,
+          "categoryBias": null,
+          "excludeMovementGroups": null,
+          "includeNameKeywords": null,
+          "defaultExercise": "Hanging Leg Raise",
+          "defaultPerf": "BW x 12"
+        }
+      ]
+    }
+  }
 }

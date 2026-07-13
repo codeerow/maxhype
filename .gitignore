@@ -45,5 +45,8 @@ app.*.map.json
 /android/app/release
 Screenshot*.png
 
-# Claude Code harness runtime state
+# Claude Code — keep all local AI config/state out of the repo (solo project).
 .claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/hooks/
+CLAUDE.md

@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/service_locator.dart';
 import '../../models/exercise.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
+import '../../repositories/asset_exercise_repository.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
 import 'bloc/workout_session_state.dart';
@@ -34,6 +36,19 @@ class LiveLoggingMode extends LoggingMode {
       ? (bloc.state as SessionActive).session.restDurationSeconds
       : 120;
 
+  /// Planned prescription for the placeholder. The live session doesn't retain
+  /// the source Exercise, so resolve it from the generator library by name
+  /// (generated exercises live there). Null when not found — placeholders then
+  /// fall back to empty, which is fine once real sets are logged.
+  Exercise? get _planExercise =>
+      getIt<AssetExerciseRepository>().getExerciseByName(exercise.name);
+
+  @override
+  double? get plannedWeight => _planExercise?.weight;
+
+  @override
+  int? get plannedReps => _planExercise?.reps;
+
   @override
   String get bottomLabel =>
       exercise.isAwaitingDoneConfirmation ? 'Done' : 'Log Set';
@@ -52,13 +67,15 @@ class LiveLoggingMode extends LoggingMode {
     final target = exercise.currentTarget;
     if (target == null || !target.isFilled) return;
 
-    bloc.add(LogSet(
-      exerciseId: exercise.slotId,
-      setId: target.id,
-      weight: target.weight!,
-      reps: target.reps!,
-      kind: target.kind,
-    ));
+    bloc.add(
+      LogSet(
+        exerciseId: exercise.slotId,
+        setId: target.id,
+        weight: target.weight!,
+        reps: target.reps!,
+        kind: target.kind,
+      ),
+    );
 
     // Pick the next row to chain into, in the same priority order as
     // [SessionExercise.currentTarget]. Skip the row we just logged
@@ -71,7 +88,8 @@ class LiveLoggingMode extends LoggingMode {
       return null;
     }
 
-    final nextTarget = pickNext(exercise.warmups) ??
+    final nextTarget =
+        pickNext(exercise.warmups) ??
         pickNext(exercise.sets) ??
         pickNext(exercise.dropSets);
     bloc.add(const StartRestTimer());
@@ -92,11 +110,13 @@ class LiveLoggingMode extends LoggingMode {
 
   @override
   void onDeleteRow(String setId, SetKind kind) {
-    bloc.add(DeleteSet(
-      exerciseId: exercise.slotId,
-      setId: setId,
-      kind: kind,
-    ));
+    bloc.add(
+      DeleteSet(
+        exerciseId: exercise.slotId,
+        setId: setId,
+        kind: kind,
+      ),
+    );
   }
 
   @override
@@ -105,13 +125,15 @@ class LiveLoggingMode extends LoggingMode {
     required SetKind kind,
     required double? weight,
   }) {
-    bloc.add(UpdateSetDraft(
-      exerciseId: exercise.slotId,
-      setId: setId,
-      weight: weight,
-      kind: kind,
-      clearWeight: weight == null,
-    ));
+    bloc.add(
+      UpdateSetDraft(
+        exerciseId: exercise.slotId,
+        setId: setId,
+        weight: weight,
+        kind: kind,
+        clearWeight: weight == null,
+      ),
+    );
   }
 
   @override
@@ -120,21 +142,25 @@ class LiveLoggingMode extends LoggingMode {
     required SetKind kind,
     required int? reps,
   }) {
-    bloc.add(UpdateSetDraft(
-      exerciseId: exercise.slotId,
-      setId: setId,
-      reps: reps,
-      kind: kind,
-      clearReps: reps == null,
-    ));
+    bloc.add(
+      UpdateSetDraft(
+        exerciseId: exercise.slotId,
+        setId: setId,
+        reps: reps,
+        kind: kind,
+        clearReps: reps == null,
+      ),
+    );
   }
 
   @override
   void onNotesChanged(String notes) {
-    bloc.add(UpdateNotes(
-      exerciseId: exercise.slotId,
-      notes: notes,
-    ));
+    bloc.add(
+      UpdateNotes(
+        exerciseId: exercise.slotId,
+        notes: notes,
+      ),
+    );
   }
 
   @override
@@ -143,9 +169,11 @@ class LiveLoggingMode extends LoggingMode {
     String oldExerciseId,
     Exercise newExercise,
   ) {
-    bloc.add(ReplaceExercise(
-      oldExerciseId: oldExerciseId,
-      newExercise: newExercise,
-    ));
+    bloc.add(
+      ReplaceExercise(
+        oldExerciseId: oldExerciseId,
+        newExercise: newExercise,
+      ),
+    );
   }
 }

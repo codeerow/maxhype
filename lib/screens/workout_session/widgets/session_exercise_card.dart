@@ -9,6 +9,7 @@ import '../../../models/exercise.dart';
 import '../../../models/muscle_group.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../repositories/exercise_repository.dart';
+import '../../../repositories/asset_exercise_repository.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/animations/animations.dart';
 import '../../workout_detail/widgets/exercise_card.dart';
@@ -100,9 +101,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
     // The logging screen was popped → session screen is visible again.
     // Re-fire the soft glow pulse on the active indicator per spec, but
     // wait for the Cupertino pop transition to settle.
-    if (mounted &&
-        widget.isActive &&
-        !widget.exercise.completed) {
+    if (mounted && widget.isActive && !widget.exercise.completed) {
       _scheduleActivePulse();
     }
   }
@@ -174,19 +173,24 @@ class _SessionExerciseCardState extends State<SessionExerciseCard>
   }
 
   Exercise _resolveCatalogExercise(SessionExercise s) {
-    final repo = getIt<ExerciseRepository>();
-    final found = repo.getExerciseById(s.exerciseId);
+    // Resolve by NAME from the generator library first: generated exercises use
+    // ids (ex_001..187) that collide with the mock catalog's ids (ex_001..047),
+    // so a by-id lookup on the mock repo would surface the wrong exercise. Fall
+    // back to the mock catalog by id, then to a snapshot built from the session
+    // row (which already carries the correct name / muscles / equipment).
+    final found =
+        getIt<AssetExerciseRepository>().getExerciseByName(s.name) ??
+        getIt<ExerciseRepository>().getExerciseById(s.exerciseId);
     if (found != null) return found;
-    // Fallback for an exercise not in the catalog (e.g., recently replaced).
-    // The card needs `name` and `muscleGroups` for the MiniMuscleAtlas; sets
-    // count comes from session, equipment is preserved from session snapshot.
     return Exercise(
       id: s.exerciseId,
       name: s.name,
       sets: s.targetSets,
       reps: 10,
       weight: 0,
-      muscleGroups: const [MuscleGroup.chest],
+      muscleGroups: s.muscleGroups.isNotEmpty
+          ? s.muscleGroups
+          : const [MuscleGroup.chest],
       equipmentType: s.equipment,
       rating: 0,
     );

@@ -9,6 +9,8 @@ import '../models/generator/exercise_taxonomy.dart';
 import '../models/generator/generator_metadata.dart';
 import '../models/generator/duration_profile.dart';
 import '../models/generator/workout_template.dart';
+import '../models/generator/generator_slot.dart';
+import '../models/generator/set_density_table.dart';
 import 'exercise_repository.dart';
 
 /// Exercise repository backed by the ported generator library asset
@@ -32,6 +34,9 @@ class AssetExerciseRepository extends ExerciseRepository {
   Map<String, Exercise> _byId = const {};
   GeneratorMetadataTables? _metadata;
   List<WorkoutTemplate> _templates = const [];
+  SlotPlans? _slotPlans;
+  SetDensityTable? _setDensity;
+  Map<String, List<String>> _compositeCategories = const {};
   bool _loaded = false;
 
   @override
@@ -50,6 +55,17 @@ class AssetExerciseRepository extends ExerciseRepository {
     _templates = (json['templates'] as List<dynamic>)
         .map((t) => WorkoutTemplate.fromJson(t as Map<String, dynamic>))
         .toList(growable: false);
+    _slotPlans =
+        SlotPlans.fromJson(json['slotPlans'] as Map<String, dynamic>);
+    final meta = json['metadata'] as Map<String, dynamic>;
+    _setDensity = SetDensityTable.fromJson(
+      meta['setsByRole'] as Map<String, dynamic>,
+      isolationDisplayCompensation:
+          meta['isolationDisplayCompensation'] as int? ?? 1,
+    );
+    _compositeCategories =
+        (meta['compositeCategories'] as Map<String, dynamic>? ?? const {})
+            .map((k, v) => MapEntry(k, (v as List<dynamic>).cast<String>()));
     _loaded = true;
   }
 
@@ -123,6 +139,15 @@ class AssetExerciseRepository extends ExerciseRepository {
   @override
   List<Exercise> getExercisesByCategory(String category) {
     _ensureLoaded();
+    // Composite slot categories (e.g. "abs", "core accessory") expand to a set
+    // of real library categories, matching the prototype's COMPOSITE_CATEGORIES.
+    final expanded = _compositeCategories[category];
+    if (expanded != null) {
+      final set = expanded.toSet();
+      return _exercises
+          .where((e) => set.contains(e.generatorMeta?.category))
+          .toList();
+    }
     return _exercises
         .where((e) => e.generatorMeta?.category == category)
         .toList();
@@ -154,5 +179,17 @@ class AssetExerciseRepository extends ExerciseRepository {
   List<WorkoutTemplate> get pplTemplates {
     _ensureLoaded();
     return List.unmodifiable(_templates);
+  }
+
+  /// Per-duration slot plans for the three PPL splits (2A).
+  SlotPlans get slotPlans {
+    _ensureLoaded();
+    return _slotPlans!;
+  }
+
+  /// The `_setsForRole` set-density table (2A).
+  SetDensityTable get setDensity {
+    _ensureLoaded();
+    return _setDensity!;
   }
 }

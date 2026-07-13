@@ -8,6 +8,13 @@ abstract class WorkoutRepository {
   /// Fetches the list of workouts
   Future<List<Workout>> getWorkouts();
 
+  /// Reactive view of the workout list. Emits the current list on listen and a
+  /// fresh list whenever it changes (plan regeneration, Replace mutation).
+  /// Static-data implementations can return an empty stream; the generated
+  /// repository pushes updates here so the home carousel stays live without
+  /// manual reload events.
+  Stream<List<Workout>> watchWorkouts() => const Stream.empty();
+
   /// Fetches monthly workout data
   Future<List<MonthlyData>> getMonthlyData();
 

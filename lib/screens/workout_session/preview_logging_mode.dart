@@ -12,8 +12,7 @@ import '../../models/workout.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../workout_detail/bloc/workout_detail_bloc.dart';
-import '../workout_detail/bloc/workout_detail_event.dart'
-    as detail_event;
+import '../workout_detail/bloc/workout_detail_event.dart' as detail_event;
 import '../workout_detail/bloc/workout_preview_bloc.dart';
 import 'bloc/workout_session_bloc.dart';
 import 'bloc/workout_session_event.dart';
@@ -101,9 +100,20 @@ class PreviewLoggingMode extends LoggingMode {
     return 120;
   }
 
+  /// The source exercise's planned prescription, straight off the workout.
+  Exercise? get _planExercise {
+    final i = workout.exercises.indexWhere((e) => e.id == exerciseId);
+    return i < 0 ? null : workout.exercises[i];
+  }
+
   @override
-  String get bottomLabel =>
-      isCompletedThisWeek ? 'Completed' : 'Start Workout';
+  double? get plannedWeight => _planExercise?.weight;
+
+  @override
+  int? get plannedReps => _planExercise?.reps;
+
+  @override
+  String get bottomLabel => isCompletedThisWeek ? 'Completed' : 'Start Workout';
 
   @override
   bool get bottomEnabled => !isCompletedThisWeek;
@@ -128,8 +138,9 @@ class PreviewLoggingMode extends LoggingMode {
       );
       return;
     }
-    final drafts =
-        Map<String, PreviewExerciseDraft>.from(previewBloc.state.drafts);
+    final drafts = Map<String, PreviewExerciseDraft>.from(
+      previewBloc.state.drafts,
+    );
     sessionBloc.add(StartSession(workout, previewDrafts: drafts));
     // Keep the user on the same exercise they were previewing — the
     // brief calls it out: starting a workout from the logging
