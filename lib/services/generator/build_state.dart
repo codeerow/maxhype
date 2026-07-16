@@ -43,6 +43,18 @@ class BuildState {
   /// the second primary pull to alternate (horizontal <-> vertical).
   String? firstPullPattern;
 
+  /// Pull Day: how many primary-pull-pattern exercises are committed. The
+  /// alternation constraint only applies to the second one (count == 1).
+  int primaryPullCount = 0;
+
+  /// The movement patterns treated as a "primary pull" for alternation
+  /// (script.js `_isPrimaryPullPattern`).
+  static const Set<String> primaryPullPatterns = {
+    'horizontal_row',
+    'supported_row',
+    'vertical_pull',
+  };
+
   /// Movement-pattern bucket usage this build (pattern caps).
   final Map<String, int> patternUsage = {};
 
@@ -75,6 +87,16 @@ class BuildState {
     if (patternBucket != null) bumpPattern(patternBucket);
     final stimulusBucket = _caps.stimulusBucketOf(exercise, split);
     if (stimulusBucket != null) bumpStimulus(stimulusBucket);
+    // Pull-alternation registration (script.js `_registerPullAlternation`):
+    // record the first primary-pull pattern and count subsequent ones so the
+    // second primary pull is forced to alternate horizontal <-> vertical.
+    if (split == 'Pull Day') {
+      final p = meta?.movementPattern;
+      if (p != null && primaryPullPatterns.contains(p)) {
+        firstPullPattern ??= p;
+        primaryPullCount++;
+      }
+    }
   }
 
   void bumpPattern(String bucket) =>

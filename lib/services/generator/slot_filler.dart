@@ -116,6 +116,10 @@ class SlotFiller {
     // decline), whose per-angle uniqueness is an absolute invariant.
     eligible = _applyPatternCap(eligible, state);
 
+    // Pull-alternation: the second primary pull must alternate movement pattern
+    // (horizontal <-> vertical) from the first. Same relax-if-empty semantics.
+    eligible = _applyPullAlternation(eligible, state);
+
     // Score every candidate with the ported base engine, then pick
     // stochastically from the top via weightedPickFromTop. The slot's
     // categoryBias (unifyPool) is added on top of the base score as the
@@ -193,6 +197,36 @@ class SlotFiller {
       return bucket == null ||
           !MovementCaps.chestPressAngleBuckets.contains(bucket);
     }).toList();
+  }
+
+  /// Pull-alternation hard block (script.js `_pullAlternationBlocked`): on Pull
+  /// Day, once one primary pull is committed, the next primary pull can't repeat
+  /// its axis (a horizontal first pull blocks horizontal/supported rows; a
+  /// vertical first pull blocks vertical pulls). Non-primary-pull candidates are
+  /// unaffected. Relaxes (returns the blocked set) only if it empties the pool.
+  List<Exercise> _applyPullAlternation(
+    List<Exercise> eligible,
+    BuildState state,
+  ) {
+    if (state.split != 'Pull Day') return eligible;
+    // Constraint applies only to the second primary pull (count == 1); before
+    // the first and after the second, everything is allowed.
+    if (state.primaryPullCount != 1) return eligible;
+    final first = state.firstPullPattern;
+    if (first == null) return eligible;
+
+    bool blocked(Exercise ex) {
+      final p = ex.generatorMeta?.movementPattern;
+      if (p == null || !BuildState.primaryPullPatterns.contains(p)) return false;
+      if (first == 'horizontal_row' || first == 'supported_row') {
+        return p == 'horizontal_row' || p == 'supported_row';
+      }
+      if (first == 'vertical_pull') return p == 'vertical_pull';
+      return false;
+    }
+
+    final passed = eligible.where((ex) => !blocked(ex)).toList();
+    return passed.isNotEmpty ? passed : eligible;
   }
 
   /// Eligibility for automatic generation in this slot.

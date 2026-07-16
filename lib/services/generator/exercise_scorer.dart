@@ -2,6 +2,7 @@ import '../../models/exercise.dart';
 import '../../models/generator/experience_level.dart';
 import '../../models/generator/exercise_taxonomy.dart';
 import '../../models/generator/generator_slot.dart';
+import 'anti_dominance.dart';
 import 'build_state.dart';
 import 'movement_caps.dart';
 
@@ -30,10 +31,14 @@ import 'movement_caps.dart';
 ///   * scoreDipsCandidate      (7932-7950), MAX_PRESS_PER_WORKOUT=3 (7755)
 ///   * MG diversity            (8534-8539): +3 fresh / -15 repeat
 class ExerciseScorer {
-  const ExerciseScorer({MovementCaps caps = const MovementCaps()})
-      : _caps = caps;
+  const ExerciseScorer({
+    MovementCaps caps = const MovementCaps(),
+    AntiDominance antiDominance = const AntiDominance(),
+  })  : _caps = caps,
+        _antiDom = antiDominance;
 
   final MovementCaps _caps;
+  final AntiDominance _antiDom;
 
   // --- Prototype constants ---------------------------------------------------
 
@@ -73,7 +78,15 @@ class ExerciseScorer {
     final equip = _scoreEquipmentPreference(candidate, state, experience);
     final mgScore = _scoreMovementGroupDiversity(candidate, state);
     final balance = _scoreBalancePenalties(candidate, state);
-    return equip + mgScore + balance;
+    // Anti-dominance (severity² suppression of an exercise dominating its
+    // slotType) and canonical-anchor rebalance (primary-compound openers).
+    final antiDom = _antiDom.penaltyFor(candidate, slot.slotType, state);
+    final anchor = _antiDom.anchorAdjustment(
+      candidate,
+      experience,
+      isPrimaryCompoundSlot: slot.role == SlotRole.primaryCompound,
+    );
+    return equip + mgScore + balance + antiDom + anchor;
   }
 
   /// Soft movement-balance penalties (the score-side of the cap system):
