@@ -1,6 +1,42 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+
+class _AxisRange {
+  const _AxisRange({required this.maxY, required this.interval});
+
+  final double maxY;
+  final double interval;
+
+  factory _AxisRange.forMax(double dataMax, {int targetTicks = 5}) {
+    if (dataMax <= 0) return const _AxisRange(maxY: 1, interval: 1);
+
+    final rawStep = dataMax / targetTicks;
+    final magnitude = math
+        .pow(10, (math.log(rawStep) / math.ln10).floor())
+        .toDouble();
+    final normalized = rawStep / magnitude; // in [1, 10)
+
+    final double niceMultiplier;
+    if (normalized <= 1) {
+      niceMultiplier = 1;
+    } else if (normalized <= 2) {
+      niceMultiplier = 2;
+    } else if (normalized <= 2.5) {
+      niceMultiplier = 2.5;
+    } else if (normalized <= 5) {
+      niceMultiplier = 5;
+    } else {
+      niceMultiplier = 10;
+    }
+
+    final step = niceMultiplier * magnitude;
+    final maxY = (dataMax / step).ceil() * step;
+    return _AxisRange(maxY: maxY, interval: step);
+  }
+}
 
 class ChartData {
   final String monthName;
@@ -56,7 +92,8 @@ class _MonthlyChartState extends State<MonthlyChart> {
       return FlSpot(x, entry.value);
     }).toList();
 
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final dataMax = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final axis = _AxisRange.forMax(dataMax);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -71,10 +108,10 @@ class _MonthlyChartState extends State<MonthlyChart> {
           Text(
             title,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 11,
-                  letterSpacing: 1.0,
-                  fontWeight: FontWeight.w600,
-                ),
+              fontSize: 11,
+              letterSpacing: 1.0,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           if (chartData.totalValue != null) ...[
             const SizedBox(height: 8),
@@ -84,8 +121,8 @@ class _MonthlyChartState extends State<MonthlyChart> {
                   Text(
                     '${chartData.totalLabel}: ',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 13,
-                        ),
+                      fontSize: 13,
+                    ),
                   ),
                 Text(
                   chartData.totalValue!,
@@ -110,7 +147,7 @@ class _MonthlyChartState extends State<MonthlyChart> {
                     color: Colors.white.withValues(alpha: 0.015),
                     strokeWidth: 1,
                   ),
-                  horizontalInterval: null,
+                  horizontalInterval: axis.interval,
                   getDrawingHorizontalLine: (_) => FlLine(
                     color: Colors.white.withValues(alpha: 0.015),
                     strokeWidth: 1,
@@ -122,10 +159,12 @@ class _MonthlyChartState extends State<MonthlyChart> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 40,
+                      interval: axis.interval,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          value.toInt().toString(),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          _formatAxisLabel(value),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 fontSize: 10,
                               ),
                         );
@@ -147,7 +186,8 @@ class _MonthlyChartState extends State<MonthlyChart> {
                         if (day == value && day % 5 == 0 && day > 0) {
                           return Text(
                             day.toString(),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   fontSize: 10,
                                 ),
                           );
@@ -159,7 +199,7 @@ class _MonthlyChartState extends State<MonthlyChart> {
                 ),
                 borderData: FlBorderData(show: false),
                 minY: 0,
-                maxY: maxY * 1.2,
+                maxY: axis.maxY,
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
@@ -193,12 +233,22 @@ class _MonthlyChartState extends State<MonthlyChart> {
             chartData.legendText,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 10,
-                ),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatAxisLabel(double value) {
+    final digits = value.round().toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
   }
 
   Widget _buildEmptyChart(BuildContext context) {
@@ -215,10 +265,10 @@ class _MonthlyChartState extends State<MonthlyChart> {
           Text(
             title,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 11,
-                  letterSpacing: 1.0,
-                  fontWeight: FontWeight.w600,
-                ),
+              fontSize: 11,
+              letterSpacing: 1.0,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 80),
           Center(
