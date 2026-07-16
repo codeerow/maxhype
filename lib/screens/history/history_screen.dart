@@ -46,17 +46,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.planBackground,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 24),
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'History',
-                style: Theme.of(context).textTheme.headlineMedium,
+            // Header — left-aligned (the parent Column centers its children by
+            // default, so pin the title to the start).
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'History',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -85,7 +89,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   // Right arrow - go to future (newer months)
                   IconButton(
-                    onPressed: _currentPage > 0 ? () => _navigateToMonth(-1) : null,
+                    onPressed: _currentPage > 0
+                        ? () => _navigateToMonth(-1)
+                        : null,
                     icon: const Icon(Icons.chevron_right),
                     color: AppTheme.textPrimary,
                     disabledColor: AppTheme.textSecondary.withOpacity(0.3),
@@ -125,59 +131,63 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                         const SizedBox(height: 4),
                         // Monthly Charts (margins built into MonthlyChart)
-                        Builder(builder: (context) {
-                          // Build cumulative values up to today for current month
-                          final isCurrentMonth = index == 0;
-                          final maxDay = isCurrentMonth
-                              ? DateTime.now().day
-                              : monthData.dailyData.length;
+                        Builder(
+                          builder: (context) {
+                            // Build cumulative values up to today for current month
+                            final isCurrentMonth = index == 0;
+                            final maxDay = isCurrentMonth
+                                ? DateTime.now().day
+                                : monthData.dailyData.length;
 
-                          double cumulativeKcal = 0;
-                          double cumulativeVolume = 0;
-                          final allDays = <int>[];
-                          final kcalValues = <double>[];
-                          final volumeValues = <double>[];
+                            double cumulativeKcal = 0;
+                            double cumulativeVolume = 0;
+                            final allDays = <int>[];
+                            final kcalValues = <double>[];
+                            final volumeValues = <double>[];
 
-                          for (final d in monthData.dailyData) {
-                            if (d.day > maxDay) break;
-                            cumulativeKcal += d.kcal;
-                            cumulativeVolume += d.volume;
-                            allDays.add(d.day);
-                            kcalValues.add(cumulativeKcal);
-                            volumeValues.add(cumulativeVolume);
-                          }
+                            for (final d in monthData.dailyData) {
+                              if (d.day > maxDay) break;
+                              cumulativeKcal += d.kcal;
+                              cumulativeVolume += d.volume;
+                              allDays.add(d.day);
+                              kcalValues.add(cumulativeKcal);
+                              volumeValues.add(cumulativeVolume);
+                            }
 
-                          final totalVolume = cumulativeVolume;
+                            final totalVolume = cumulativeVolume;
 
-                          return Column(
-                            children: [
-                              MonthlyChart(
-                                chartData: ChartData(
-                                  monthName: monthData.monthName,
-                                  year: monthData.year,
-                                  values: kcalValues,
-                                  days: allDays,
-                                  legendText: 'Cumulative calories burned, kcal',
-                                  totalValue: '${monthData.totalKcal.toInt()} kcal',
+                            return Column(
+                              children: [
+                                MonthlyChart(
+                                  chartData: ChartData(
+                                    monthName: monthData.monthName,
+                                    year: monthData.year,
+                                    values: kcalValues,
+                                    days: allDays,
+                                    legendText:
+                                        'Cumulative calories burned, kcal',
+                                    totalValue:
+                                        '${monthData.totalKcal.toInt()} kcal',
+                                  ),
+                                  title: 'MONTHLY KCAL BURNT',
+                                  lineColor: AppTheme.chartOrange,
                                 ),
-                                title: 'MONTHLY KCAL BURNT',
-                                lineColor: AppTheme.chartOrange,
-                              ),
-                              MonthlyChart(
-                                chartData: ChartData(
-                                  monthName: monthData.monthName,
-                                  year: monthData.year,
-                                  values: volumeValues,
-                                  days: allDays,
-                                  legendText: 'Cumulative volume lifted, lbs',
-                                  totalValue: '${totalVolume.toInt()} lbs',
+                                MonthlyChart(
+                                  chartData: ChartData(
+                                    monthName: monthData.monthName,
+                                    year: monthData.year,
+                                    values: volumeValues,
+                                    days: allDays,
+                                    legendText: 'Cumulative volume lifted, lbs',
+                                    totalValue: '${totalVolume.toInt()} lbs',
+                                  ),
+                                  title: 'MONTHLY VOLUME',
+                                  lineColor: AppTheme.chartGreen,
                                 ),
-                                title: 'MONTHLY VOLUME',
-                                lineColor: AppTheme.chartGreen,
-                              ),
-                            ],
-                          );
-                        }),
+                              ],
+                            );
+                          },
+                        ),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -190,5 +200,4 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-
 }

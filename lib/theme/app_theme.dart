@@ -9,6 +9,36 @@ class AppTheme {
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFF8E92A8);
 
+  // Fitness Plan surface (mirrors the web prototype's settings palette).
+  //
+  // The web app paints the whole screen a single uniform navy (`#0f172a`) —
+  // the "dark navy between the main hubs" — and floats slightly lighter
+  // translucent cards on top of it for each sub-section, so section titles
+  // sit on the dark navy while their rows live on the lighter card.
+  //
+  /// Uniform dark-navy background for the Fitness Plan and History screens.
+  /// One shade, no per-segment tinting.
+  static const Color planBackground = Color(0xFF071223);
+
+  /// Lighter navy card that sub-sections float on. `white @ 4%` over
+  /// [planBackground], flattened to an opaque colour for cheap painting.
+  static const Color planCardBackground = Color(0xFF181F2E);
+
+  /// Hairline border/divider used on plan cards and between their rows.
+  static const Color planCardBorder = Color(0x14FFFFFF); // white @ 8%
+
+  /// Muted uppercase section-label colour ("ROUTINE", "OPTIONAL", …).
+  static const Color planSectionLabel = Color(0x61FFFFFF); // white @ 38%
+
+  /// Green used for "Enabled" status badges (text) on the plan screen.
+  static const Color planBadgeGreen = Color(0xFF33E39A);
+
+  /// Fill behind the green "Enabled" badge.
+  static const Color planBadgeGreenBg = Color(0x2633E39A); // green @ 15%
+
+  /// Orange used for the circular back arrow on the plan screen.
+  static const Color planBackArrow = Color(0xFFFF8C42);
+
   // Recovery status colors
   static const Color recoveryGreen = Color(0xFF4ADE80);
   static const Color recoveryYellow = Color(0xFFFBBF24);

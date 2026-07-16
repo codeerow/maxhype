@@ -9,6 +9,7 @@ import '../../repositories/generated_workout_repository.dart';
 import '../../repositories/workout_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
+import 'plan_option_screen.dart';
 
 /// Minimal fitness-plan configuration surface (Phase 4 Part 2A deliverable
 /// "configure my fitness plan"). Edits the persisted [FitnessPlan] and, on
@@ -18,6 +19,13 @@ import '../../widgets/app_toast.dart';
 /// Split is fixed to PPL for 2A (the only generator-supported split); the other
 /// splits are shown disabled so the architecture is visible but can't be
 /// selected until their generators land.
+///
+/// Layout mirrors the MaxHype web prototype's Fitness Plan screen: a single
+/// uniform dark-navy background, lighter-navy section cards, muted uppercase
+/// section labels on the dark navy between them, and an orange circular back
+/// arrow. Each field is a `Title → value ›` menu row that opens a full-screen
+/// picker ([PlanOptionScreen]) — the same "tap a row, choose on a sub-screen"
+/// flow as the web app. No generator logic is touched.
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
 
@@ -61,93 +69,67 @@ class _PlanScreenState extends State<PlanScreen> {
   Widget build(BuildContext context) {
     final plan = _plan;
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.planBackground,
       body: SafeArea(
         child: plan == null
             ? const Center(child: CircularProgressIndicator())
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
                 children: [
-                  const Text(
-                    'Fitness Plan',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                  _title(context),
+                  const SizedBox(height: 12),
+                  // ---- ROUTINE ----
+                  _sectionLabel('Routine'),
+                  _card([
+                    _menuRow(
+                      title: 'Routine',
+                      value: plan.split.displayName,
+                      onTap: () => _pickSplit(plan),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'These settings drive your generated workouts.',
-                    style: TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  _splitSection(plan),
-                  _section(
-                    'Days per week',
-                    _segmented<int>(
-                      values: const [2, 3, 4, 5, 6],
-                      selected: plan.daysPerWeek,
-                      label: (v) => '$v',
-                      onChanged: (v) =>
-                          _update(plan.copyWith(daysPerWeek: v)),
+                  ]),
+                  // ---- WORKOUT STRUCTURE ----
+                  _sectionLabel('Workout Structure'),
+                  _card([
+                    _menuRow(
+                      title: 'Days per week',
+                      value: '${plan.daysPerWeek} days/week',
+                      onTap: () => _pickDays(plan),
                     ),
-                  ),
-                  _section(
-                    'Workout duration',
-                    _segmented<int>(
-                      values: kSupportedDurations,
-                      selected: plan.durationMinutes,
-                      label: (v) => '${v}m',
-                      onChanged: (v) =>
-                          _update(plan.copyWith(durationMinutes: v)),
+                    _menuRow(
+                      title: 'Workout duration',
+                      value: '${plan.durationMinutes} min',
+                      onTap: () => _pickDuration(plan),
                     ),
-                  ),
-                  _section(
-                    'Experience',
-                    _wrapChips<ExperienceLevel>(
-                      values: ExperienceLevel.values,
-                      selected: plan.experience,
-                      label: (v) => v.displayName,
-                      onChanged: (v) =>
-                          _update(plan.copyWith(experience: v)),
+                    _menuRow(
+                      title: 'Experience',
+                      value: plan.experience.displayName,
+                      onTap: () => _pickExperience(plan),
                     ),
-                  ),
-                  _section(
-                    'Units',
-                    _segmented<WeightUnit>(
-                      values: WeightUnit.values,
-                      selected: plan.units,
-                      label: (v) => v.displayName,
-                      onChanged: (v) => _update(plan.copyWith(units: v)),
+                    _menuRow(
+                      title: 'Weight Unit',
+                      value: plan.units.displayName.toUpperCase(),
+                      onTap: () => _pickUnits(plan),
                     ),
-                  ),
-                  _section(
-                    'Sex',
-                    _wrapChips<Sex>(
-                      values: Sex.values,
-                      selected: plan.sex,
-                      label: (v) => v.wireValue,
-                      onChanged: (v) => _update(plan.copyWith(sex: v)),
+                  ]),
+                  // ---- PROFILE ----
+                  _sectionLabel('Profile'),
+                  _card([
+                    _menuRow(
+                      title: 'Sex',
+                      value: plan.sex.wireValue,
+                      onTap: () => _pickSex(plan),
                     ),
-                  ),
-                  _stepperSection(
-                    'Age',
-                    plan.age,
-                    min: 14,
-                    max: 90,
-                    onChanged: (v) => _update(plan.copyWith(age: v)),
-                  ),
-                  _stepperSection(
-                    'Weight (${plan.units.displayName})',
-                    plan.weight.round(),
-                    min: 30,
-                    max: 400,
-                    step: 5,
-                    onChanged: (v) =>
-                        _update(plan.copyWith(weight: v.toDouble())),
-                  ),
+                    _menuRow(
+                      title: 'Age',
+                      value: '${plan.age}',
+                      onTap: () => _pickAge(plan),
+                    ),
+                    _menuRow(
+                      title: 'Weight',
+                      value: '${plan.weight.round()} ${plan.units.displayName}',
+                      onTap: () => _pickWeight(plan),
+                    ),
+                  ]),
                   const SizedBox(height: 24),
                   _saveButton(),
                 ],
@@ -156,30 +138,189 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
-  Widget _splitSection(FitnessPlan plan) => _section(
-        'Split',
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: SplitType.values.map((s) {
-            final supported = s.isGeneratorSupported;
-            final selected = plan.split == s;
-            return _chip(
-              label: s.displayName + (supported ? '' : ' (soon)'),
-              selected: selected,
-              enabled: supported,
-              onTap: supported ? () => _update(plan.copyWith(split: s)) : null,
-            );
-          }).toList(),
-        ),
-      );
+  // ---- Pickers (open a full-screen [PlanOptionScreen], apply the result) ----
 
-  Widget _section(String title, Widget child) => Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
+  Future<void> _pickSplit(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<SplitType>(
+      context,
+      title: 'Routine',
+      selected: plan.split,
+      options: SplitType.values
+          .map(
+            (s) => PlanOption<SplitType>(
+              value: s,
+              title: s.displayName,
+              enabled: s.isGeneratorSupported,
+              comingSoon: !s.isGeneratorSupported,
+            ),
+          )
+          .toList(),
+    );
+    if (result != null) _update(plan.copyWith(split: result));
+  }
+
+  Future<void> _pickDays(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<int>(
+      context,
+      title: 'Days per week',
+      selected: plan.daysPerWeek,
+      options: const [2, 3, 4, 5, 6]
+          .map((d) => PlanOption<int>(value: d, title: '$d days per week'))
+          .toList(),
+    );
+    if (result != null) _update(plan.copyWith(daysPerWeek: result));
+  }
+
+  Future<void> _pickDuration(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<int>(
+      context,
+      title: 'Workout duration',
+      selected: plan.durationMinutes,
+      options: kSupportedDurations
+          .map((m) => PlanOption<int>(value: m, title: '$m minutes'))
+          .toList(),
+    );
+    if (result != null) _update(plan.copyWith(durationMinutes: result));
+  }
+
+  Future<void> _pickExperience(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<ExperienceLevel>(
+      context,
+      title: 'Experience',
+      selected: plan.experience,
+      options: ExperienceLevel.values
+          .map(
+            (e) => PlanOption<ExperienceLevel>(
+              value: e,
+              title: e.displayName,
+            ),
+          )
+          .toList(),
+    );
+    if (result != null) _update(plan.copyWith(experience: result));
+  }
+
+  Future<void> _pickUnits(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<WeightUnit>(
+      context,
+      title: 'Weight Unit',
+      selected: plan.units,
+      options: WeightUnit.values
+          .map(
+            (u) => PlanOption<WeightUnit>(
+              value: u,
+              title: u.displayName.toUpperCase(),
+            ),
+          )
+          .toList(),
+    );
+    if (result != null) _update(plan.copyWith(units: result));
+  }
+
+  Future<void> _pickSex(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<Sex>(
+      context,
+      title: 'Sex',
+      selected: plan.sex,
+      options: Sex.values
+          .map((s) => PlanOption<Sex>(value: s, title: s.wireValue))
+          .toList(),
+    );
+    if (result != null) _update(plan.copyWith(sex: result));
+  }
+
+  Future<void> _pickAge(FitnessPlan plan) async {
+    final result = await PlanOptionScreen.show<int>(
+      context,
+      title: 'Age',
+      selected: plan.age,
+      options: [
+        for (var age = 14; age <= 90; age++)
+          PlanOption<int>(value: age, title: '$age'),
+      ],
+    );
+    if (result != null) _update(plan.copyWith(age: result));
+  }
+
+  Future<void> _pickWeight(FitnessPlan plan) async {
+    final unit = plan.units.displayName;
+    final current = plan.weight.round();
+    // Snap the current weight onto the 5-step grid so it can be pre-selected.
+    final snapped = (current / 5).round() * 5;
+    final result = await PlanOptionScreen.show<int>(
+      context,
+      title: 'Weight ($unit)',
+      selected: snapped.clamp(30, 400),
+      options: [
+        for (var w = 30; w <= 400; w += 5)
+          PlanOption<int>(value: w, title: '$w $unit'),
+      ],
+    );
+    if (result != null) _update(plan.copyWith(weight: result.toDouble()));
+  }
+
+  Widget _title(BuildContext context) => Text(
+    'Fitness Plan',
+    style: Theme.of(context).textTheme.headlineMedium,
+  );
+
+  // ---- Section scaffolding (label on dark navy + lighter navy card) --------
+
+  Widget _sectionLabel(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 26, 4, 12),
+    child: Text(
+      title.toUpperCase(),
+      style: const TextStyle(
+        color: AppTheme.planSectionLabel,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.6,
+      ),
+    ),
+  );
+
+  Widget _card(List<Widget> rows) {
+    const radius = BorderRadius.all(Radius.circular(20));
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        border: Border.all(color: AppTheme.planCardBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: ColoredBox(
+          color: AppTheme.planCardBackground,
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0)
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Color(0x0FFFFFFF), // white @ 6%
+                  ),
+                rows[i],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A `Title → value ›` menu row that opens a picker on tap.
+  Widget _menuRow({
+    required String title,
+    required String value,
+    required VoidCallback onTap,
+  }) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
               title,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
@@ -187,147 +328,51 @@ class _PlanScreenState extends State<PlanScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
-      );
-
-  Widget _segmented<T>({
-    required List<T> values,
-    required T selected,
-    required String Function(T) label,
-    required ValueChanged<T> onChanged,
-  }) =>
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: values
-            .map((v) => _chip(
-                  label: label(v),
-                  selected: v == selected,
-                  onTap: () => onChanged(v),
-                ))
-            .toList(),
-      );
-
-  Widget _wrapChips<T>({
-    required List<T> values,
-    required T selected,
-    required String Function(T) label,
-    required ValueChanged<T> onChanged,
-  }) =>
-      _segmented(
-        values: values,
-        selected: selected,
-        label: label,
-        onChanged: onChanged,
-      );
-
-  Widget _chip({
-    required String label,
-    required bool selected,
-    VoidCallback? onTap,
-    bool enabled = true,
-  }) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.4,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? AppTheme.primaryOrange : AppTheme.cardBackground,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected
-                  ? AppTheme.primaryOrange
-                  : AppTheme.textSecondary.withOpacity(0.25),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
             ),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.chevron_right,
+            color: Color(0x33FFFFFF), // white @ 20%
+            size: 22,
           ),
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 
-  Widget _stepperSection(
-    String title,
-    int value, {
-    required int min,
-    required int max,
-    int step = 1,
-    required ValueChanged<int> onChanged,
-  }) =>
-      _section(
-        title,
-        Row(
-          children: [
-            _stepBtn(Icons.remove,
-                () => onChanged((value - step).clamp(min, max))),
-            const SizedBox(width: 16),
-            Text(
-              '$value',
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 20,
+  Widget _saveButton() => SizedBox(
+    width: double.infinity,
+    child: ElevatedButton(
+      onPressed: _saving ? null : _save,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppTheme.primaryOrange,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: _saving
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Text(
+              'Save & Regenerate',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 16),
-            _stepBtn(Icons.add,
-                () => onChanged((value + step).clamp(min, max))),
-          ],
-        ),
-      );
-
-  Widget _stepBtn(IconData icon, VoidCallback onTap) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppTheme.cardBackground,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: AppTheme.textSecondary.withOpacity(0.25)),
-          ),
-          child: Icon(icon, color: AppTheme.textPrimary, size: 20),
-        ),
-      );
-
-  Widget _saveButton() => SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _saving ? null : _save,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryOrange,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-          child: _saving
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                )
-              : const Text(
-                  'Save & Regenerate',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-        ),
-      );
+    ),
+  );
 }

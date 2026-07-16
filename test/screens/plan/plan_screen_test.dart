@@ -45,7 +45,7 @@ void main() {
     getIt.registerSingleton<WorkoutRepository>(workoutRepo);
   });
 
-  tearDown(() => getIt.reset());
+  tearDown(getIt.reset);
 
   testWidgets('renders current plan and saves an edit', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: PlanScreen()));
@@ -56,9 +56,12 @@ void main() {
     expect(find.text('Days per week'), findsOneWidget);
     expect(find.text('Experience'), findsOneWidget);
 
-    // Change experience to Advanced.
+    // Change experience to Advanced: tap the Experience menu row to open the
+    // picker sub-screen, then tap the Advanced option there.
+    await tester.tap(find.text('Experience'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(ExperienceLevel.advanced.displayName));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     // Save.
     await tester.scrollUntilVisible(
@@ -89,9 +92,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: PlanScreen()));
     await tester.pumpAndSettle();
 
-    // Switch to a 5-day plan and save.
-    await tester.tap(find.text('5'));
-    await tester.pump();
+    // Switch to a 5-day plan: open the Days per week picker, pick 5.
+    await tester.tap(find.text('Days per week'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5 days per week'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Save & Regenerate'),
       300,
