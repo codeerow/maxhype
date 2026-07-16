@@ -3,6 +3,7 @@ import '../../models/generator/experience_level.dart';
 import '../../models/generator/exercise_taxonomy.dart';
 import '../../models/generator/generator_slot.dart';
 import 'build_state.dart';
+import 'movement_caps.dart';
 
 /// Scores a candidate exercise for a slot, porting the web prototype's base
 /// selection factors (Part 2B, first layer).
@@ -29,7 +30,10 @@ import 'build_state.dart';
 ///   * scoreDipsCandidate      (7932-7950), MAX_PRESS_PER_WORKOUT=3 (7755)
 ///   * MG diversity            (8534-8539): +3 fresh / -15 repeat
 class ExerciseScorer {
-  const ExerciseScorer();
+  const ExerciseScorer({MovementCaps caps = const MovementCaps()})
+      : _caps = caps;
+
+  final MovementCaps _caps;
 
   // --- Prototype constants ---------------------------------------------------
 
@@ -68,7 +72,28 @@ class ExerciseScorer {
   ) {
     final equip = _scoreEquipmentPreference(candidate, state, experience);
     final mgScore = _scoreMovementGroupDiversity(candidate, state);
-    return equip + mgScore;
+    final balance = _scoreBalancePenalties(candidate, state);
+    return equip + mgScore + balance;
+  }
+
+  /// Soft movement-balance penalties (the score-side of the cap system):
+  ///   * pattern bucket: `-10` per existing use (script.js:9825)
+  ///   * stimulus bucket: `-12` per existing use (script.js:9839)
+  /// The pattern HARD cap and movement-group hard exclusion live in the pool
+  /// filter (SlotFiller); this method is only the additive soft pressure.
+  double _scoreBalancePenalties(Exercise candidate, BuildState state) {
+    var penalty = 0.0;
+    final pBucket = _caps.patternBucketOf(candidate, state.split);
+    if (pBucket != null) {
+      final used = state.patternUsage[pBucket] ?? 0;
+      if (used > 0) penalty -= used * MovementCaps.patternSoftPenaltyPerUse;
+    }
+    final sBucket = _caps.stimulusBucketOf(candidate, state.split);
+    if (sBucket != null) {
+      final used = state.stimulusUsage[sBucket] ?? 0;
+      if (used > 0) penalty -= used * MovementCaps.stimulusSoftPenaltyPerUse;
+    }
+    return penalty;
   }
 
   /// Movement-group diversity: `+3` for a group not yet used this build, `-15`

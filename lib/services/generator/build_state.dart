@@ -1,4 +1,5 @@
 import '../../models/exercise.dart';
+import 'movement_caps.dart';
 
 /// Per-build mutable state for one workout generation.
 ///
@@ -11,7 +12,10 @@ class BuildState {
   /// The split being built ("Push Day" / "Pull Day" / "Legs + Core").
   final String split;
 
-  BuildState(this.split);
+  BuildState(this.split, {MovementCaps caps = const MovementCaps()})
+      : _caps = caps;
+
+  final MovementCaps _caps;
 
   /// Exercises committed so far, in slot order.
   final List<Exercise> exercises = [];
@@ -46,7 +50,8 @@ class BuildState {
 
   bool isNameUsed(String name) => usedNames.contains(name);
 
-  /// Records a committed pick against all trackers.
+  /// Records a committed pick against all trackers, including the movement
+  /// pattern/stimulus balance buckets used by the cap system.
   void commit(Exercise exercise, {String? slotType, String? movementGroup}) {
     exercises.add(exercise);
     usedNames.add(exercise.name);
@@ -58,6 +63,11 @@ class BuildState {
       byName[exercise.name] = (byName[exercise.name] ?? 0) + 1;
       slotTotals[slotType] = (slotTotals[slotType] ?? 0) + 1;
     }
+    // Movement-balance bucket counts (pattern/stimulus caps + soft penalties).
+    final patternBucket = _caps.patternBucketOf(exercise, split);
+    if (patternBucket != null) bumpPattern(patternBucket);
+    final stimulusBucket = _caps.stimulusBucketOf(exercise, split);
+    if (stimulusBucket != null) bumpStimulus(stimulusBucket);
   }
 
   void bumpPattern(String bucket) =>

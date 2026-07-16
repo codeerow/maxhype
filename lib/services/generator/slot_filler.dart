@@ -5,6 +5,7 @@ import '../../models/generator/generator_slot.dart';
 import '../../repositories/asset_exercise_repository.dart';
 import 'build_state.dart';
 import 'exercise_scorer.dart';
+import 'movement_caps.dart';
 import 'seeded_rng.dart';
 
 /// Resolves one slot to an exercise, porting the prototype's multi-pass
@@ -21,9 +22,11 @@ import 'seeded_rng.dart';
 class SlotFiller {
   final AssetExerciseRepository repo;
   final ExerciseScorer _scorer;
+  final MovementCaps _caps;
 
-  SlotFiller(this.repo, {ExerciseScorer? scorer})
-      : _scorer = scorer ?? const ExerciseScorer();
+  SlotFiller(this.repo, {ExerciseScorer? scorer, MovementCaps? caps})
+      : _caps = caps ?? const MovementCaps(),
+        _scorer = scorer ?? ExerciseScorer(caps: caps ?? const MovementCaps());
 
   /// `FIRST_SLOT_TIER` (script.js:1661). For the first exercise of a category
   /// in a split, restrict candidates to these tiers (soft filter — applied only
@@ -107,6 +110,12 @@ class SlotFiller {
     // build, prefer the allowed opening tiers (soft — only if some survive).
     eligible = _applyFirstSlotTier(eligible, slot, state);
 
+    // PATTERN_CAPS hard cap: drop candidates whose movement-pattern bucket is
+    // already saturated for this split, then flush the blocked ones back only
+    // if that empties the pool — EXCEPT chest-press angles (flat/incline/
+    // decline), whose per-angle uniqueness is an absolute invariant.
+    eligible = _applyPatternCap(eligible, state);
+
     // Score every candidate with the ported base engine, then pick
     // stochastically from the top via weightedPickFromTop. The slot's
     // categoryBias (unifyPool) is added on top of the base score as the
@@ -155,6 +164,31 @@ class SlotFiller {
     return filtered.isNotEmpty ? filtered : eligible;
   }
 
+  /// PATTERN_CAPS hard cap with fallback relaxation (script.js:9803/9871).
+  /// Candidates whose movement-pattern bucket is saturated are removed; if that
+  /// leaves the pool empty, the removed candidates are flushed back so the slot
+  /// can still fill — EXCEPT chest-press-angle buckets, which are never flushed
+  /// (leaving the slot short beats duplicating a press angle).
+  List<Exercise> _applyPatternCap(List<Exercise> eligible, BuildState state) {
+    final passed = <Exercise>[];
+    final capped = <Exercise>[];
+    for (final ex in eligible) {
+      if (_caps.patternCapHit(ex, state.split, state.patternUsage)) {
+        capped.add(ex);
+      } else {
+        passed.add(ex);
+      }
+    }
+    if (passed.isNotEmpty) return passed;
+
+    // Pool emptied by the cap — flush back everything except chest-press angles.
+    return capped.where((ex) {
+      final bucket = _caps.patternBucketOf(ex, state.split);
+      return bucket == null ||
+          !MovementCaps.chestPressAngleBuckets.contains(bucket);
+    }).toList();
+  }
+
   /// Eligibility for automatic generation in this slot.
   bool _isEligible(
     Exercise ex,
@@ -181,6 +215,12 @@ class SlotFiller {
         slot.excludeMovementGroups!.contains(mg)) {
       return false;
     }
+    // MOVEMENT_GROUP_CAPS hard exclusion (script.js:8239): at most N of a
+    // capped super-group per workout (e.g. one lat-pulldown machine, two
+    // chest-press variants). A global cap, split-agnostic.
+    if (!_caps.isMovementGroupCapAllowed(state.exercises, ex)) {
+      return false;
+    }
     // Slot-level keyword preference — soft in the prototype, but on the strict
     // passes we honor it; the default pass ignores it as a last resort.
     final keywords = slot.includeNameKeywords;
@@ -202,6 +242,12 @@ class SlotFiller {
     final ex = repo.getExerciseByName(name);
     if (ex == null) return null;
     if (state.isNameUsed(ex.name)) return null;
+    // The movement-group hard cap holds even on the default path: the prototype
+    // leaves a slot SHORT rather than duplicate a capped super-group (e.g. a
+    // second front raise when the front-delt pool is exhausted — Push Day has no
+    // default fallback at all in the prototype for exactly this reason). A short
+    // workout beats a cap violation.
+    if (!_caps.isMovementGroupCapAllowed(state.exercises, ex)) return null;
     // Prefer to keep the default within the user's experience: if the curated
     // default is gated above them, don't force an out-of-experience exercise
     // into a beginner's workout. (With composite categories resolved, the pool
