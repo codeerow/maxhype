@@ -1,4 +1,5 @@
 import '../../models/exercise.dart';
+import '../../models/generator/rotation_memory.dart';
 import 'movement_caps.dart';
 
 /// Per-build mutable state for one workout generation.
@@ -12,10 +13,16 @@ class BuildState {
   /// The split being built ("Push Day" / "Pull Day" / "Legs + Core").
   final String split;
 
-  BuildState(this.split, {MovementCaps caps = const MovementCaps()})
-      : _caps = caps;
+  BuildState(
+    this.split, {
+    MovementCaps caps = const MovementCaps(),
+    this.rotationMemory = const RotationMemory.empty(),
+  }) : _caps = caps;
 
   final MovementCaps _caps;
+
+  /// Cross-session rotation memory for this build (empty when no history).
+  final RotationMemory rotationMemory;
 
   /// Exercises committed so far, in slot order.
   final List<Exercise> exercises = [];

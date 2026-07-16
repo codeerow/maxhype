@@ -10,12 +10,14 @@ import '../../../core/battery_optimization.dart';
 import '../../../core/rest_timer_notifications.dart';
 import '../../../core/session_audio.dart';
 import 'rest_bell_coordinator.dart';
+import '../../../models/exercise.dart';
 import '../../../models/session/personal_record.dart';
 import '../../../models/session/session_exercise.dart';
 import '../../../models/session/session_set.dart';
 import '../../../models/session/workout_session.dart';
 import '../../../models/workout_completion.dart';
 import '../../../repositories/personal_record_repository.dart';
+import '../../../repositories/rotation_memory_repository.dart';
 import '../../../repositories/workout_completion_repository.dart';
 import '../../../repositories/workout_session_repository.dart';
 import 'pr_signal.dart';
@@ -37,6 +39,8 @@ class WorkoutSessionBloc
     required this.repository,
     required this.prRepository,
     this.completionRepository,
+    this.rotationMemoryRepository,
+    this.exerciseResolver,
     RestBell? bell,
     RestNotificationScheduler? scheduler,
   })  : _scheduler = scheduler ?? RestTimerNotifications.instance,
@@ -74,6 +78,18 @@ class WorkoutSessionBloc
   /// turns on the moment FinishWorkout archives. Tests that don't care
   /// about completion state can leave it null.
   final WorkoutCompletionRepository? completionRepository;
+
+  /// Optional sink for cross-session rotation memory. Wired in production so a
+  /// completed workout steers future generation away from the exercises just
+  /// trained. Null in tests that don't exercise rotation.
+  final RotationMemoryRepository? rotationMemoryRepository;
+
+  /// Resolves an exercise NAME to a generator-metadata-bearing [Exercise], so
+  /// completed session exercises (which carry no generatorMeta) can be bucketed
+  /// for rotation memory. Null → rotation recording is skipped. In production
+  /// this resolves against the asset library.
+  final Exercise? Function(String name)? exerciseResolver;
+
   final RestNotificationScheduler _scheduler;
   late final RestBellCoordinator _restBell;
 
@@ -830,9 +846,82 @@ class WorkoutSessionBloc
       durationSeconds:
           finishedAt.difference(finished.startedAt).inSeconds,
     ));
+    // Record the completed exercises into cross-session rotation memory so the
+    // next generation steers away from what was just trained. Only generated
+    // PPL workouts carry a split-encoded id; others are skipped.
+    await _recordRotationMemory(finished, finishedAt);
     emit(const SessionFinished());
     emit(const SessionIdle());
   }
+
+  /// Records a finished workout into rotation memory, if the repositories are
+  /// wired and the workout is a generated PPL split. Session exercises carry no
+  /// generator metadata, so each is resolved back to the library (via
+  /// [exerciseResolver]) for bucketing. Best-effort — a resolver miss just
+  /// drops that exercise from the memory update.
+  Future<void> _recordRotationMemory(
+    WorkoutSession finished,
+    DateTime finishedAt,
+  ) async {
+    final repo = rotationMemoryRepository;
+    final resolver = exerciseResolver;
+    if (repo == null || resolver == null) return;
+    final split = _splitFromWorkoutId(finished.workoutId);
+    if (split == null) return;
+
+    final resolved = <Exercise>[];
+    for (final ex in finished.exercises) {
+      final lib = resolver(ex.name);
+      // Keep a metadata-bearing exercise for bucketing; fall back to a bare
+      // exercise (name only) so it still lands in the split's "*_other" bucket.
+      resolved.add(lib ?? _bareExercise(ex));
+    }
+    // Stable dedup key: the generated card id + the finish week, so completing
+    // the same card twice in one week records once (mirrors the prototype's
+    // week::cardIndex::split key).
+    final weekKey = _weekKey(finishedAt);
+    final completionKey = '${finished.workoutId}::$weekKey';
+    await repo.recordCompletion(split, resolved, completionKey: completionKey);
+  }
+
+  /// The canonical split name encoded in a generated workout id
+  /// (`gen_push_day_0` → "Push Day"), or null for non-generated workouts.
+  String? _splitFromWorkoutId(String workoutId) {
+    if (!workoutId.startsWith('gen_')) return null;
+    final body = workoutId.substring(4); // drop "gen_"
+    // Strip the trailing "_<index>".
+    final lastUnderscore = body.lastIndexOf('_');
+    final slug = lastUnderscore > 0 ? body.substring(0, lastUnderscore) : body;
+    switch (slug) {
+      case 'push_day':
+        return 'Push Day';
+      case 'pull_day':
+        return 'Pull Day';
+      case 'legs_+_core':
+        return 'Legs + Core';
+      default:
+        return null;
+    }
+  }
+
+  /// ISO-week key `YYYY-Www` for the rotation completion dedup key, so
+  /// completing the same generated card twice in one week records once.
+  String _weekKey(DateTime date) {
+    final dayOfYear = date.difference(DateTime(date.year)).inDays + 1;
+    final week = ((dayOfYear - date.weekday + 10) / 7).floor();
+    return '${date.year}-W$week';
+  }
+
+  Exercise _bareExercise(SessionExercise ex) => Exercise(
+        id: ex.exerciseId,
+        name: ex.name,
+        sets: ex.targetSets,
+        reps: 0,
+        weight: 0,
+        muscleGroups: ex.muscleGroups,
+        equipmentType: ex.equipment,
+        rating: 0,
+      );
 
   // ----- Helpers -----
 

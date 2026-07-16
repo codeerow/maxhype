@@ -121,13 +121,19 @@ class SlotFiller {
     // categoryBias (unifyPool) is added on top of the base score as the
     // prototype does — a positive category bias lifts, a negative one lowers,
     // without ever hard-zeroing a candidate.
+    // Rotation memory steers away from recently-trained exercises. Its penalty
+    // depends on the surviving pool size (a <2 pool is never constrained — a
+    // single-option slot must still fill), so it's applied here rather than in
+    // the base scoreOf. Added to the same accumulator as the other factors.
+    final poolSize = eligible.length;
     final bias = slot.categoryBias;
     final scored = <({Exercise item, double score})>[
       for (final ex in eligible)
         (
           item: ex,
           score: _scorer.scoreOf(ex, slot, state, experience) +
-              (bias?[ex.generatorMeta?.category] ?? 0).toDouble(),
+              (bias?[ex.generatorMeta?.category] ?? 0).toDouble() +
+              state.rotationMemory.penaltyFor(ex, state.split, poolSize),
         ),
     ]..sort((a, b) => b.score.compareTo(a.score));
 

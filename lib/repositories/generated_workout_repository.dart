@@ -5,9 +5,11 @@ import '../models/workout.dart';
 import '../models/monthly_data.dart';
 import '../models/all_time_stats.dart';
 import '../models/generator/fitness_plan.dart';
+import '../models/generator/rotation_memory.dart';
 import '../data/mock_data.dart';
 import '../services/generator/workout_assembler.dart';
 import 'fitness_plan_repository.dart';
+import 'rotation_memory_repository.dart';
 import 'workout_repository.dart';
 
 /// [WorkoutRepository] backed by the PPL generator.
@@ -31,12 +33,15 @@ import 'workout_repository.dart';
 class GeneratedWorkoutRepository implements WorkoutRepository {
   final FitnessPlanRepository _planRepository;
   final WorkoutAssembler _assembler;
+  final RotationMemoryRepository? _rotationMemoryRepository;
 
   GeneratedWorkoutRepository({
     required FitnessPlanRepository planRepository,
     required WorkoutAssembler assembler,
+    RotationMemoryRepository? rotationMemoryRepository,
   }) : _planRepository = planRepository,
-       _assembler = assembler;
+       _assembler = assembler,
+       _rotationMemoryRepository = rotationMemoryRepository;
 
   List<Workout>? _workouts;
   FitnessPlan? _generatedFor;
@@ -66,7 +71,13 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
     final plan = await _planRepository.load();
     // Regenerate if never generated, or if the plan changed since last time.
     if (_workouts == null || !_samePlan(_generatedFor, plan)) {
-      _setWorkouts(_assembler.buildCards(plan, seedBase: _seedForPlan(plan)));
+      final rotation = await _rotationMemoryRepository?.load() ??
+          const RotationMemory.empty();
+      _setWorkouts(_assembler.buildCards(
+        plan,
+        seedBase: _seedForPlan(plan),
+        rotationMemory: rotation,
+      ));
       _generatedFor = plan;
     }
     return _workouts!;

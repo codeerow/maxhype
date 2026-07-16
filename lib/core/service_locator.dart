@@ -8,6 +8,8 @@ import '../repositories/mock_exercise_repository.dart';
 import '../repositories/asset_exercise_repository.dart';
 import '../repositories/fitness_plan_repository.dart';
 import '../repositories/local_fitness_plan_repository.dart';
+import '../repositories/rotation_memory_repository.dart';
+import '../repositories/local_rotation_memory_repository.dart';
 import '../services/generator/workout_generator_service.dart';
 import '../services/generator/workout_assembler.dart';
 import '../repositories/workout_session_repository.dart';
@@ -58,10 +60,17 @@ Future<void> setupDependencies() async {
   getIt.registerLazySingleton<WorkoutAssembler>(
     () => WorkoutAssembler(getIt<WorkoutGeneratorService>()),
   );
+  // Cross-session rotation memory (Part 2B). Persisted separately; generation
+  // reads a snapshot, a completed workout writes into it. Registered before the
+  // workout repository so generation can steer away from recently-trained work.
+  getIt.registerLazySingleton<RotationMemoryRepository>(
+    () => LocalRotationMemoryRepository(),
+  );
   getIt.registerLazySingleton<WorkoutRepository>(
     () => GeneratedWorkoutRepository(
       planRepository: getIt<FitnessPlanRepository>(),
       assembler: getIt<WorkoutAssembler>(),
+      rotationMemoryRepository: getIt<RotationMemoryRepository>(),
     ),
   );
 
@@ -127,6 +136,12 @@ Future<void> setupDependencies() async {
       repository: getIt<WorkoutSessionRepository>(),
       prRepository: getIt<PersonalRecordRepository>(),
       completionRepository: getIt<WorkoutCompletionRepository>(),
+      rotationMemoryRepository: getIt<RotationMemoryRepository>(),
+      // Resolve completed session exercises back to the asset library so they
+      // bucket correctly for rotation memory (session exercises carry no
+      // generator metadata). Name-based, matching the id-collision fix.
+      exerciseResolver: (name) =>
+          getIt<AssetExerciseRepository>().getExerciseByName(name),
     ),
   );
 

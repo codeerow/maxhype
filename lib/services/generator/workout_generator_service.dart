@@ -1,6 +1,7 @@
 import '../../models/exercise.dart';
 import '../../models/generator/experience_level.dart';
 import '../../models/generator/generator_slot.dart';
+import '../../models/generator/rotation_memory.dart';
 import '../../models/generator/split_type.dart';
 import '../../repositories/asset_exercise_repository.dart';
 import 'build_state.dart';
@@ -15,10 +16,17 @@ class GenerationRequest {
   final int durationMinutes;
   final ExperienceLevel experience;
 
+  /// Cross-session rotation memory steering the pick away from recently-trained
+  /// exercises. Defaults to empty so generation stays a pure function of its
+  /// inputs (tests and fresh installs pass nothing); the app loads the current
+  /// snapshot and passes it in.
+  final RotationMemory rotationMemory;
+
   const GenerationRequest({
     required this.splitName,
     required this.durationMinutes,
     required this.experience,
+    this.rotationMemory = const RotationMemory.empty(),
   });
 }
 
@@ -112,7 +120,10 @@ class AssetWorkoutGeneratorService implements WorkoutGeneratorService {
     GenerationRequest request,
     SeededRng rng,
   ) {
-    final state = BuildState(request.splitName);
+    final state = BuildState(
+      request.splitName,
+      rotationMemory: request.rotationMemory,
+    );
     for (final slot in slots) {
       final picked = _filler.fill(slot, state, request.experience, rng);
       if (picked == null) continue;
