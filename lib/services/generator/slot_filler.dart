@@ -1,23 +1,48 @@
 import '../../models/exercise.dart';
+import '../../models/generator/exercise_taxonomy.dart';
 import '../../models/generator/experience_level.dart';
 import '../../models/generator/generator_slot.dart';
 import '../../repositories/asset_exercise_repository.dart';
 import 'build_state.dart';
+import 'exercise_scorer.dart';
 import 'seeded_rng.dart';
 
 /// Resolves one slot to an exercise, porting the prototype's multi-pass
 /// fallback. Used by the generator's fill loop.
 ///
-/// The prototype layers a ~2,200-line scoring engine on top of this (Part 2B).
-/// For 2A the selection is deliberately simpler but invariant-safe: eligibility
-/// + duplicate prevention + movement-group diversity, then a bias-weighted pick
-/// from the surviving candidates. Every slot still resolves to a real exercise
-/// (or its default), so 2A workouts are valid and playable; 2B swaps the pick
-/// step for the full scoring without changing this pass structure.
+/// The pass structure (eligibility + duplicate/movement-group diversity, then
+/// a pick from the survivors) is stable across 2A/2B. Part 2B replaces the pick
+/// step with the ported scoring engine: each surviving candidate is scored by
+/// [ExerciseScorer] (equipment preference, movement-group diversity, shoulder
+/// & dips ecosystem rules), a FIRST_SLOT_TIER soft filter shapes the opener,
+/// and the final choice is a stochastic [SeededRng.weightedPickFromTop] over
+/// the top-ranked candidates. Every slot still resolves to a real exercise (or
+/// its default), so workouts stay valid and playable.
 class SlotFiller {
   final AssetExerciseRepository repo;
+  final ExerciseScorer _scorer;
 
-  SlotFiller(this.repo);
+  SlotFiller(this.repo, {ExerciseScorer? scorer})
+      : _scorer = scorer ?? const ExerciseScorer();
+
+  /// `FIRST_SLOT_TIER` (script.js:1661). For the first exercise of a category
+  /// in a split, restrict candidates to these tiers (soft filter — applied only
+  /// if it leaves a non-empty pool). Ensures a workout opens on a proper
+  /// primary compound rather than an accessory that merely shares the category.
+  static const Map<String, Map<String, List<ExerciseTier>>> _firstSlotTier = {
+    'Push Day': {
+      'chest press': [ExerciseTier.a, ExerciseTier.b],
+      'shoulder press': [ExerciseTier.a, ExerciseTier.b],
+    },
+    'Pull Day': {
+      'row': [ExerciseTier.a],
+      'pulldown': [ExerciseTier.a],
+    },
+    'Legs + Core': {
+      'squat': [ExerciseTier.a],
+      'hinge': [ExerciseTier.a, ExerciseTier.b],
+    },
+  };
 
   /// Resolves [slot] against the current [state]. Returns the picked exercise,
   /// or null only if even the default can't resolve (should not happen given
@@ -72,29 +97,62 @@ class SlotFiller {
       }
     }
 
-    final eligible = candidates
+    var eligible = candidates
         .where((ex) => _isEligible(ex, slot, state, experience,
             allowGroupReuse: allowGroupReuse))
         .toList();
     if (eligible.isEmpty) return null;
 
-    // Weight by categoryBias (unified pool). Default weight 1 keeps a uniform
-    // pick when no bias is defined. Bias is additive in the prototype; we shift
-    // to positive weights so a negative bias just lowers (never zeroes) a
-    // candidate's odds.
+    // FIRST_SLOT_TIER: if this is the first exercise of its category in the
+    // build, prefer the allowed opening tiers (soft — only if some survive).
+    eligible = _applyFirstSlotTier(eligible, slot, state);
+
+    // Score every candidate with the ported base engine, then pick
+    // stochastically from the top via weightedPickFromTop. The slot's
+    // categoryBias (unifyPool) is added on top of the base score as the
+    // prototype does — a positive category bias lifts, a negative one lowers,
+    // without ever hard-zeroing a candidate.
     final bias = slot.categoryBias;
-    if (bias == null || bias.isEmpty) {
-      return rng.pick(eligible);
-    }
-    var minBias = 0;
-    for (final b in bias.values) {
-      if (b < minBias) minBias = b;
-    }
-    final weights = [
+    final scored = <({Exercise item, double score})>[
       for (final ex in eligible)
-        (((bias[ex.generatorMeta?.category] ?? 0) - minBias) + 1).toDouble(),
-    ];
-    return rng.weightedPick(eligible, weights);
+        (
+          item: ex,
+          score: _scorer.scoreOf(ex, slot, state, experience) +
+              (bias?[ex.generatorMeta?.category] ?? 0).toDouble(),
+        ),
+    ]..sort((a, b) => b.score.compareTo(a.score));
+
+    return rng.weightedPickFromTop(scored);
+  }
+
+  /// Applies the FIRST_SLOT_TIER soft filter. If [slot]'s primary category has
+  /// an opening-tier rule for this split, and no exercise of that category has
+  /// been committed yet, keep only candidates whose tier is allowed — but only
+  /// if that leaves at least one candidate (otherwise fall back to the full
+  /// pool, exactly like the prototype).
+  List<Exercise> _applyFirstSlotTier(
+    List<Exercise> eligible,
+    GeneratorSlot slot,
+    BuildState state,
+  ) {
+    final byCategory = _firstSlotTier[state.split];
+    final category = slot.category;
+    if (byCategory == null || category == null) return eligible;
+    final allowed = byCategory[category];
+    if (allowed == null) return eligible;
+
+    // Is this already-not the first of its category? Then no restriction.
+    final alreadyHasCategory =
+        state.exercises.any((e) => e.generatorMeta?.category == category);
+    if (alreadyHasCategory) return eligible;
+
+    final filtered = eligible
+        .where((ex) {
+          final tier = ex.generatorMeta?.tier;
+          return tier != null && allowed.contains(tier);
+        })
+        .toList();
+    return filtered.isNotEmpty ? filtered : eligible;
   }
 
   /// Eligibility for automatic generation in this slot.
