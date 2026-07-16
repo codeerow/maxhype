@@ -5,6 +5,7 @@ import '../../models/generator/generator_slot.dart';
 import 'anti_dominance.dart';
 import 'build_state.dart';
 import 'movement_caps.dart';
+import 'similarity.dart';
 
 /// Scores a candidate exercise for a slot, porting the web prototype's base
 /// selection factors (Part 2B, first layer).
@@ -34,11 +35,14 @@ class ExerciseScorer {
   const ExerciseScorer({
     MovementCaps caps = const MovementCaps(),
     AntiDominance antiDominance = const AntiDominance(),
+    Similarity similarity = const Similarity(),
   })  : _caps = caps,
-        _antiDom = antiDominance;
+        _antiDom = antiDominance,
+        _similarity = similarity;
 
   final MovementCaps _caps;
   final AntiDominance _antiDom;
+  final Similarity _similarity;
 
   // --- Prototype constants ---------------------------------------------------
 
@@ -86,7 +90,10 @@ class ExerciseScorer {
       experience,
       isPrimaryCompoundSlot: slot.role == SlotRole.primaryCompound,
     );
-    return equip + mgScore + balance + antiDom + anchor;
+    // Phase 16 similarity smoothing (collapsed to the biomechanical-axis
+    // cascade + the one CGBP/flat-press outlier).
+    final similarity = _similarity.penaltyFor(candidate, slot, state);
+    return equip + mgScore + balance + antiDom + anchor + similarity;
   }
 
   /// Soft movement-balance penalties (the score-side of the cap system):
