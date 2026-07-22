@@ -483,6 +483,7 @@ class _ActiveSessionScaffoldState extends State<_ActiveSessionScaffold>
     return showExerciseOptionsSheet(
       context,
       exercise: _exerciseFromSession(ex),
+      usedNames: widget.state.session.exercises.map((e) => e.name).toSet(),
       onReplace: (newExercise) {
         // Slot-scoped replace — only this slot is swapped, other
         // slots that may hold the same catalog exerciseId are left

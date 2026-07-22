@@ -29,14 +29,16 @@ void registerSessionFallback() {
 /// (`RestTimerNotifications.requestPermission`).
 WorkoutSession makeSession({
   String id = 'session_1',
+  String workoutId = 'workout_1',
   List<SessionExercise>? exercises,
 }) {
   return WorkoutSession(
     id: id,
-    workoutId: 'workout_1',
+    workoutId: workoutId,
     workoutName: 'Test workout',
     startedAt: DateTime(2025, 1, 1, 10),
-    exercises: exercises ??
+    exercises:
+        exercises ??
         [
           makeExercise(exerciseId: 'ex1', setIds: ['set_a', 'set_b']),
         ],
@@ -54,12 +56,10 @@ SessionExercise makeExercise({
   // Back-compat for callers that pass `withWarmup: true` and expect a
   // single warmup row with the legacy id 'warmup_a'.
   final warmups = warmupIds.isNotEmpty
-      ? warmupIds
-          .map((id) => SessionSet(id: id, kind: SetKind.warmup))
-          .toList()
+      ? warmupIds.map((id) => SessionSet(id: id, kind: SetKind.warmup)).toList()
       : (withWarmup
-          ? const [SessionSet(id: 'warmup_a', kind: SetKind.warmup)]
-          : const <SessionSet>[]);
+            ? const [SessionSet(id: 'warmup_a', kind: SetKind.warmup)]
+            : const <SessionSet>[]);
   return SessionExercise(
     // Tests built before slotId existed pass exerciseId as the slot
     // identity — keeps legacy assertions like `e.exerciseId == 'ex1'`

@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart'
-    show CupertinoIcons, CupertinoPageRoute;
+import 'package:flutter/cupertino.dart' show CupertinoIcons, CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:progressive_blur/progressive_blur.dart';
@@ -57,19 +56,19 @@ class WorkoutDetailScreen extends StatelessWidget {
                 Positioned.fill(
                   child: switch (state) {
                     WorkoutDetailLoading() => const Center(
-                        child: CircularProgressIndicator(
-                          color: AppTheme.primaryOrange,
-                        ),
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryOrange,
                       ),
+                    ),
                     WorkoutDetailError(:final message) => Center(
-                        child: Text(
-                          'Error: $message',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
+                      child: Text(
+                        'Error: $message',
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
+                    ),
                     WorkoutDetailSuccess(
                       :final workout,
-                      :final completionThisWeek
+                      :final completionThisWeek,
                     ) =>
                       _buildContent(
                         context,
@@ -144,39 +143,39 @@ class WorkoutDetailScreen extends StatelessWidget {
                     bottom: 100,
                   ),
                   child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Add Exercise button
-              _buildAddExerciseButton(context),
-              const SizedBox(height: 16),
-              // Exercise count
-              Text(
-                '${workout.exercises.length} exercises',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 16),
-              // Exercise list
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: workout.exercises.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final exercise = workout.exercises[index];
-                  return ExerciseCard(
-                    exercise: exercise,
-                    // Brief §6 — tapping an exercise on the workout
-                    // detail screen opens the preview variant of the
-                    // logging screen, before any session is created.
-                    onTap: () => _openPreview(context, exercise),
-                    onOptionsPressed: () =>
-                        _showExerciseOptions(context, exercise),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Add Exercise button
+                      _buildAddExerciseButton(context),
+                      const SizedBox(height: 16),
+                      // Exercise count
+                      Text(
+                        '${workout.exercises.length} exercises',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      // Exercise list
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: workout.exercises.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final exercise = workout.exercises[index];
+                          return ExerciseCard(
+                            exercise: exercise,
+                            // Brief §6 — tapping an exercise on the workout
+                            // detail screen opens the preview variant of the
+                            // logging screen, before any session is created.
+                            onTap: () => _openPreview(context, exercise),
+                            onOptionsPressed: () =>
+                                _showExerciseOptions(context, exercise),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
                 ),
               ),
@@ -191,121 +190,126 @@ class WorkoutDetailScreen extends StatelessWidget {
           right: 0,
           child: Center(
             child: SafeArea(
-            child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
-              buildWhen: (prev, next) {
-                bool isMine(WorkoutSessionState s) =>
-                    s is SessionActive && s.session.workoutId == workout.id;
-                return isMine(prev) != isMine(next);
-              },
-              builder: (context, sessionState) {
-                if (isCompletedThisWeek) {
-                  // Locked state for an already-finished workout in
-                  // this ISO week (brief Item 7 follow-up). The screen
-                  // is still browsable so the user can review what
-                  // they logged — only the Start button is dimmed and
-                  // non-interactive. Persists across navigation and
-                  // restart because the bloc reloads completions from
-                  // disk on `LoadWorkoutDetail`.
-                  return Container(
-                    width: 220,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color:
-                          AppTheme.cardBackground.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(
-                        color:
-                            AppTheme.primaryOrange.withValues(alpha: 0.35),
-                        width: 1,
+              child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
+                buildWhen: (prev, next) {
+                  bool isMine(WorkoutSessionState s) =>
+                      s is SessionActive && s.session.workoutId == workout.id;
+                  return isMine(prev) != isMine(next);
+                },
+                builder: (context, sessionState) {
+                  if (isCompletedThisWeek) {
+                    // Locked state for an already-finished workout in
+                    // this ISO week (brief Item 7 follow-up). The screen
+                    // is still browsable so the user can review what
+                    // they logged — only the Start button is dimmed and
+                    // non-interactive. Persists across navigation and
+                    // restart because the bloc reloads completions from
+                    // disk on `LoadWorkoutDetail`.
+                    return Container(
+                      width: 220,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardBackground.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(
+                          color: AppTheme.primaryOrange.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          size: 18,
-                          color:
-                              AppTheme.primaryOrange.withValues(alpha: 0.85),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Completed',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                            color: AppTheme.primaryOrange
-                                .withValues(alpha: 0.85),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 18,
+                            color: AppTheme.primaryOrange.withValues(
+                              alpha: 0.85,
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Completed',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                              color: AppTheme.primaryOrange.withValues(
+                                alpha: 0.85,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return TapScale(
+                    scaleDown: TapScalePreset.cta.scale,
+                    enableHaptic: true,
+                    onTap: () {
+                      final sessionBloc = context.read<WorkoutSessionBloc>();
+                      final cur = sessionBloc.state;
+                      if (cur is SessionActive &&
+                          cur.session.workoutId != workout.id) {
+                        // Brief §4 — block the second-workout attempt
+                        // with a premium-orange toast. Keeps the active
+                        // session untouched and tells the user what to
+                        // do, in the same visual language as the
+                        // Completed / Cancelled toasts (clarifications
+                        // 4.10, 4.11, 10.30).
+                        AppToast.showPremium(
+                          context,
+                          'Finish your current workout first',
+                          accent: AppTheme.primaryOrange,
+                        );
+                        return;
+                      }
+                      // Carry over any preview drafts the user typed
+                      // before pressing Start — clarifications 6.15/6.18.
+                      final drafts = Map.of(
+                        context.read<WorkoutPreviewBloc>().state.drafts,
+                      );
+                      sessionBloc.add(
+                        session_event.StartSession(
+                          workout,
+                          previewDrafts: drafts,
                         ),
-                      ],
+                      );
+                      Navigator.of(context).pushReplacement(
+                        CupertinoPageRoute<void>(
+                          builder: (_) => WorkoutSessionScreen.restored(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 220,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryOrange,
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryOrange.withValues(
+                              alpha: 0.45,
+                            ),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'Start Workout',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   );
-                }
-                return TapScale(
-                  scaleDown: TapScalePreset.cta.scale,
-                  enableHaptic: true,
-                  onTap: () {
-                    final sessionBloc = context.read<WorkoutSessionBloc>();
-                    final cur = sessionBloc.state;
-                    if (cur is SessionActive &&
-                        cur.session.workoutId != workout.id) {
-                      // Brief §4 — block the second-workout attempt
-                      // with a premium-orange toast. Keeps the active
-                      // session untouched and tells the user what to
-                      // do, in the same visual language as the
-                      // Completed / Cancelled toasts (clarifications
-                      // 4.10, 4.11, 10.30).
-                      AppToast.showPremium(
-                        context,
-                        'Finish your current workout first',
-                        accent: AppTheme.primaryOrange,
-                      );
-                      return;
-                    }
-                    // Carry over any preview drafts the user typed
-                    // before pressing Start — clarifications 6.15/6.18.
-                    final drafts = Map.of(
-                      context.read<WorkoutPreviewBloc>().state.drafts,
-                    );
-                    sessionBloc.add(
-                      session_event.StartSession(workout, previewDrafts: drafts),
-                    );
-                    Navigator.of(context).pushReplacement(
-                      CupertinoPageRoute<void>(
-                        builder: (_) => WorkoutSessionScreen.restored(),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: 220,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryOrange,
-                      borderRadius: BorderRadius.circular(26),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryOrange.withValues(alpha: 0.45),
-                          blurRadius: 18,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Start Workout',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                );
-              },
+                },
               ),
             ),
           ),
@@ -355,14 +359,15 @@ class WorkoutDetailScreen extends StatelessWidget {
     showExerciseOptionsSheet(
       context,
       exercise: exercise,
+      usedNames: workout.exercises.map((e) => e.name).toSet(),
       onReplace: (newExercise) {
         context.read<WorkoutDetailBloc>().add(
-              ReplaceExercise(
-                workoutId: workout.id,
-                oldExerciseId: exercise.id,
-                newExercise: newExercise,
-              ),
-            );
+          ReplaceExercise(
+            workoutId: workout.id,
+            oldExerciseId: exercise.id,
+            newExercise: newExercise,
+          ),
+        );
         AppToast.show(context, 'Replaced with ${newExercise.name}');
       },
     );
@@ -396,5 +401,3 @@ class WorkoutDetailScreen extends StatelessWidget {
     );
   }
 }
-
-
