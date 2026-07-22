@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/battery_optimization.dart';
+import '../../../core/demo_clock.dart';
 import '../../../core/rest_timer_notifications.dart';
 import '../../../core/session_audio.dart';
 import 'rest_bell_coordinator.dart';
@@ -32,8 +33,7 @@ import 'workout_session_state.dart';
 /// - Critical events (LogSet, MarkExerciseDone, CancelWorkout, FinishWorkout)
 ///   call `_flushPersist()` to write immediately — these are the moments worth
 ///   never losing.
-class WorkoutSessionBloc
-    extends Bloc<WorkoutSessionEvent, WorkoutSessionState>
+class WorkoutSessionBloc extends Bloc<WorkoutSessionEvent, WorkoutSessionState>
     with WidgetsBindingObserver {
   WorkoutSessionBloc({
     required this.repository,
@@ -41,10 +41,12 @@ class WorkoutSessionBloc
     this.completionRepository,
     this.rotationMemoryRepository,
     this.exerciseResolver,
+    WeekClock? weekClock,
     RestBell? bell,
     RestNotificationScheduler? scheduler,
-  })  : _scheduler = scheduler ?? RestTimerNotifications.instance,
-        super(const SessionIdle()) {
+  }) : _weekClock = weekClock ?? const RealWeekClock(),
+       _scheduler = scheduler ?? RestTimerNotifications.instance,
+       super(const SessionIdle()) {
     _restBell = RestBellCoordinator(
       bell: bell,
       scheduler: _scheduler,
@@ -89,6 +91,13 @@ class WorkoutSessionBloc
   /// for rotation memory. Null → rotation recording is skipped. In production
   /// this resolves against the asset library.
   final Exercise? Function(String name)? exerciseResolver;
+
+  /// Week-scoped clock. In production this is the demo clock (debug) or the
+  /// real clock (release). Only the finish path's week-scoped fields — the
+  /// completion timestamp and the rotation-memory week key — read it, so a demo
+  /// week-bump lands a finished workout in the shifted week. Elapsed-duration
+  /// math still uses real time so a bump never inflates the recorded duration.
+  final WeekClock _weekClock;
 
   final RestNotificationScheduler _scheduler;
   late final RestBellCoordinator _restBell;
@@ -151,8 +160,9 @@ class WorkoutSessionBloc
   PersonalRecord? previousBestFor(String exerciseId) {
     final session = _current;
     if (session == null) return null;
-    final ex = session.exercises
-        .firstWhereOrNull((e) => e.exerciseId == exerciseId);
+    final ex = session.exercises.firstWhereOrNull(
+      (e) => e.exerciseId == exerciseId,
+    );
     if (ex == null) return null;
     final ranked = _rankedRecordsFor(exerciseId, ex);
     if (ranked.length < 2) return null;
@@ -171,15 +181,17 @@ class WorkoutSessionBloc
     }
     for (final s in ex.sets) {
       if (!s.isLogged || s.weight == null || s.reps == null) continue;
-      out.add(_RankedRecord(
-        setId: s.id,
-        record: PersonalRecord(
-          exerciseId: exerciseId,
-          weight: s.weight!,
-          reps: s.reps!,
-          achievedAt: s.loggedAt!,
+      out.add(
+        _RankedRecord(
+          setId: s.id,
+          record: PersonalRecord(
+            exerciseId: exerciseId,
+            weight: s.weight!,
+            reps: s.reps!,
+            achievedAt: s.loggedAt!,
+          ),
         ),
-      ));
+      );
     }
     out.sort(_compareRecordsDesc);
     return out;
@@ -191,8 +203,9 @@ class WorkoutSessionBloc
   void _recomputeFor(String exerciseId) {
     final session = _current;
     if (session == null) return;
-    final ex = session.exercises
-        .firstWhereOrNull((e) => e.exerciseId == exerciseId);
+    final ex = session.exercises.firstWhereOrNull(
+      (e) => e.exerciseId == exerciseId,
+    );
     if (ex == null) {
       // Exercise gone (DeleteExercise / ReplaceExercise) — drop head.
       // No revoke signal: the row itself is gone, nothing to un-paint.
@@ -218,10 +231,12 @@ class WorkoutSessionBloc
     if (oldHead != null &&
         oldHead.setId != _baselineSetId &&
         _historical[exerciseId] != null) {
-      _prSignals.add(PrRevokedSignal(
-        exerciseId: exerciseId,
-        setId: oldHead.setId,
-      ));
+      _prSignals.add(
+        PrRevokedSignal(
+          exerciseId: exerciseId,
+          setId: oldHead.setId,
+        ),
+      );
     }
     // Achieve only when the new head is *strictly better* than the old:
     //   - new head must exist and be a live set,
@@ -243,12 +258,14 @@ class WorkoutSessionBloc
           weight: newHead.record.weight,
           reps: newHead.record.reps,
         )) {
-      _prSignals.add(PrAchievedSignal(
-        exerciseId: exerciseId,
-        setId: newHead.setId,
-        weight: newHead.record.weight,
-        reps: newHead.record.reps,
-      ));
+      _prSignals.add(
+        PrAchievedSignal(
+          exerciseId: exerciseId,
+          setId: newHead.setId,
+          weight: newHead.record.weight,
+          reps: newHead.record.reps,
+        ),
+      );
     }
   }
 
@@ -391,7 +408,8 @@ class WorkoutSessionBloc
       return;
     }
     // Drop expired rest-end if past.
-    final cleaned = (restored.activeRestEndsAt != null &&
+    final cleaned =
+        (restored.activeRestEndsAt != null &&
             restored.activeRestEndsAt!.isBefore(clock.now()))
         ? restored.copyWith(activeRestEndsAt: null)
         : restored;
@@ -424,14 +442,17 @@ class WorkoutSessionBloc
     if (cur != null) emit(SessionActive(cur));
   }
 
-  Future<void> _onLogSet(LogSet event, Emitter<WorkoutSessionState> emit) async {
+  Future<void> _onLogSet(
+    LogSet event,
+    Emitter<WorkoutSessionState> emit,
+  ) async {
     await _mutate(emit, (cur) {
       final next = _mutateExercise(cur, event.exerciseId, (ex) {
         SessionSet logRow(SessionSet s) => s.copyWith(
-              weight: event.weight,
-              reps: event.reps,
-              loggedAt: DateTime.now(),
-            );
+          weight: event.weight,
+          reps: event.reps,
+          loggedAt: DateTime.now(),
+        );
         switch (event.kind) {
           case SetKind.warmup:
             return ex.copyWith(
@@ -461,8 +482,9 @@ class WorkoutSessionBloc
     if (event.kind == SetKind.effective) {
       // PR maps are keyed by catalog exerciseId, not slotId — read the
       // current exerciseId off the slot we just mutated.
-      final slot = _current?.exercises
-          .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+      final slot = _current?.exercises.firstWhereOrNull(
+        (e) => e.slotId == event.exerciseId,
+      );
       final exerciseId = slot?.exerciseId ?? event.exerciseId;
       // Head was null before this set went in: the new head exists but
       // there's no prior to compare against, so _recomputeFor stays
@@ -481,17 +503,18 @@ class WorkoutSessionBloc
     Emitter<WorkoutSessionState> emit,
   ) async {
     final cur = _current;
-    final beforeExercise = cur?.exercises
-        .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+    final beforeExercise = cur?.exercises.firstWhereOrNull(
+      (e) => e.slotId == event.exerciseId,
+    );
     final beforeSet = _findRowById(beforeExercise, event.setId, event.kind);
     final wasLogged = beforeSet?.isLogged ?? false;
 
     await _mutate(emit, (cur) {
       return _mutateExercise(cur, event.exerciseId, (ex) {
         SessionSet apply(SessionSet s) => s.copyWith(
-              weight: event.clearWeight ? null : (event.weight ?? s.weight),
-              reps: event.clearReps ? null : (event.reps ?? s.reps),
-            );
+          weight: event.clearWeight ? null : (event.weight ?? s.weight),
+          reps: event.clearReps ? null : (event.reps ?? s.reps),
+        );
         switch (event.kind) {
           case SetKind.warmup:
             return ex.copyWith(
@@ -519,8 +542,9 @@ class WorkoutSessionBloc
     // to the PR ranking — recompute. Drafts on unlogged sets, warmup
     // rows, or drop-set rows never enter the ranking, so skip otherwise.
     if (event.kind == SetKind.effective && wasLogged) {
-      final slot = _current?.exercises
-          .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+      final slot = _current?.exercises.firstWhereOrNull(
+        (e) => e.slotId == event.exerciseId,
+      );
       _recomputeFor(slot?.exerciseId ?? event.exerciseId);
     }
   }
@@ -583,7 +607,10 @@ class WorkoutSessionBloc
             // Working sets drive targetSets — bump it so the exercise
             // card subtitle and completion math see the new row.
             return ex.copyWith(
-              sets: [...ex.sets, SessionSet(id: _newId('set'))],
+              sets: [
+                ...ex.sets,
+                SessionSet(id: _newId('set')),
+              ],
               targetSets: ex.targetSets + 1,
             );
         }
@@ -607,17 +634,14 @@ class WorkoutSessionBloc
         switch (event.kind) {
           case SetKind.warmup:
             return ex.copyWith(
-              warmups:
-                  ex.warmups.where((w) => w.id != event.setId).toList(),
+              warmups: ex.warmups.where((w) => w.id != event.setId).toList(),
             );
           case SetKind.dropSet:
             return ex.copyWith(
-              dropSets:
-                  ex.dropSets.where((d) => d.id != event.setId).toList(),
+              dropSets: ex.dropSets.where((d) => d.id != event.setId).toList(),
             );
           case SetKind.effective:
-            final newSets =
-                ex.sets.where((s) => s.id != event.setId).toList();
+            final newSets = ex.sets.where((s) => s.id != event.setId).toList();
             return ex.copyWith(
               sets: newSets,
               targetSets: max(0, ex.targetSets - 1),
@@ -626,8 +650,9 @@ class WorkoutSessionBloc
       });
     });
     if (next != null && event.kind == SetKind.effective) {
-      final slot = _current?.exercises
-          .firstWhereOrNull((e) => e.slotId == event.exerciseId);
+      final slot = _current?.exercises.firstWhereOrNull(
+        (e) => e.slotId == event.exerciseId,
+      );
       _recomputeFor(slot?.exerciseId ?? event.exerciseId);
     }
   }
@@ -657,8 +682,8 @@ class WorkoutSessionBloc
     // same catalog exerciseId; otherwise the surviving slot still
     // needs its PR baseline.
     if (removedExerciseId != null) {
-      final stillPresent = _current?.exercises
-              .any((e) => e.exerciseId == removedExerciseId) ??
+      final stillPresent =
+          _current?.exercises.any((e) => e.exerciseId == removedExerciseId) ??
           false;
       if (!stillPresent) {
         _historical.remove(removedExerciseId);
@@ -677,8 +702,9 @@ class WorkoutSessionBloc
     // affected, so a different slot holding the same catalog exerciseId
     // (e.g., the user previously logged "Dumbbell Bench Press" in slot
     // A, then replaces slot B with Dumbbell Bench Press) stays intact.
-    final targetSlot = _current?.exercises
-        .firstWhereOrNull((e) => e.slotId == event.oldExerciseId);
+    final targetSlot = _current?.exercises.firstWhereOrNull(
+      (e) => e.slotId == event.oldExerciseId,
+    );
     if (targetSlot == null) return;
     final oldCatalogExerciseId = targetSlot.exerciseId;
 
@@ -715,8 +741,8 @@ class WorkoutSessionBloc
     });
     // PR baselines are keyed by catalog exerciseId, not slot. Only drop
     // the old baseline if no other surviving slot still references it.
-    final stillPresent = _current?.exercises
-            .any((e) => e.exerciseId == oldCatalogExerciseId) ??
+    final stillPresent =
+        _current?.exercises.any((e) => e.exerciseId == oldCatalogExerciseId) ??
         false;
     if (!stillPresent) {
       _historical.remove(oldCatalogExerciseId);
@@ -815,8 +841,7 @@ class WorkoutSessionBloc
     // (and therefore the PR baseline scan) with an empty completion.
     // Bounce back to SessionActive so the screen stays put while the UI
     // shows a validation toast.
-    final hasAnyLoggedSet =
-        cur.exercises.any((ex) => ex.hasAnyLoggedSet);
+    final hasAnyLoggedSet = cur.exercises.any((ex) => ex.hasAnyLoggedSet);
     if (!hasAnyLoggedSet) {
       emit(const SessionFinishBlockedEmpty());
       emit(SessionActive(cur));
@@ -825,6 +850,11 @@ class WorkoutSessionBloc
 
     emit(const SessionFinishing());
     final finishedAt = DateTime.now();
+    // Week-scoped timestamp for the completion record + rotation week key. In a
+    // debug demo the week clock may be fast-forwarded; in release it equals
+    // finishedAt. Kept separate so elapsed-duration math below stays on real
+    // time and a week-bump never inflates the recorded duration.
+    final completedAt = _weekClock.now();
     final finished = cur.copyWith(
       status: SessionStatus.finished,
       finishedAt: finishedAt,
@@ -840,16 +870,18 @@ class WorkoutSessionBloc
     // the matching card into its "Completed · N mins" state (brief §1).
     // Per clarification 1.3, the latest finish overwrites any earlier
     // one for the same workoutId in the same week.
-    await completionRepository?.upsert(WorkoutCompletion(
-      workoutId: finished.workoutId,
-      completedAt: finishedAt,
-      durationSeconds:
-          finishedAt.difference(finished.startedAt).inSeconds,
-    ));
+    await completionRepository?.upsert(
+      WorkoutCompletion(
+        workoutId: finished.workoutId,
+        completedAt: completedAt,
+        durationSeconds: finishedAt.difference(finished.startedAt).inSeconds,
+      ),
+    );
     // Record the completed exercises into cross-session rotation memory so the
     // next generation steers away from what was just trained. Only generated
-    // PPL workouts carry a split-encoded id; others are skipped.
-    await _recordRotationMemory(finished, finishedAt);
+    // PPL workouts carry a split-encoded id; others are skipped. Uses the
+    // week-scoped timestamp so the rotation dedup week key matches the demo week.
+    await _recordRotationMemory(finished, completedAt);
     emit(const SessionFinished());
     emit(const SessionIdle());
   }
@@ -913,15 +945,15 @@ class WorkoutSessionBloc
   }
 
   Exercise _bareExercise(SessionExercise ex) => Exercise(
-        id: ex.exerciseId,
-        name: ex.name,
-        sets: ex.targetSets,
-        reps: 0,
-        weight: 0,
-        muscleGroups: ex.muscleGroups,
-        equipmentType: ex.equipment,
-        rating: 0,
-      );
+    id: ex.exerciseId,
+    name: ex.name,
+    sets: ex.targetSets,
+    reps: 0,
+    weight: 0,
+    muscleGroups: ex.muscleGroups,
+    equipmentType: ex.equipment,
+    rating: 0,
+  );
 
   // ----- Helpers -----
 

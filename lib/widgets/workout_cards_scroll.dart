@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../core/demo_clock.dart';
+import '../core/service_locator.dart';
 import '../models/workout.dart';
 import '../models/workout_completion.dart';
 import '../screens/home_tab_visibility.dart';
@@ -112,8 +114,7 @@ class _WorkoutCardsScrollState extends State<WorkoutCardsScroll> {
     // handles the rebuild that follows RefreshCompletions etc.
     final bloc = context.read<WorkoutSessionBloc>();
     final cur = bloc.state;
-    if (cur is SessionActive &&
-        cur.session.workoutId != _lastActiveWorkoutId) {
+    if (cur is SessionActive && cur.session.workoutId != _lastActiveWorkoutId) {
       _lastActiveWorkoutId = cur.session.workoutId;
       final idx = activeCardIndex(
         workouts: widget.workouts,
@@ -166,21 +167,23 @@ class _WorkoutCardsScrollState extends State<WorkoutCardsScroll> {
     _postFinishHold?.cancel();
     _postFinishHold = Timer(_completedHold, () {
       if (!mounted) return;
-      final localCompletions = Map<String, WorkoutCompletion>.from(
-        widget.completions,
-      )..putIfAbsent(
-          finishedId,
-          () => WorkoutCompletion(
-            workoutId: finishedId,
-            completedAt: DateTime.now(),
-            durationSeconds: 0,
-          ),
-        );
+      final now = getIt<WeekClock>().now();
+      final localCompletions =
+          Map<String, WorkoutCompletion>.from(
+            widget.completions,
+          )..putIfAbsent(
+            finishedId,
+            () => WorkoutCompletion(
+              workoutId: finishedId,
+              completedAt: now,
+              durationSeconds: 0,
+            ),
+          );
       final nextIdx = nextNotCompletedIndex(
         workouts: widget.workouts,
         fromIndex: idx,
         completions: localCompletions,
-        now: DateTime.now(),
+        now: now,
       );
       if (nextIdx == null || nextIdx == idx) return;
       _scrollTo(nextIdx);
@@ -232,7 +235,9 @@ class _WorkoutCardsScrollState extends State<WorkoutCardsScroll> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final now = DateTime.now();
+    // Week-scoped completion state, so a fast-forwarded demo week reverts
+    // "Completed" cards back to Ready.
+    final now = getIt<WeekClock>().now();
 
     return SizedBox(
       height: 220,
@@ -248,8 +253,8 @@ class _WorkoutCardsScrollState extends State<WorkoutCardsScroll> {
           final completion = widget.completions[workout.id];
           final completionThisWeek =
               (completion != null && isInSameWeek(completion.completedAt, now))
-                  ? completion
-                  : null;
+              ? completion
+              : null;
           return Padding(
             padding: EdgeInsets.only(
               right: index < widget.workouts.length - 1 ? 16 : 0,

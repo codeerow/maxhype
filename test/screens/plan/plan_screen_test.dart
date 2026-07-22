@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maxhype/core/demo_clock.dart';
+import 'package:maxhype/core/haptic_manager.dart';
 import 'package:maxhype/core/service_locator.dart';
 import 'package:maxhype/models/generator/experience_level.dart';
 import 'package:maxhype/models/generator/fitness_plan.dart';
@@ -43,6 +45,11 @@ void main() {
     );
     getIt.registerSingleton<FitnessPlanRepository>(planRepo);
     getIt.registerSingleton<WorkoutRepository>(workoutRepo);
+    // Menu rows tap through TapScale, which fires getIt<HapticManager>().
+    getIt.registerSingleton<HapticManager>(DefaultHapticManager());
+    // The Plan screen reads the week clock; the real clock keeps the debug
+    // demo-week section hidden (it only shows for a DemoWeekClock).
+    getIt.registerSingleton<WeekClock>(const RealWeekClock());
   });
 
   tearDown(getIt.reset);

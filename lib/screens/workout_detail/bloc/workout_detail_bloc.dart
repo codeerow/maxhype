@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/demo_clock.dart';
+import '../../../core/service_locator.dart';
 import '../../../models/workout.dart';
 import '../../../models/workout_completion.dart';
 import '../../../repositories/workout_completion_repository.dart';
@@ -31,10 +33,12 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
         orElse: () => throw Exception('Workout not found'),
       );
       final completion = await _loadCompletionFor(event.workoutId);
-      emit(WorkoutDetailSuccess(
-        workout: workout,
-        completionThisWeek: completion,
-      ));
+      emit(
+        WorkoutDetailSuccess(
+          workout: workout,
+          completionThisWeek: completion,
+        ),
+      );
     } catch (e) {
       emit(WorkoutDetailError(message: e.toString()));
     }
@@ -49,7 +53,11 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
     final all = await repo.loadAll();
     final record = all[workoutId];
     if (record == null) return null;
-    if (!isInSameWeek(record.completedAt, DateTime.now())) return null;
+    // Week-scoped clock, so a debug demo can fast-forward past the week
+    // boundary and revert the "Completed" lock back to Ready.
+    if (!isInSameWeek(record.completedAt, getIt<WeekClock>().now())) {
+      return null;
+    }
     return record;
   }
 
@@ -75,10 +83,12 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
           (w) => w.id == event.workoutId,
           orElse: () => throw Exception('Workout not found'),
         );
-        emit(WorkoutDetailSuccess(
-          workout: updatedWorkout,
-          completionThisWeek: completion,
-        ));
+        emit(
+          WorkoutDetailSuccess(
+            workout: updatedWorkout,
+            completionThisWeek: completion,
+          ),
+        );
       } else {
         // Preview-screen replace: keep the swap local to this bloc's
         // state. The change carries into the live session via
@@ -101,10 +111,12 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
           targetMuscles: current.targetMuscles,
           recoveryInfo: current.recoveryInfo,
         );
-        emit(WorkoutDetailSuccess(
-          workout: updatedWorkout,
-          completionThisWeek: completion,
-        ));
+        emit(
+          WorkoutDetailSuccess(
+            workout: updatedWorkout,
+            completionThisWeek: completion,
+          ),
+        );
       }
     } catch (e) {
       emit(WorkoutDetailError(message: e.toString()));
@@ -136,10 +148,12 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
         recoveryInfo: workout.recoveryInfo,
       );
 
-      emit(WorkoutDetailSuccess(
-        workout: updatedWorkout,
-        completionThisWeek: currentState.completionThisWeek,
-      ));
+      emit(
+        WorkoutDetailSuccess(
+          workout: updatedWorkout,
+          completionThisWeek: currentState.completionThisWeek,
+        ),
+      );
     } catch (e) {
       emit(WorkoutDetailError(message: e.toString()));
     }
