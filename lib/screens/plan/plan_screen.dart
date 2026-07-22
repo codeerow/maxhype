@@ -9,6 +9,7 @@ import '../../repositories/generated_workout_repository.dart';
 import '../../repositories/workout_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/tap_scale.dart';
 import 'plan_option_screen.dart';
 
 /// Minimal fitness-plan configuration surface (Phase 4 Part 2A deliverable
@@ -309,11 +310,18 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   /// A `Title → value ›` menu row that opens a picker on tap.
+  ///
+  /// Uses the app-standard [TapScale] (scale + opacity press, light haptic)
+  /// like every other tappable row/card. Deliberately not an [InkWell]: the
+  /// card paints an opaque background above the row, so a Material ripple would
+  /// render behind that fill and bleed past the card's rounded corners.
   Widget _menuRow({
     required String title,
     required String value,
     required VoidCallback onTap,
-  }) => InkWell(
+  }) => TapScale.preset(
+    preset: TapScalePreset.surface,
+    enableHaptic: true,
     onTap: onTap,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -347,15 +355,23 @@ class _PlanScreenState extends State<PlanScreen> {
     ),
   );
 
-  Widget _saveButton() => SizedBox(
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: _saving ? null : _save,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppTheme.primaryOrange,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _saveButton() => TapScale(
+    scaleDown: TapScalePreset.cta.scale,
+    enableHaptic: true,
+    // Disable the press (and haptic) while a save is in flight.
+    onTap: _saving ? null : _save,
+    child: Container(
+      width: double.infinity,
+      // Slightly dim the fill while saving to read as disabled, matching the
+      // former ElevatedButton's disabled state.
+      decoration: BoxDecoration(
+        color: _saving
+            ? AppTheme.primaryOrange.withValues(alpha: 0.6)
+            : AppTheme.primaryOrange,
+        borderRadius: BorderRadius.circular(12),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      alignment: Alignment.center,
       child: _saving
           ? const SizedBox(
               height: 20,

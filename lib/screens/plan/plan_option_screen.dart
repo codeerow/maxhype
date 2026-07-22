@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/tap_scale.dart';
 
 /// One selectable option on a [PlanOptionScreen].
 class PlanOption<T> {
@@ -82,7 +83,9 @@ class PlanOptionScreen<T> extends StatelessWidget {
 
   Widget _topBar(BuildContext context) => Row(
     children: [
-      GestureDetector(
+      TapScale.preset(
+        preset: TapScalePreset.icon,
+        enableHaptic: true,
         onTap: () => Navigator.of(context).maybePop(),
         child: Container(
           width: 36,
@@ -152,7 +155,13 @@ class PlanOptionScreen<T> extends StatelessWidget {
     final isSelected = option.value == selected;
     return Opacity(
       opacity: option.enabled ? 1 : 0.45,
-      child: InkWell(
+      // App-standard [TapScale] press (scale + light haptic), not an InkWell:
+      // each row paints an opaque fill above the child, so a Material ripple
+      // would render behind that fill and bleed past the card's rounded
+      // corners.
+      child: TapScale.preset(
+        preset: TapScalePreset.surface,
+        enableHaptic: option.enabled,
         onTap: () {
           if (!option.enabled) {
             ScaffoldMessenger.of(context)
