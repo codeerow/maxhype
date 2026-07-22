@@ -36,9 +36,9 @@ class ExerciseScorer {
     MovementCaps caps = const MovementCaps(),
     AntiDominance antiDominance = const AntiDominance(),
     Similarity similarity = const Similarity(),
-  })  : _caps = caps,
-        _antiDom = antiDominance,
-        _similarity = similarity;
+  }) : _caps = caps,
+       _antiDom = antiDominance,
+       _similarity = similarity;
 
   final MovementCaps _caps;
   final AntiDominance _antiDom;
@@ -57,6 +57,15 @@ class ExerciseScorer {
   /// Movement-group diversity nudges (script.js:8537-8538).
   static const double _freshGroupBonus = 3;
   static const double _repeatGroupPenalty = -15;
+
+  /// Legs near-duplicate soft caps (script.js:9341-9361). These catch two
+  /// near-identical movements the taxonomy-based similarity pass can miss when
+  /// the names differ but the exercise is effectively the same lift:
+  ///   * a 2nd hip thrust / bridge  → -40
+  ///   * a 2nd leg-curl variant     → -30
+  /// Name-based, matching the prototype (which matched on lowercased names).
+  static const double _secondHipThrustPenalty = -40;
+  static const double _secondLegCurlPenalty = -30;
 
   /// Categories `countPressMovements` treats as a press (script.js:7754
   /// `PRESS_CATEGORIES`). Exactly these four — "compound press" is deliberately
@@ -93,7 +102,36 @@ class ExerciseScorer {
     // Phase 16 similarity smoothing (collapsed to the biomechanical-axis
     // cascade + the one CGBP/flat-press outlier).
     final similarity = _similarity.penaltyFor(candidate, slot, state);
-    return equip + mgScore + balance + antiDom + anchor + similarity;
+    // Legs near-duplicate soft caps (2nd hip thrust / 2nd leg-curl).
+    final legsDup = _scoreLegsNearDuplicate(candidate, state);
+    return equip + mgScore + balance + antiDom + anchor + similarity + legsDup;
+  }
+
+  /// Ports the prototype's two name-based legs soft caps (script.js:9341-9361):
+  /// a second hip thrust / bridge is penalized -40, a second leg-curl -30. Fires
+  /// only when a matching movement is already committed. These are distinct from
+  /// the taxonomy similarity pass — they key on the exercise name, so they catch
+  /// same-lift duplicates whose metadata differs.
+  double _scoreLegsNearDuplicate(Exercise candidate, BuildState state) {
+    final name = candidate.name.toLowerCase();
+    final isThrustOrBridge =
+        name.contains('hip thrust') || name.contains('bridge');
+    final isLegCurl =
+        name.contains('leg curl') || name.contains('hamstring curl');
+    if (!isThrustOrBridge && !isLegCurl) return 0;
+
+    for (final ex in state.exercises) {
+      final other = ex.name.toLowerCase();
+      if (isThrustOrBridge &&
+          (other.contains('hip thrust') || other.contains('bridge'))) {
+        return _secondHipThrustPenalty;
+      }
+      if (isLegCurl &&
+          (other.contains('leg curl') || other.contains('hamstring curl'))) {
+        return _secondLegCurlPenalty;
+      }
+    }
+    return 0;
   }
 
   /// Soft movement-balance penalties (the score-side of the cap system):
