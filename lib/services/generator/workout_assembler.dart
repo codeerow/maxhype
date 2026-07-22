@@ -2,6 +2,7 @@ import '../../models/exercise.dart';
 import '../../models/muscle_group.dart';
 import '../../models/workout.dart';
 import '../../models/generator/fitness_plan.dart';
+import '../../models/generator/rotation_memory.dart';
 import '../../models/generator/split_type.dart';
 import 'workout_generator_service.dart';
 
@@ -25,7 +26,11 @@ class WorkoutAssembler {
   /// Builds the full card set for [plan]. Each card is a generated workout;
   /// [seedBase] pins reproducibility (each card offsets the base so cards in a
   /// plan differ from each other while the whole plan is reproducible).
-  List<Workout> buildCards(FitnessPlan plan, {required int seedBase}) {
+  List<Workout> buildCards(
+    FitnessPlan plan, {
+    required int seedBase,
+    RotationMemory rotationMemory = const RotationMemory.empty(),
+  }) {
     if (plan.split != SplitType.ppl) {
       throw ArgumentError('2A generates PPL only; got ${plan.split}.');
     }
@@ -38,6 +43,7 @@ class WorkoutAssembler {
           splitName: splitName,
           durationMinutes: plan.durationMinutes,
           experience: plan.experience,
+          rotationMemory: rotationMemory,
         ),
         seed: seedBase + i,
       );

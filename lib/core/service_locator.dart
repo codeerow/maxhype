@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
+import 'demo_clock.dart';
 import 'haptic_manager.dart';
 import '../repositories/workout_repository.dart';
 import '../repositories/generated_workout_repository.dart';
@@ -8,6 +10,8 @@ import '../repositories/mock_exercise_repository.dart';
 import '../repositories/asset_exercise_repository.dart';
 import '../repositories/fitness_plan_repository.dart';
 import '../repositories/local_fitness_plan_repository.dart';
+import '../repositories/rotation_memory_repository.dart';
+import '../repositories/local_rotation_memory_repository.dart';
 import '../services/generator/workout_generator_service.dart';
 import '../services/generator/workout_assembler.dart';
 import '../repositories/workout_session_repository.dart';
@@ -58,10 +62,25 @@ Future<void> setupDependencies() async {
   getIt.registerLazySingleton<WorkoutAssembler>(
     () => WorkoutAssembler(getIt<WorkoutGeneratorService>()),
   );
+  // Cross-session rotation memory (Part 2B). Persisted separately; generation
+  // reads a snapshot, a completed workout writes into it. Registered before the
+  // workout repository so generation can steer away from recently-trained work.
+  getIt.registerLazySingleton<RotationMemoryRepository>(
+    () => LocalRotationMemoryRepository(),
+  );
   getIt.registerLazySingleton<WorkoutRepository>(
     () => GeneratedWorkoutRepository(
       planRepository: getIt<FitnessPlanRepository>(),
       assembler: getIt<WorkoutAssembler>(),
+      rotationMemoryRepository: getIt<RotationMemoryRepository>(),
+      // Same week clock as the completion lock, so cards regenerate on the
+      // week rollover (real time in release, demo-shiftable in debug).
+      weekClock: getIt<WeekClock>(),
+      // Suppress the week rebuild while a workout is in progress so a live
+      // session's exercises are never swapped out. Resolved lazily via getIt
+      // because the session repo is registered after this one.
+      hasActiveSession: () async =>
+          await getIt<WorkoutSessionRepository>().loadActive() != null,
     ),
   );
 
@@ -101,6 +120,16 @@ Future<void> setupDependencies() async {
     () => DefaultHapticManager(),
   );
 
+  // Week-scoped clock. In release it is the real clock (zero overhead, no demo
+  // surface). In debug it is the demo clock, which a presenter can fast-forward
+  // by whole weeks from the Plan screen to show the "Completed this week" lock
+  // and rotation-memory behaviour without touching the device system clock.
+  // Only week-scoped reads use this; timers stay on real time. The debug
+  // instance's persisted offset is loaded eagerly below.
+  getIt.registerLazySingleton<WeekClock>(
+    () => kDebugMode ? DemoWeekClock() : const RealWeekClock(),
+  );
+
   // Register BLoCs
   // Using registerFactory means a new instance is created each time
   // This is appropriate for BLoCs that should be fresh for each screen
@@ -127,6 +156,15 @@ Future<void> setupDependencies() async {
       repository: getIt<WorkoutSessionRepository>(),
       prRepository: getIt<PersonalRecordRepository>(),
       completionRepository: getIt<WorkoutCompletionRepository>(),
+      rotationMemoryRepository: getIt<RotationMemoryRepository>(),
+      // Week-scoped clock for the completion timestamp + rotation week key, so
+      // a demo week-bump makes a finished workout land in the shifted week.
+      weekClock: getIt<WeekClock>(),
+      // Resolve completed session exercises back to the asset library so they
+      // bucket correctly for rotation memory (session exercises carry no
+      // generator metadata). Name-based, matching the id-collision fix.
+      exerciseResolver: (name) =>
+          getIt<AssetExerciseRepository>().getExerciseByName(name),
     ),
   );
 
@@ -134,4 +172,11 @@ Future<void> setupDependencies() async {
   // once the app is running. Cheap (one bundled JSON read) and keeps Part 2's
   // generator free of async plumbing on every lookup.
   await getIt<AssetExerciseRepository>().load();
+
+  // Apply any persisted demo week offset before the first frame reads it
+  // (debug only — release uses the real clock, which has no offset to load).
+  final weekClock = getIt<WeekClock>();
+  if (weekClock is DemoWeekClock) {
+    await weekClock.load();
+  }
 }

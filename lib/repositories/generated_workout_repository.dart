@@ -1,13 +1,17 @@
 import 'dart:async';
 
+import '../core/demo_clock.dart';
 import '../models/exercise.dart';
 import '../models/workout.dart';
 import '../models/monthly_data.dart';
 import '../models/all_time_stats.dart';
 import '../models/generator/fitness_plan.dart';
+import '../models/generator/rotation_memory.dart';
+import '../models/workout_completion.dart';
 import '../data/mock_data.dart';
 import '../services/generator/workout_assembler.dart';
 import 'fitness_plan_repository.dart';
+import 'rotation_memory_repository.dart';
 import 'workout_repository.dart';
 
 /// [WorkoutRepository] backed by the PPL generator.
@@ -26,20 +30,41 @@ import 'workout_repository.dart';
 /// plan always yields the same cards (stable identity across restarts) while a
 /// plan change yields a fresh set. [regenerate] rebuilds after a plan edit.
 ///
+/// Cards are also regenerated when the ISO week changes, so a new week reflects
+/// cross-session rotation memory (which dedups completions per week) without a
+/// manual plan save — matching how the completed-this-week lock resets. The
+/// week rebuild is suppressed while a session is active so a live workout's
+/// exercises never change under the user (preserves workout identity and the
+/// one-active-workout rule); it happens on the next read after the session
+/// finishes.
+///
 /// Monthly data and all-time stats remain mock — they're a stats-display
 /// concern outside the generator's scope for Part 2A.
 class GeneratedWorkoutRepository implements WorkoutRepository {
   final FitnessPlanRepository _planRepository;
   final WorkoutAssembler _assembler;
+  final RotationMemoryRepository? _rotationMemoryRepository;
+  final WeekClock _weekClock;
+  final Future<bool> Function()? _hasActiveSession;
 
   GeneratedWorkoutRepository({
     required FitnessPlanRepository planRepository,
     required WorkoutAssembler assembler,
+    RotationMemoryRepository? rotationMemoryRepository,
+    WeekClock? weekClock,
+    Future<bool> Function()? hasActiveSession,
   }) : _planRepository = planRepository,
-       _assembler = assembler;
+       _assembler = assembler,
+       _rotationMemoryRepository = rotationMemoryRepository,
+       _weekClock = weekClock ?? const RealWeekClock(),
+       _hasActiveSession = hasActiveSession;
 
   List<Workout>? _workouts;
   FitnessPlan? _generatedFor;
+
+  /// ISO (year, week) the cached cards were generated for, so a week rollover
+  /// triggers a rebuild. Null until the first generation.
+  ({int year, int week})? _generatedWeek;
 
   /// Broadcast controller for the reactive [watchWorkouts] view. Broadcast so
   /// multiple listeners (and re-listens) are fine; the latest list is replayed
@@ -64,12 +89,39 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
 
   Future<List<Workout>> _ensureGenerated() async {
     final plan = await _planRepository.load();
-    // Regenerate if never generated, or if the plan changed since last time.
-    if (_workouts == null || !_samePlan(_generatedFor, plan)) {
-      _setWorkouts(_assembler.buildCards(plan, seedBase: _seedForPlan(plan)));
+    if (await _shouldRegenerate(plan)) {
+      final rotation =
+          await _rotationMemoryRepository?.load() ??
+          const RotationMemory.empty();
+      _setWorkouts(
+        _assembler.buildCards(
+          plan,
+          seedBase: _seedForPlan(plan),
+          rotationMemory: rotation,
+        ),
+      );
       _generatedFor = plan;
+      _generatedWeek = isoWeekOf(_weekClock.now());
     }
     return _workouts!;
+  }
+
+  /// Whether the cached cards are stale and need rebuilding:
+  /// - never generated, or
+  /// - the plan changed since last time, or
+  /// - the ISO week rolled over — but only if no session is active, so a live
+  ///   workout's exercises are never swapped out from under the user. The week
+  ///   rebuild then happens on the next read after the session ends.
+  Future<bool> _shouldRegenerate(FitnessPlan plan) async {
+    if (_workouts == null || !_samePlan(_generatedFor, plan)) return true;
+    final currentWeek = isoWeekOf(_weekClock.now());
+    if (_generatedWeek != null &&
+        (currentWeek.year != _generatedWeek!.year ||
+            currentWeek.week != _generatedWeek!.week)) {
+      final active = await _hasActiveSession?.call() ?? false;
+      return !active;
+    }
+    return false;
   }
 
   /// Forces a rebuild from the latest persisted plan (call after a plan edit).
@@ -77,6 +129,7 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
   Future<List<Workout>> regenerate() async {
     _workouts = null;
     _generatedFor = null;
+    _generatedWeek = null;
     return _ensureGenerated();
   }
 

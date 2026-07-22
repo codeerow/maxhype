@@ -658,6 +658,8 @@ class _LoggingScaffoldState extends State<_LoggingScaffold> {
     showExerciseOptionsSheet(
       context,
       exercise: ex,
+      usedNames:
+          widget.session?.exercises.map((e) => e.name).toSet() ?? const {},
       onReplace: (newExercise) {
         // Hand replacement to whichever store the screen is bound to:
         // - Live mode → WorkoutSessionBloc.ReplaceExercise via slot.

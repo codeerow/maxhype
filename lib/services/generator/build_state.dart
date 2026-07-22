@@ -1,4 +1,6 @@
 import '../../models/exercise.dart';
+import '../../models/generator/rotation_memory.dart';
+import 'movement_caps.dart';
 
 /// Per-build mutable state for one workout generation.
 ///
@@ -11,7 +13,16 @@ class BuildState {
   /// The split being built ("Push Day" / "Pull Day" / "Legs + Core").
   final String split;
 
-  BuildState(this.split);
+  BuildState(
+    this.split, {
+    MovementCaps caps = const MovementCaps(),
+    this.rotationMemory = const RotationMemory.empty(),
+  }) : _caps = caps;
+
+  final MovementCaps _caps;
+
+  /// Cross-session rotation memory for this build (empty when no history).
+  final RotationMemory rotationMemory;
 
   /// Exercises committed so far, in slot order.
   final List<Exercise> exercises = [];
@@ -32,6 +43,18 @@ class BuildState {
   /// the second primary pull to alternate (horizontal <-> vertical).
   String? firstPullPattern;
 
+  /// Pull Day: how many primary-pull-pattern exercises are committed. The
+  /// alternation constraint only applies to the second one (count == 1).
+  int primaryPullCount = 0;
+
+  /// The movement patterns treated as a "primary pull" for alternation
+  /// (script.js `_isPrimaryPullPattern`).
+  static const Set<String> primaryPullPatterns = {
+    'horizontal_row',
+    'supported_row',
+    'vertical_pull',
+  };
+
   /// Movement-pattern bucket usage this build (pattern caps).
   final Map<String, int> patternUsage = {};
 
@@ -46,7 +69,8 @@ class BuildState {
 
   bool isNameUsed(String name) => usedNames.contains(name);
 
-  /// Records a committed pick against all trackers.
+  /// Records a committed pick against all trackers, including the movement
+  /// pattern/stimulus balance buckets used by the cap system.
   void commit(Exercise exercise, {String? slotType, String? movementGroup}) {
     exercises.add(exercise);
     usedNames.add(exercise.name);
@@ -57,6 +81,21 @@ class BuildState {
       final byName = slotUsage.putIfAbsent(slotType, () => {});
       byName[exercise.name] = (byName[exercise.name] ?? 0) + 1;
       slotTotals[slotType] = (slotTotals[slotType] ?? 0) + 1;
+    }
+    // Movement-balance bucket counts (pattern/stimulus caps + soft penalties).
+    final patternBucket = _caps.patternBucketOf(exercise, split);
+    if (patternBucket != null) bumpPattern(patternBucket);
+    final stimulusBucket = _caps.stimulusBucketOf(exercise, split);
+    if (stimulusBucket != null) bumpStimulus(stimulusBucket);
+    // Pull-alternation registration (script.js `_registerPullAlternation`):
+    // record the first primary-pull pattern and count subsequent ones so the
+    // second primary pull is forced to alternate horizontal <-> vertical.
+    if (split == 'Pull Day') {
+      final p = meta?.movementPattern;
+      if (p != null && primaryPullPatterns.contains(p)) {
+        firstPullPattern ??= p;
+        primaryPullCount++;
+      }
     }
   }
 

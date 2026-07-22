@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/demo_clock.dart';
 import '../../core/service_locator.dart';
 import '../../models/generator/experience_level.dart';
 import '../../models/generator/fitness_plan.dart';
@@ -9,6 +11,7 @@ import '../../repositories/generated_workout_repository.dart';
 import '../../repositories/workout_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/tap_scale.dart';
 import 'plan_option_screen.dart';
 
 /// Minimal fitness-plan configuration surface (Phase 4 Part 2A deliverable
@@ -130,6 +133,13 @@ class _PlanScreenState extends State<PlanScreen> {
                       onTap: () => _pickWeight(plan),
                     ),
                   ]),
+                  // Debug-only: fast-forward the app's week to demo the
+                  // "Completed this week" lock + rotation memory without
+                  // touching the device clock. Compiled out of release builds.
+                  if (kDebugMode && getIt<WeekClock>() is DemoWeekClock) ...[
+                    _sectionLabel('Demo (debug only)'),
+                    _demoWeekCard(),
+                  ],
                   const SizedBox(height: 24),
                   _saveButton(),
                 ],
@@ -309,11 +319,18 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   /// A `Title → value ›` menu row that opens a picker on tap.
+  ///
+  /// Uses the app-standard [TapScale] (scale + opacity press, light haptic)
+  /// like every other tappable row/card. Deliberately not an [InkWell]: the
+  /// card paints an opaque background above the row, so a Material ripple would
+  /// render behind that fill and bleed past the card's rounded corners.
   Widget _menuRow({
     required String title,
     required String value,
     required VoidCallback onTap,
-  }) => InkWell(
+  }) => TapScale.preset(
+    preset: TapScalePreset.surface,
+    enableHaptic: true,
     onTap: onTap,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -347,15 +364,23 @@ class _PlanScreenState extends State<PlanScreen> {
     ),
   );
 
-  Widget _saveButton() => SizedBox(
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: _saving ? null : _save,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppTheme.primaryOrange,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _saveButton() => TapScale(
+    scaleDown: TapScalePreset.cta.scale,
+    enableHaptic: true,
+    // Disable the press (and haptic) while a save is in flight.
+    onTap: _saving ? null : _save,
+    child: Container(
+      width: double.infinity,
+      // Slightly dim the fill while saving to read as disabled, matching the
+      // former ElevatedButton's disabled state.
+      decoration: BoxDecoration(
+        color: _saving
+            ? AppTheme.primaryOrange.withValues(alpha: 0.6)
+            : AppTheme.primaryOrange,
+        borderRadius: BorderRadius.circular(12),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      alignment: Alignment.center,
       child: _saving
           ? const SizedBox(
               height: 20,
@@ -373,6 +398,112 @@ class _PlanScreenState extends State<PlanScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+    ),
+  );
+
+  // ---- Debug: demo week fast-forward ---------------------------------------
+
+  /// Reads the current demo week offset (0 = real time). Only called when the
+  /// registered [WeekClock] is a [DemoWeekClock] (debug builds).
+  int get _demoWeekOffset => (getIt<WeekClock>() as DemoWeekClock).weekOffset;
+
+  Future<void> _bumpDemoWeeks(int delta) async {
+    await (getIt<WeekClock>() as DemoWeekClock).bumpWeeks(delta);
+    if (!mounted) return;
+    // Rebuild so the label updates; home cards re-read the clock on their next
+    // build (returning to Home / RefreshCompletions), reverting stale locks.
+    setState(() {});
+  }
+
+  Future<void> _resetDemoWeeks() async {
+    await (getIt<WeekClock>() as DemoWeekClock).reset();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Widget _demoWeekCard() {
+    final offset = _demoWeekOffset;
+    final label = offset == 0
+        ? 'Real time (today)'
+        : '+$offset week${offset == 1 ? '' : 's'} ahead';
+    return _card([
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Demo week',
+                    style: TextStyle(color: Colors.white, fontSize: 15),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _demoStepButton(
+              icon: Icons.remove,
+              onTap: offset > 0 ? () => _bumpDemoWeeks(-1) : null,
+            ),
+            const SizedBox(width: 10),
+            _demoStepButton(
+              icon: Icons.add,
+              onTap: offset < 12 ? () => _bumpDemoWeeks(1) : null,
+            ),
+            if (offset > 0) ...[
+              const SizedBox(width: 10),
+              TapScale.preset(
+                preset: TapScalePreset.surface,
+                enableHaptic: true,
+                onTap: _resetDemoWeeks,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Text(
+                    'Reset',
+                    style: TextStyle(
+                      color: AppTheme.primaryOrange,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ]);
+  }
+
+  Widget _demoStepButton({
+    required IconData icon,
+    required VoidCallback? onTap,
+  }) => TapScale.preset(
+    preset: TapScalePreset.surface,
+    enableHaptic: true,
+    onTap: onTap,
+    child: Opacity(
+      opacity: onTap == null ? 0.35 : 1,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: AppTheme.planBackground,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppTheme.planCardBorder),
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
     ),
   );
 }

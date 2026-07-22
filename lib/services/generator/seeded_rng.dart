@@ -61,6 +61,78 @@ class SeededRng {
     return items[weightedIndex(weights)];
   }
 
+  /// Picks one item from a score-ranked list, mirroring the prototype's
+  /// `weightedPickFromTop`. [scored] must be sorted by score descending.
+  ///
+  /// The prototype's selection is deliberately stochastic so repeated builds
+  /// vary while still favoring high-scoring candidates:
+  ///   * Empty → null; single → that item.
+  ///   * Small pool (≤5): square-root-compress the shifted score
+  ///     (`pow(score - minScore + 1, 0.5)`) and add `[0, 0.5)` jitter, so the
+  ///     top candidate can't dominate a tiny pool.
+  ///   * Larger pool (>5): sqrt-compress positive scores toward the max, take
+  ///     the top [topK] (=7), convert to weights `(score - minScore) + 1`
+  ///     floored at 1, then scale each by `0.7 + rand*0.6` ([0.7, 1.3]).
+  ///
+  /// Ported verbatim from script.js `weightedPickFromTop` (lines 7958-8050) so
+  /// selection statistics match the web prototype.
+  T? weightedPickFromTop<T>(
+    List<({T item, double score})> scored, {
+    int topK = 7,
+  }) {
+    if (scored.isEmpty) return null;
+    if (scored.length == 1) return scored.first.item;
+
+    // Small-pool flattening: 2–5 candidates.
+    if (scored.length <= 5) {
+      final smMin = scored.last.score;
+      final weights = <double>[];
+      for (final s in scored) {
+        weights.add(pow(s.score - smMin + 1, 0.5).toDouble() +
+            _random.nextDouble() * 0.5);
+      }
+      return _rollWeighted(scored, weights);
+    }
+
+    // Larger pool: sqrt-compress positive scores toward the max, then TOP_K.
+    final maxScore = scored.first.score;
+    final compressed = <({T item, double score})>[];
+    for (final s in scored) {
+      var score = s.score;
+      if (maxScore > 0 && score > 0) {
+        score = maxScore * pow(score / maxScore, 0.5).toDouble();
+      }
+      compressed.add((item: s.item, score: score));
+    }
+
+    final k = topK < compressed.length ? topK : compressed.length;
+    final top = compressed.sublist(0, k);
+    final minScore = top.last.score;
+    final weights = <double>[
+      for (final t in top)
+        (((t.score - minScore) + 1).clamp(1, double.infinity) as double) *
+            (0.7 + _random.nextDouble() * 0.6),
+    ];
+    return _rollWeighted(top, weights);
+  }
+
+  /// Weighted roulette over a scored list using the given parallel [weights].
+  T _rollWeighted<T>(
+    List<({T item, double score})> scored,
+    List<double> weights,
+  ) {
+    var total = 0.0;
+    for (final w in weights) {
+      total += w;
+    }
+    var roll = _random.nextDouble() * total;
+    for (var i = 0; i < scored.length; i++) {
+      roll -= weights[i];
+      if (roll < 0) return scored[i].item;
+    }
+    return scored.last.item; // floating-point guard
+  }
+
   /// In-place Fisher–Yates shuffle.
   void shuffle<T>(List<T> items) {
     for (var i = items.length - 1; i > 0; i--) {

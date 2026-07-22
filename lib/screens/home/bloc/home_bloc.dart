@@ -19,6 +19,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }) : super(const HomeLoading()) {
     on<HomeInitial>(_onInitial);
     on<RefreshCompletions>(_onRefreshCompletions);
+    on<RefreshWorkouts>(_onRefreshWorkouts);
     on<WorkoutsUpdated>(_onWorkoutsUpdated);
 
     // Follow live workout updates (plan regeneration, Replace mutations) so the
@@ -74,6 +75,29 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   Future<void> close() {
     _workoutsSub?.cancel();
     return super.close();
+  }
+
+  /// Re-reads the workout list on foreground/return-to-Home. The generated
+  /// repository self-invalidates on an ISO-week rollover (guarded by any active
+  /// session) and pushes the rebuilt list on its `watchWorkouts()` stream, which
+  /// [_onWorkoutsUpdated] applies — so this handler just needs to poke the read.
+  /// It also emits directly in case the repository's stream doesn't (e.g. the
+  /// list is unchanged), keeping the completion map intact.
+  Future<void> _onRefreshWorkouts(
+    RefreshWorkouts event,
+    Emitter<HomeState> emit,
+  ) async {
+    final cur = state;
+    if (cur is! HomeSuccess) return;
+    final workouts = await repository.getWorkouts();
+    emit(
+      HomeSuccess(
+        workouts: workouts,
+        monthlyData: cur.monthlyData,
+        allTimeStats: cur.allTimeStats,
+        completions: cur.completions,
+      ),
+    );
   }
 
   Future<void> _onRefreshCompletions(
