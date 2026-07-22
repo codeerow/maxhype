@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maxhype/core/demo_clock.dart';
 import 'package:maxhype/models/exercise.dart';
 import 'package:maxhype/models/equipment_type.dart';
 import 'package:maxhype/models/muscle_group.dart';
@@ -20,6 +21,14 @@ class _FakePlanRepo implements FitnessPlanRepository {
   Future<FitnessPlan> load() async => plan;
   @override
   Future<void> save(FitnessPlan p) async => plan = p;
+}
+
+/// A [WeekClock] the test drives directly, to force ISO-week rollovers.
+class _FixedWeekClock implements WeekClock {
+  DateTime value;
+  _FixedWeekClock(this.value);
+  @override
+  DateTime now() => value;
 }
 
 Future<GeneratedWorkoutRepository> repoFor(FitnessPlan plan) async {
@@ -176,6 +185,121 @@ void main() {
 
       // The latest emission reflects the swap.
       expect(emissions.last.first.exercises.first.name, 'Swapped Lift');
+    });
+  });
+
+  group('ISO-week rollover regeneration', () {
+    Future<GeneratedWorkoutRepository> repoWith({
+      required WeekClock clock,
+      Future<bool> Function()? hasActiveSession,
+    }) async {
+      final assetRepo = AssetExerciseRepository(
+        jsonLoader: () async =>
+            File('assets/data/exercise_library.json').readAsString(),
+      );
+      await assetRepo.load();
+      return GeneratedWorkoutRepository(
+        // Advanced 90/3-day: rotation memory has enough headroom to shift picks.
+        planRepository: _FakePlanRepo(
+          FitnessPlan.defaults().copyWith(daysPerWeek: 3),
+        ),
+        assembler: WorkoutAssembler(AssetWorkoutGeneratorService(assetRepo)),
+        weekClock: clock,
+        hasActiveSession: hasActiveSession,
+      );
+    }
+
+    test('same week → cards stay identical (no rebuild)', () async {
+      final clock = _FixedWeekClock(DateTime(2026, 7, 22));
+      final repo = await repoWith(clock: clock);
+      final a = await repo.getWorkouts();
+      // Advance a few days but stay in the same ISO week.
+      clock.value = DateTime(2026, 7, 24);
+      final b = await repo.getWorkouts();
+      for (var i = 0; i < a.length; i++) {
+        expect(a[i].id, b[i].id);
+      }
+    });
+
+    test('new ISO week → regenerates (fresh generation runs)', () async {
+      final clock = _FixedWeekClock(DateTime(2026, 7, 22));
+      final repo = await repoWith(clock: clock);
+      final before = await repo.getWorkouts();
+
+      // Mutate a card, then cross into the next ISO week: a rebuild must
+      // discard the in-memory mutation (proving generation re-ran).
+      await repo.replaceExercise(
+        workoutId: before.first.id,
+        oldExerciseId: before.first.exercises.first.id,
+        newExercise: before.first.exercises.first.copyWith(
+          name: 'Sentinel Lift',
+        ),
+      );
+      clock.value = DateTime(2026, 7, 29); // +1 week
+
+      final after = await repo.getWorkouts();
+      expect(
+        after.first.exercises.map((e) => e.name),
+        isNot(contains('Sentinel Lift')),
+      );
+    });
+
+    test('new ISO week but session active → does NOT regenerate', () async {
+      final clock = _FixedWeekClock(DateTime(2026, 7, 22));
+      final repo = await repoWith(
+        clock: clock,
+        hasActiveSession: () async => true,
+      );
+      final before = await repo.getWorkouts();
+      // A live mutation stands in for "the workout the user is training".
+      await repo.replaceExercise(
+        workoutId: before.first.id,
+        oldExerciseId: before.first.exercises.first.id,
+        newExercise: before.first.exercises.first.copyWith(
+          name: 'Sentinel Lift',
+        ),
+      );
+
+      clock.value = DateTime(2026, 7, 29); // +1 week, but a session is active
+      final after = await repo.getWorkouts();
+      // The mutation survives → no rebuild happened under the active session.
+      expect(
+        after.first.exercises.map((e) => e.name),
+        contains('Sentinel Lift'),
+      );
+    });
+
+    test('week rebuild resumes once the session ends', () async {
+      final clock = _FixedWeekClock(DateTime(2026, 7, 22));
+      var active = true;
+      final repo = await repoWith(
+        clock: clock,
+        hasActiveSession: () async => active,
+      );
+      final before = await repo.getWorkouts();
+      await repo.replaceExercise(
+        workoutId: before.first.id,
+        oldExerciseId: before.first.exercises.first.id,
+        newExercise: before.first.exercises.first.copyWith(
+          name: 'Sentinel Lift',
+        ),
+      );
+      clock.value = DateTime(2026, 7, 29);
+
+      // Still active: no rebuild.
+      var after = await repo.getWorkouts();
+      expect(
+        after.first.exercises.map((e) => e.name),
+        contains('Sentinel Lift'),
+      );
+
+      // Session ends → next read rebuilds for the new week.
+      active = false;
+      after = await repo.getWorkouts();
+      expect(
+        after.first.exercises.map((e) => e.name),
+        isNot(contains('Sentinel Lift')),
+      );
     });
   });
 }

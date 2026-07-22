@@ -73,6 +73,14 @@ Future<void> setupDependencies() async {
       planRepository: getIt<FitnessPlanRepository>(),
       assembler: getIt<WorkoutAssembler>(),
       rotationMemoryRepository: getIt<RotationMemoryRepository>(),
+      // Same week clock as the completion lock, so cards regenerate on the
+      // week rollover (real time in release, demo-shiftable in debug).
+      weekClock: getIt<WeekClock>(),
+      // Suppress the week rebuild while a workout is in progress so a live
+      // session's exercises are never swapped out. Resolved lazily via getIt
+      // because the session repo is registered after this one.
+      hasActiveSession: () async =>
+          await getIt<WorkoutSessionRepository>().loadActive() != null,
     ),
   );
 
