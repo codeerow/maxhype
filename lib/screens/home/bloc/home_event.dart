@@ -34,3 +34,11 @@ class WorkoutsUpdated extends HomeEvent {
   final List<Workout> workouts;
   const WorkoutsUpdated(this.workouts);
 }
+
+/// Internal event fired when the user toggles the weight unit (KG/LB) on the
+/// Plan screen. Re-reads monthly data and all-time stats so their volume
+/// figures (converted at the repository boundary) reflect the new unit, keeping
+/// the workout list and completion map intact.
+class UnitsChanged extends HomeEvent {
+  const UnitsChanged();
+}

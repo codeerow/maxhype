@@ -61,6 +61,12 @@ class FitnessPlan {
   /// Bodyweight, stored in the user's chosen [units].
   final double weight;
 
+  /// Regeneration counter. Bumped by the "Regenerate" action to request a fresh
+  /// exercise selection for the *same* settings. It feeds the generator seed, so
+  /// incrementing it yields a different (but still deterministic and
+  /// reproducible) set without changing split/days/duration/experience.
+  final int generation;
+
   const FitnessPlan({
     required this.split,
     required this.daysPerWeek,
@@ -70,6 +76,7 @@ class FitnessPlan {
     required this.sex,
     required this.age,
     required this.weight,
+    this.generation = 0,
   });
 
   /// Safe starting values so the app has a valid plan before any onboarding
@@ -94,6 +101,7 @@ class FitnessPlan {
     Sex? sex,
     int? age,
     double? weight,
+    int? generation,
   }) {
     return FitnessPlan(
       split: split ?? this.split,
@@ -104,6 +112,7 @@ class FitnessPlan {
       sex: sex ?? this.sex,
       age: age ?? this.age,
       weight: weight ?? this.weight,
+      generation: generation ?? this.generation,
     );
   }
 
@@ -116,6 +125,7 @@ class FitnessPlan {
         'sex': sex.wireValue,
         'age': age,
         'weight': weight,
+        'generation': generation,
       };
 
   factory FitnessPlan.fromJson(Map<String, dynamic> json) {
@@ -130,6 +140,7 @@ class FitnessPlan {
       sex: Sex.fromWire(json['sex'] as String?),
       age: json['age'] as int? ?? defaults.age,
       weight: (json['weight'] as num?)?.toDouble() ?? defaults.weight,
+      generation: json['generation'] as int? ?? defaults.generation,
     );
   }
 }

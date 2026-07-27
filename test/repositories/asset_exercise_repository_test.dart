@@ -104,19 +104,39 @@ void main() {
       expect(tierA.every((e) => e.generatorMeta!.tier == ExerciseTier.a), isTrue);
     });
 
-    test('experience gating is monotonic — higher level ⊇ lower level',
-        () async {
+    test('experience gating is monotonic for uncapped exercises — '
+        'higher level ⊇ lower level', () async {
       final repo = await loadedRepo();
-      final none = repo.getGeneratableExercises(ExperienceLevel.none).length;
-      final beginner =
-          repo.getGeneratableExercises(ExperienceLevel.beginner).length;
-      final intermediate =
-          repo.getGeneratableExercises(ExperienceLevel.intermediate).length;
-      final advanced =
-          repo.getGeneratableExercises(ExperienceLevel.advanced).length;
-      expect(none, lessThanOrEqualTo(beginner));
-      expect(beginner, lessThanOrEqualTo(intermediate));
-      expect(intermediate, lessThanOrEqualTo(advanced));
+      // Gating is monotonic only when ignoring the upper bound: a
+      // maxExperience-capped exercise (e.g. Smith Machine capped at
+      // intermediate) is intentionally dropped for advanced, so the raw
+      // advanced set is NOT a superset of intermediate. Restrict the
+      // monotonicity invariant to exercises with no upper cap.
+      Set<String> uncappedNamesAt(ExperienceLevel level) => repo
+          .getGeneratableExercises(level)
+          .where((e) => e.generatorMeta!.maxExperience == null)
+          .map((e) => e.name)
+          .toSet();
+
+      final none = uncappedNamesAt(ExperienceLevel.none);
+      final beginner = uncappedNamesAt(ExperienceLevel.beginner);
+      final intermediate = uncappedNamesAt(ExperienceLevel.intermediate);
+      final advanced = uncappedNamesAt(ExperienceLevel.advanced);
+      expect(none.difference(beginner), isEmpty);
+      expect(beginner.difference(intermediate), isEmpty);
+      expect(intermediate.difference(advanced), isEmpty);
+    });
+
+    test('maxExperience-capped exercises drop out above their cap', () async {
+      final repo = await loadedRepo();
+      // Smith Machine is capped at intermediate: present up to intermediate,
+      // absent at advanced (the customer-reported rule, now data-driven).
+      bool hasSmithAt(ExperienceLevel level) => repo
+          .getGeneratableExercises(level)
+          .any((e) => e.generatorMeta!.equipment.label == 'Smith Machine');
+      expect(hasSmithAt(ExperienceLevel.beginner), isTrue);
+      expect(hasSmithAt(ExperienceLevel.intermediate), isTrue);
+      expect(hasSmithAt(ExperienceLevel.advanced), isFalse);
     });
 
     test('generatable excludes replaceOnly and generatorExclude', () async {

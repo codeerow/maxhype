@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
+
+import '../core/weight_units.dart';
 import '../models/exercise.dart';
 import '../models/workout.dart';
 import '../models/monthly_data.dart';
 import '../models/all_time_stats.dart';
+import '../models/generator/fitness_plan.dart';
 import '../data/mock_data.dart';
 import 'workout_repository.dart';
 
@@ -12,6 +16,13 @@ import 'workout_repository.dart';
 /// the preview screen, clarification 6.17) persist across subsequent
 /// reads within the same app session.
 class MockWorkoutRepository implements WorkoutRepository {
+  /// Optional display-unit source. When supplied, [getMonthlyData] converts
+  /// mock volume (pounds) to this unit at the data boundary; when null, data is
+  /// returned as-is in pounds (the default for tests that don't exercise units).
+  final ValueListenable<WeightUnit>? _units;
+
+  MockWorkoutRepository({ValueListenable<WeightUnit>? units}) : _units = units;
+
   List<Workout>? _workouts;
 
   List<Workout> _ensureSeeded() {
@@ -38,14 +49,18 @@ class MockWorkoutRepository implements WorkoutRepository {
   Future<List<MonthlyData>> getMonthlyData() async {
     // Simulate network delay
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    return MockData.getMonthlyData();
+    final data = MockData.getMonthlyData();
+    final unit = _units?.value;
+    return unit == null ? data : unit.convertMonthly(data);
   }
 
   @override
   Future<AllTimeStats> getAllTimeStats() async {
     // Simulate network delay
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return MockData.getAllTimeStats();
+    final stats = MockData.getAllTimeStats();
+    final unit = _units?.value;
+    return unit == null ? stats : unit.convertStats(stats);
   }
 
   @override

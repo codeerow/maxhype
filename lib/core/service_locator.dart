@@ -137,6 +137,7 @@ Future<void> setupDependencies() async {
     () => HomeBloc(
       repository: getIt<WorkoutRepository>(),
       completionRepository: getIt<WorkoutCompletionRepository>(),
+      unitsListenable: getIt<FitnessPlanRepository>().units,
     ),
   );
 

@@ -57,7 +57,8 @@ class AllTimeStatsWidget extends StatelessWidget {
                 child: _buildStatCard(
                   context,
                   label: 'Total Volume',
-                  value: '${_formatNumber(stats.totalVolume / 1000)}k',
+                  value:
+                      '${_formatNumber(stats.totalVolume / 1000)}k ${stats.weightUnitLabel}',
                   icon: Icons.trending_up,
                   color: AppTheme.recoveryGreen,
                 ),

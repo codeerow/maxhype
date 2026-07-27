@@ -44,12 +44,15 @@ class _MonthlyHistoryScrollState extends State<MonthlyHistoryScroll> {
 
   ChartData _mapToVolumeChart(MonthlyData monthData) {
     final workoutDays = monthData.dailyData.where((d) => d.isWorkoutDay).toList();
+    // Volume is already in the user's unit (converted at the data boundary);
+    // render it and its label as-is.
     return ChartData(
       monthName: monthData.monthName,
       year: monthData.year,
       values: workoutDays.map((d) => d.volume).toList(),
       days: workoutDays.map((d) => d.day).toList(),
-      legendText: 'Total weight lifted per workout, lbs',
+      legendText:
+          'Total weight lifted per workout, ${monthData.weightUnitLabel}',
     );
   }
 

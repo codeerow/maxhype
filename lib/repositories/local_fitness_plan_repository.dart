@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/generator/fitness_plan.dart';
@@ -24,6 +25,14 @@ class LocalFitnessPlanRepository implements FitnessPlanRepository {
   }) : _directoryResolver = directoryResolver;
 
   static const _fileName = 'fitness_plan.json';
+
+  /// Reactive display unit (see [FitnessPlanRepository.units]). Seeded on the
+  /// first [load] and refreshed on every [save].
+  final ValueNotifier<WeightUnit> _units =
+      ValueNotifier<WeightUnit>(FitnessPlan.defaults().units);
+
+  @override
+  ValueListenable<WeightUnit> get units => _units;
 
   Future<void> _writeLock = Future.value();
 
@@ -54,7 +63,9 @@ class LocalFitnessPlanRepository implements FitnessPlanRepository {
       if (!file.existsSync()) return FitnessPlan.defaults();
       final raw = await file.readAsString();
       if (raw.trim().isEmpty) return FitnessPlan.defaults();
-      return FitnessPlan.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final plan = FitnessPlan.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      _units.value = plan.units;
+      return plan;
     } on Object {
       // Corrupt store — reset to defaults rather than crash. Best-effort
       // cleanup of the bad file so the next save starts clean.
@@ -75,5 +86,7 @@ class LocalFitnessPlanRepository implements FitnessPlanRepository {
         final tmp = File('${file.path}.tmp');
         await tmp.writeAsString(jsonEncode(plan.toJson()), flush: true);
         await tmp.rename(file.path);
+        // Publish the unit so weight-rendering screens rebuild reactively.
+        _units.value = plan.units;
       });
 }

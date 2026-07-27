@@ -15,9 +15,10 @@ import '../../widgets/tap_scale.dart';
 import 'plan_option_screen.dart';
 
 /// Minimal fitness-plan configuration surface (Phase 4 Part 2A deliverable
-/// "configure my fitness plan"). Edits the persisted [FitnessPlan] and, on
-/// save, regenerates the home workouts so duration/experience/day changes are
-/// immediately reflected.
+/// "configure my fitness plan"). Edits the persisted [FitnessPlan]; each change
+/// is applied immediately — there is no explicit save step. Picking a new value
+/// auto-saves the plan and regenerates the home workouts so
+/// duration/experience/day changes are reflected right away.
 ///
 /// Split is fixed to PPL for 2A (the only generator-supported split); the other
 /// splits are shown disabled so the architecture is visible but can't be
@@ -38,7 +39,10 @@ class PlanScreen extends StatefulWidget {
 
 class _PlanScreenState extends State<PlanScreen> {
   FitnessPlan? _plan;
-  bool _saving = false;
+
+  /// True while a Regenerate is in flight — disables the button and shows a
+  /// spinner so a double-tap can't stack regenerations.
+  bool _regenerating = false;
 
   @override
   void initState() {
@@ -51,22 +55,36 @@ class _PlanScreenState extends State<PlanScreen> {
     if (mounted) setState(() => _plan = plan);
   }
 
-  Future<void> _save() async {
-    final plan = _plan;
-    if (plan == null) return;
-    setState(() => _saving = true);
-    await getIt<FitnessPlanRepository>().save(plan);
+  /// Applies a settings change immediately: updates the UI, persists the plan,
+  /// and regenerates the home workouts. There is no explicit save step — every
+  /// picker funnels through here, so each edit auto-saves and regenerates.
+  Future<void> _update(
+    FitnessPlan next, {
+    String toast = 'Plan updated — workouts regenerated',
+  }) async {
+    setState(() => _plan = next);
+    await getIt<FitnessPlanRepository>().save(next);
     // Rebuild the home cards from the new plan.
     final repo = getIt<WorkoutRepository>();
     if (repo is GeneratedWorkoutRepository) {
       await repo.regenerate();
     }
     if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.showPremium(context, 'Plan saved — workouts regenerated');
+    AppToast.showPremium(context, toast);
   }
 
-  void _update(FitnessPlan next) => setState(() => _plan = next);
+  /// Requests a fresh exercise selection for the *same* settings by bumping the
+  /// plan's generation counter (which feeds the generator seed).
+  Future<void> _regenerate(FitnessPlan plan) async {
+    if (_regenerating) return;
+    setState(() => _regenerating = true);
+    await _update(
+      plan.copyWith(generation: plan.generation + 1),
+      toast: 'Workouts regenerated',
+    );
+    if (!mounted) return;
+    setState(() => _regenerating = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +112,7 @@ class _PlanScreenState extends State<PlanScreen> {
                   _sectionLabel('Workout Structure'),
                   _card([
                     _menuRow(
-                      title: 'Days per week',
+                      title: 'Weekly Goal',
                       value: '${plan.daysPerWeek} days/week',
                       onTap: () => _pickDays(plan),
                     ),
@@ -108,10 +126,13 @@ class _PlanScreenState extends State<PlanScreen> {
                       value: plan.experience.displayName,
                       onTap: () => _pickExperience(plan),
                     ),
+                    // Weight Unit is a straight KG ↔ LB toggle: tapping the row
+                    // flips the unit in place, no picker sub-screen.
                     _menuRow(
                       title: 'Weight Unit',
                       value: plan.units.displayName.toUpperCase(),
-                      onTap: () => _pickUnits(plan),
+                      onTap: () => _toggleUnits(plan),
+                      showChevron: false,
                     ),
                   ]),
                   // ---- PROFILE ----
@@ -133,6 +154,8 @@ class _PlanScreenState extends State<PlanScreen> {
                       onTap: () => _pickWeight(plan),
                     ),
                   ]),
+                  const SizedBox(height: 28),
+                  _regenerateButton(plan),
                   // Debug-only: fast-forward the app's week to demo the
                   // "Completed this week" lock + rotation memory without
                   // touching the device clock. Compiled out of release builds.
@@ -141,7 +164,6 @@ class _PlanScreenState extends State<PlanScreen> {
                     _demoWeekCard(),
                   ],
                   const SizedBox(height: 24),
-                  _saveButton(),
                 ],
               ),
       ),
@@ -166,19 +188,19 @@ class _PlanScreenState extends State<PlanScreen> {
           )
           .toList(),
     );
-    if (result != null) _update(plan.copyWith(split: result));
+    if (result != null) await _update(plan.copyWith(split: result));
   }
 
   Future<void> _pickDays(FitnessPlan plan) async {
     final result = await PlanOptionScreen.show<int>(
       context,
-      title: 'Days per week',
+      title: 'Weekly Goal',
       selected: plan.daysPerWeek,
       options: const [2, 3, 4, 5, 6]
           .map((d) => PlanOption<int>(value: d, title: '$d days per week'))
           .toList(),
     );
-    if (result != null) _update(plan.copyWith(daysPerWeek: result));
+    if (result != null) await _update(plan.copyWith(daysPerWeek: result));
   }
 
   Future<void> _pickDuration(FitnessPlan plan) async {
@@ -190,13 +212,14 @@ class _PlanScreenState extends State<PlanScreen> {
           .map((m) => PlanOption<int>(value: m, title: '$m minutes'))
           .toList(),
     );
-    if (result != null) _update(plan.copyWith(durationMinutes: result));
+    if (result != null) await _update(plan.copyWith(durationMinutes: result));
   }
 
   Future<void> _pickExperience(FitnessPlan plan) async {
     final result = await PlanOptionScreen.show<ExperienceLevel>(
       context,
-      title: 'Experience',
+      // Picker sub-screen title; the menu-row label stays 'Experience'.
+      title: 'Fitness Experience',
       selected: plan.experience,
       options: ExperienceLevel.values
           .map(
@@ -207,24 +230,13 @@ class _PlanScreenState extends State<PlanScreen> {
           )
           .toList(),
     );
-    if (result != null) _update(plan.copyWith(experience: result));
+    if (result != null) await _update(plan.copyWith(experience: result));
   }
 
-  Future<void> _pickUnits(FitnessPlan plan) async {
-    final result = await PlanOptionScreen.show<WeightUnit>(
-      context,
-      title: 'Weight Unit',
-      selected: plan.units,
-      options: WeightUnit.values
-          .map(
-            (u) => PlanOption<WeightUnit>(
-              value: u,
-              title: u.displayName.toUpperCase(),
-            ),
-          )
-          .toList(),
-    );
-    if (result != null) _update(plan.copyWith(units: result));
+  /// Flips the weight unit in place (KG ↔ LB) — no picker sub-screen.
+  Future<void> _toggleUnits(FitnessPlan plan) async {
+    final next = plan.units == WeightUnit.kg ? WeightUnit.lb : WeightUnit.kg;
+    await _update(plan.copyWith(units: next));
   }
 
   Future<void> _pickSex(FitnessPlan plan) async {
@@ -236,7 +248,7 @@ class _PlanScreenState extends State<PlanScreen> {
           .map((s) => PlanOption<Sex>(value: s, title: s.wireValue))
           .toList(),
     );
-    if (result != null) _update(plan.copyWith(sex: result));
+    if (result != null) await _update(plan.copyWith(sex: result));
   }
 
   Future<void> _pickAge(FitnessPlan plan) async {
@@ -249,7 +261,7 @@ class _PlanScreenState extends State<PlanScreen> {
           PlanOption<int>(value: age, title: '$age'),
       ],
     );
-    if (result != null) _update(plan.copyWith(age: result));
+    if (result != null) await _update(plan.copyWith(age: result));
   }
 
   Future<void> _pickWeight(FitnessPlan plan) async {
@@ -266,7 +278,7 @@ class _PlanScreenState extends State<PlanScreen> {
           PlanOption<int>(value: w, title: '$w $unit'),
       ],
     );
-    if (result != null) _update(plan.copyWith(weight: result.toDouble()));
+    if (result != null) await _update(plan.copyWith(weight: result.toDouble()));
   }
 
   Widget _title(BuildContext context) => Text(
@@ -318,6 +330,50 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
+  /// Full-width "Regenerate" action: builds a fresh set of exercises for the
+  /// current settings. Distinct from editing a setting — it keeps the plan the
+  /// same and just re-rolls the selection (via the generation counter).
+  Widget _regenerateButton(FitnessPlan plan) => TapScale(
+        scaleDown: TapScalePreset.cta.scale,
+        enableHaptic: true,
+        onTap: _regenerating ? null : () => _regenerate(plan),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryOrange.withValues(
+              alpha: _regenerating ? 0.6 : 1,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          alignment: Alignment.center,
+          child: _regenerating
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Regenerate',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      );
+
   /// A `Title → value ›` menu row that opens a picker on tap.
   ///
   /// Uses the app-standard [TapScale] (scale + opacity press, light haptic)
@@ -328,6 +384,7 @@ class _PlanScreenState extends State<PlanScreen> {
     required String title,
     required String value,
     required VoidCallback onTap,
+    bool showChevron = true,
   }) => TapScale.preset(
     preset: TapScalePreset.surface,
     enableHaptic: true,
@@ -353,51 +410,16 @@ class _PlanScreenState extends State<PlanScreen> {
               fontSize: 15,
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(
-            Icons.chevron_right,
-            color: Color(0x33FFFFFF), // white @ 20%
-            size: 22,
-          ),
+          if (showChevron) ...[
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right,
+              color: Color(0x33FFFFFF), // white @ 20%
+              size: 22,
+            ),
+          ],
         ],
       ),
-    ),
-  );
-
-  Widget _saveButton() => TapScale(
-    scaleDown: TapScalePreset.cta.scale,
-    enableHaptic: true,
-    // Disable the press (and haptic) while a save is in flight.
-    onTap: _saving ? null : _save,
-    child: Container(
-      width: double.infinity,
-      // Slightly dim the fill while saving to read as disabled, matching the
-      // former ElevatedButton's disabled state.
-      decoration: BoxDecoration(
-        color: _saving
-            ? AppTheme.primaryOrange.withValues(alpha: 0.6)
-            : AppTheme.primaryOrange,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      alignment: Alignment.center,
-      child: _saving
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Text(
-              'Save & Regenerate',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
     ),
   );
 

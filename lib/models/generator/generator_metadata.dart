@@ -23,6 +23,17 @@ class GeneratorMetadata {
   /// Minimum experience required for this exercise to be eligible.
   final ExperienceLevel minExperience;
 
+  /// Maximum experience at which this exercise is auto-generated, if capped.
+  ///
+  /// Mirror of [minExperience] for the opposite bound: an exercise with
+  /// `maxExperience == intermediate` is generated for none/beginner/
+  /// intermediate but never for advanced. This keeps experience gating in the
+  /// data (the exercise library) rather than as hardcoded equipment checks in
+  /// the generator — e.g. the prototype drops Smith Machine picks for advanced
+  /// users, which we express as `maxExperience: "intermediate"` on those
+  /// exercises. Null means no upper bound.
+  final ExperienceLevel? maxExperience;
+
   /// Movement group used for duplicate/balancing rules (e.g. "flat_press").
   /// Null when the prototype had no group mapping for the exercise.
   final String? movementGroup;
@@ -68,6 +79,7 @@ class GeneratorMetadata {
     required this.type,
     required this.tier,
     required this.minExperience,
+    this.maxExperience,
     this.movementGroup,
     this.primaryMuscle,
     this.secondaryMuscles = const [],
@@ -85,7 +97,8 @@ class GeneratorMetadata {
   bool isGeneratableAt(ExperienceLevel userLevel) =>
       !replaceOnly &&
       !generatorExclude &&
-      userLevel.rank >= minExperience.rank;
+      userLevel.rank >= minExperience.rank &&
+      (maxExperience == null || userLevel.rank <= maxExperience!.rank);
 
   factory GeneratorMetadata.fromJson(Map<String, dynamic> json) {
     return GeneratorMetadata(
@@ -95,6 +108,9 @@ class GeneratorMetadata {
       type: ExerciseType.fromWire(json['type'] as String),
       tier: ExerciseTier.fromWire(json['tier'] as String),
       minExperience: ExperienceLevel.fromWire(json['minExperience'] as String?),
+      maxExperience: json['maxExperience'] == null
+          ? null
+          : ExperienceLevel.fromWire(json['maxExperience'] as String?),
       movementGroup: json['movementGroup'] as String?,
       primaryMuscle: json['primaryMuscle'] as String?,
       secondaryMuscles:
@@ -118,6 +134,7 @@ class GeneratorMetadata {
         'type': type.wireValue,
         'tier': tier.wireValue,
         'minExperience': minExperience.wireValue,
+        'maxExperience': maxExperience?.wireValue,
         'movementGroup': movementGroup,
         'primaryMuscle': primaryMuscle,
         'secondaryMuscles': secondaryMuscles,

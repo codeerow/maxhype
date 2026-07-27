@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../core/demo_clock.dart';
+import '../core/weight_units.dart';
 import '../models/exercise.dart';
 import '../models/workout.dart';
 import '../models/monthly_data.dart';
@@ -143,10 +144,14 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
   }
 
   @override
-  Future<List<MonthlyData>> getMonthlyData() async => MockData.getMonthlyData();
+  Future<List<MonthlyData>> getMonthlyData() async =>
+      // Convert mock volume (pounds) to the user's chosen unit at this data
+      // boundary so chart views stay unit-agnostic.
+      _planRepository.units.value.convertMonthly(MockData.getMonthlyData());
 
   @override
-  Future<AllTimeStats> getAllTimeStats() async => MockData.getAllTimeStats();
+  Future<AllTimeStats> getAllTimeStats() async =>
+      _planRepository.units.value.convertStats(MockData.getAllTimeStats());
 
   @override
   Future<void> replaceExercise({
@@ -182,16 +187,21 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
     return a.split == b.split &&
         a.daysPerWeek == b.daysPerWeek &&
         a.durationMinutes == b.durationMinutes &&
-        a.experience == b.experience;
+        a.experience == b.experience &&
+        // A Regenerate bump changes only this field, but must still rebuild.
+        a.generation == b.generation;
   }
 
   /// Deterministic seed from the plan fields that shape generation, so the same
   /// plan reproduces the same cards. Uses a simple stable string hash (Dart's
-  /// String.hashCode is not stable across runs, so we compute our own).
+  /// String.hashCode is not stable across runs, so we compute our own). The
+  /// [FitnessPlan.generation] counter is folded in so a Regenerate action
+  /// yields a different — but still reproducible — set for the same settings.
   int _seedForPlan(FitnessPlan plan) {
     final key =
         '${plan.split.wireValue}|${plan.daysPerWeek}'
-        '|${plan.durationMinutes}|${plan.experience.wireValue}';
+        '|${plan.durationMinutes}|${plan.experience.wireValue}'
+        '|${plan.generation}';
     var hash = 0;
     for (final unit in key.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;

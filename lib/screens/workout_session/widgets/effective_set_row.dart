@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/weight_units.dart';
+import '../../../models/generator/fitness_plan.dart';
 import '../../../theme/app_theme.dart';
 import 'effective_set_pill.dart';
 
@@ -17,9 +19,16 @@ class EffectiveSetRow extends StatefulWidget {
   /// (currently styled the same as a numbered set).
   final bool isWarmup;
 
+  /// Canonical (pounds) weight for this set. Displayed in [unit] and converted
+  /// back to pounds before [onWeightChanged] fires, so stored weights stay in
+  /// pounds regardless of the user's display unit.
   final double? weight;
   final int? reps;
   final bool isLogged;
+
+  /// The user's display unit. Weight values are shown converted into this unit
+  /// and typed values are converted from it back to canonical pounds.
+  final WeightUnit unit;
 
   /// True for the *current* (next-to-log) row. Drives the bright "draft"
   /// pill colour per the design ref — non-current empty rows stay dark even
@@ -66,6 +75,7 @@ class EffectiveSetRow extends StatefulWidget {
     required this.weight,
     required this.reps,
     required this.isLogged,
+    required this.unit,
     required this.onWeightChanged,
     required this.onRepsChanged,
     this.isCurrent = false,
@@ -114,6 +124,17 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
     }
   }
 
+  /// Formats a canonical (pounds) weight for display in the active unit.
+  String _formatWeight(double? lb) =>
+      lb == null ? '' : widget.unit.formatWeight(lb);
+
+  /// Converts a value the user typed (in the active unit) back to canonical
+  /// pounds for storage.
+  double? _toPounds(String typed) {
+    final parsed = double.tryParse(typed);
+    return parsed == null ? null : widget.unit.toPounds(parsed);
+  }
+
   @override
   void dispose() {
     _weightCtrl.dispose();
@@ -121,12 +142,6 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
     _ownedWeightFocus?.dispose();
     _ownedRepsFocus?.dispose();
     super.dispose();
-  }
-
-  String _formatWeight(double? w) {
-    if (w == null) return '';
-    if (w == w.truncate()) return w.toInt().toString();
-    return w.toStringAsFixed(1);
   }
 
   PillState get _state {
@@ -190,11 +205,9 @@ class _EffectiveSetRowState extends State<EffectiveSetRow> {
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
               ],
               onChanged: (s) {
-                if (s.isEmpty) {
-                  widget.onWeightChanged(null);
-                } else {
-                  widget.onWeightChanged(double.tryParse(s));
-                }
+                // Convert the typed value (in the display unit) back to
+                // canonical pounds before reporting it upstream.
+                widget.onWeightChanged(s.isEmpty ? null : _toPounds(s));
               },
             ),
           ),

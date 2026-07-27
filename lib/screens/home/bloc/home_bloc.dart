@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../models/generator/fitness_plan.dart';
 import '../../../models/workout.dart';
 import '../../../repositories/workout_completion_repository.dart';
 import '../../../repositories/workout_repository.dart';
@@ -11,16 +13,24 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final WorkoutRepository repository;
   final WorkoutCompletionRepository? completionRepository;
 
+  /// Reactive display unit. When it changes (KG/LB toggled on the Plan screen)
+  /// the bloc re-reads monthly data and stats so their volume reflects the new
+  /// unit. Optional — tests that don't exercise units can omit it.
+  final ValueListenable<WeightUnit>? unitsListenable;
+
   StreamSubscription<List<Workout>>? _workoutsSub;
+  VoidCallback? _unitsListener;
 
   HomeBloc({
     required this.repository,
     this.completionRepository,
+    this.unitsListenable,
   }) : super(const HomeLoading()) {
     on<HomeInitial>(_onInitial);
     on<RefreshCompletions>(_onRefreshCompletions);
     on<RefreshWorkouts>(_onRefreshWorkouts);
     on<WorkoutsUpdated>(_onWorkoutsUpdated);
+    on<UnitsChanged>(_onUnitsChanged);
 
     // Follow live workout updates (plan regeneration, Replace mutations) so the
     // carousel stays in sync without manual reload events. Static-data
@@ -28,6 +38,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     _workoutsSub = repository.watchWorkouts().listen(
       (workouts) => add(WorkoutsUpdated(workouts)),
     );
+
+    // Re-read the stats when the weight unit toggles.
+    final units = unitsListenable;
+    if (units != null) {
+      _unitsListener = () => add(const UnitsChanged());
+      units.addListener(_unitsListener!);
+    }
   }
 
   Future<void> _onInitial(HomeInitial event, Emitter<HomeState> emit) async {
@@ -71,9 +88,33 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     );
   }
 
+  /// Re-reads monthly data and all-time stats after a weight-unit toggle,
+  /// preserving the current workouts and completion map. The repository
+  /// converts volume to the new unit at its data boundary.
+  Future<void> _onUnitsChanged(
+    UnitsChanged event,
+    Emitter<HomeState> emit,
+  ) async {
+    final cur = state;
+    if (cur is! HomeSuccess) return;
+    final monthlyData = await repository.getMonthlyData();
+    final allTimeStats = await repository.getAllTimeStats();
+    emit(
+      HomeSuccess(
+        workouts: cur.workouts,
+        monthlyData: monthlyData,
+        allTimeStats: allTimeStats,
+        completions: cur.completions,
+      ),
+    );
+  }
+
   @override
   Future<void> close() {
     _workoutsSub?.cancel();
+    if (_unitsListener != null) {
+      unitsListenable?.removeListener(_unitsListener!);
+    }
     return super.close();
   }
 

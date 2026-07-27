@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maxhype/core/demo_clock.dart';
 import 'package:maxhype/models/exercise.dart';
@@ -16,11 +17,16 @@ import 'package:maxhype/services/generator/workout_generator_service.dart';
 /// In-memory plan repo so tests can vary the plan without touching disk.
 class _FakePlanRepo implements FitnessPlanRepository {
   FitnessPlan plan;
-  _FakePlanRepo(this.plan);
+  _FakePlanRepo(this.plan) : units = ValueNotifier(plan.units);
+  @override
+  final ValueNotifier<WeightUnit> units;
   @override
   Future<FitnessPlan> load() async => plan;
   @override
-  Future<void> save(FitnessPlan p) async => plan = p;
+  Future<void> save(FitnessPlan p) async {
+    plan = p;
+    units.value = p.units;
+  }
 }
 
 /// A [WeekClock] the test drives directly, to force ISO-week rollovers.
@@ -66,6 +72,36 @@ void main() {
         second[i].exercises.map((e) => e.name),
       );
     }
+  });
+
+  test('bumping generation re-rolls the selection for the same settings',
+      () async {
+    final plan = FitnessPlan.defaults();
+    final base = await (await repoFor(plan)).getWorkouts();
+    final regenerated =
+        await (await repoFor(plan.copyWith(generation: 1))).getWorkouts();
+
+    // Same settings ⇒ same structure (titles/count), but the exercise
+    // selection differs because the generation counter feeds the seed.
+    expect(
+      regenerated.map((c) => c.title),
+      base.map((c) => c.title),
+    );
+    final baseNames =
+        base.expand((c) => c.exercises.map((e) => e.name)).toList();
+    final regenNames =
+        regenerated.expand((c) => c.exercises.map((e) => e.name)).toList();
+    expect(regenNames, isNot(equals(baseNames)));
+  });
+
+  test('same generation reproduces the same selection', () async {
+    final plan = FitnessPlan.defaults().copyWith(generation: 5);
+    final first = await (await repoFor(plan)).getWorkouts();
+    final second = await (await repoFor(plan)).getWorkouts();
+    expect(
+      second.expand((c) => c.exercises.map((e) => e.name)),
+      first.expand((c) => c.exercises.map((e) => e.name)),
+    );
   });
 
   test('replaceExercise mutation persists across subsequent reads', () async {

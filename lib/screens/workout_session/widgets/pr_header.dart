@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/service_locator.dart';
+import '../../../core/weight_units.dart';
+import '../../../models/generator/fitness_plan.dart';
 import '../../../models/session/personal_record.dart';
+import '../../../repositories/fitness_plan_repository.dart';
 import '../../../theme/app_theme.dart';
 
 /// Premium PR banner shown above the action chips on the logging screen.
@@ -34,42 +38,42 @@ class PrHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _Pill(),
-          const SizedBox(height: 8),
-          Text(
-            '${_formatWeight(pr.weight)} lb × ${pr.reps}',
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-          if (previousBest != null) ...[
-            const SizedBox(height: 4),
+    // Rebuild when the user toggles KG/LB on the Plan screen. Stored PR weights
+    // are canonical pounds; [WeightUnit.formatWeightWithUnit] converts + labels.
+    return ValueListenableBuilder<WeightUnit>(
+      valueListenable: getIt<FitnessPlanRepository>().units,
+      builder: (context, unit, _) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _Pill(),
+            const SizedBox(height: 8),
             Text(
-              isFresh
-                  ? 'Previous Best: ${_formatWeight(previousBest!.weight)} lb × ${previousBest!.reps}'
-                  : 'Last session: ${_formatWeight(previousBest!.weight)} lb × ${previousBest!.reps}',
+              '${unit.formatWeightWithUnit(pr.weight)} × ${pr.reps}',
               style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
+                color: AppTheme.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
               ),
             ),
+            if (previousBest != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                isFresh
+                    ? 'Previous Best: ${unit.formatWeightWithUnit(previousBest!.weight)} × ${previousBest!.reps}'
+                    : 'Last session: ${unit.formatWeightWithUnit(previousBest!.weight)} × ${previousBest!.reps}',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
-  }
-
-  String _formatWeight(double w) {
-    if (w == w.truncate()) return w.toInt().toString();
-    return w.toStringAsFixed(1);
   }
 }
 

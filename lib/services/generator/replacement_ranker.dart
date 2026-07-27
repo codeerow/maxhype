@@ -90,6 +90,11 @@ class ReplacementRanker {
     ExperienceLevel level,
   ) {
     if (meta == null) return true;
+    // Only the lower bound applies to manual replacement. [maxExperience] gates
+    // *auto-generation* (e.g. Smith Machine for advanced users); a manual
+    // replacement is an explicit user choice — the prototype's `unless
+    // favorited/preferred` carve-out — so an advanced user may still swap in a
+    // maxExperience-capped exercise on purpose.
     return level.rank >= meta.minExperience.rank;
   }
 

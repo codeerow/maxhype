@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maxhype/models/generator/experience_level.dart';
 import 'package:maxhype/models/generator/fitness_plan.dart';
-import 'package:maxhype/models/generator/split_type.dart';
 import 'package:maxhype/repositories/asset_exercise_repository.dart';
 import 'package:maxhype/services/generator/workout_assembler.dart';
 import 'package:maxhype/services/generator/workout_generator_service.dart';
@@ -72,6 +71,19 @@ void main() {
                       '${e.name} needs ${meta.minExperience.name} '
                       'but plan is ${exp.name}',
                 );
+                // Upper experience bound: a maxExperience-capped exercise (e.g.
+                // Smith Machine at intermediate) must never be auto-generated
+                // for a higher tier.
+                final maxExp = meta.maxExperience;
+                if (maxExp != null) {
+                  expect(
+                    exp.rank,
+                    lessThanOrEqualTo(maxExp.rank),
+                    reason:
+                        '${e.name} capped at ${maxExp.name} '
+                        'but plan is ${exp.name}',
+                  );
+                }
               }
             }
           }

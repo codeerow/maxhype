@@ -13,6 +13,11 @@ class AllTimeCharts extends StatelessWidget {
     // Sort oldest to newest
     final sorted = [...monthlyData].reversed.toList();
 
+    // Volume is already in the user's unit — the repository converted it at the
+    // data boundary and stamped the label. This view stays unit-agnostic.
+    final unitLabel =
+        monthlyData.isNotEmpty ? monthlyData.first.weightUnitLabel : 'lb';
+
     // One point per calendar day across all history (including rest days).
     // Cumulative value stays flat on rest days and jumps up on workout days
     // — the same "stair-stepping" silhouette as the History chart.
@@ -49,8 +54,8 @@ class AllTimeCharts extends StatelessWidget {
           title: 'ALL-TIME VOLUME',
           spots: volumeSpots,
           lineColor: AppTheme.chartGreen,
-          totalValue: '${(cumVolume / 1000).toStringAsFixed(1)}k lbs',
-          legendText: 'Cumulative volume lifted, lbs',
+          totalValue: '${(cumVolume / 1000).toStringAsFixed(1)}k $unitLabel',
+          legendText: 'Cumulative volume lifted, $unitLabel',
         ),
       ],
     );

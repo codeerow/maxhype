@@ -1,4 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/service_locator.dart';
+import '../../core/weight_units.dart';
+import '../../models/generator/fitness_plan.dart';
+import '../../repositories/fitness_plan_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../models/monthly_data.dart';
 import '../../data/mock_data.dart';
@@ -21,15 +26,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
   late List<MonthlyData> _monthlyData;
   int _currentPage = 0;
 
+  // This screen reads the mock stats directly (not via the repository), so it
+  // applies the same data-boundary conversion here and rebuilds when the user
+  // toggles KG/LB on the Plan screen.
+  ValueListenable<WeightUnit> get _units =>
+      getIt<FitnessPlanRepository>().units;
+
   @override
   void initState() {
     super.initState();
-    _monthlyData = MockData.getMonthlyData();
+    _monthlyData = _loadMonthly();
+    _units.addListener(_onUnitChanged);
     _pageController = PageController(initialPage: _currentPage);
+  }
+
+  /// Mock volume is in pounds; convert to the current display unit at this
+  /// boundary so the chart views stay unit-agnostic.
+  List<MonthlyData> _loadMonthly() =>
+      _units.value.convertMonthly(MockData.getMonthlyData());
+
+  void _onUnitChanged() {
+    if (!mounted) return;
+    setState(() => _monthlyData = _loadMonthly());
   }
 
   @override
   void dispose() {
+    _units.removeListener(_onUnitChanged);
     _pageController.dispose();
     super.dispose();
   }
@@ -178,8 +201,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     year: monthData.year,
                                     values: volumeValues,
                                     days: allDays,
-                                    legendText: 'Cumulative volume lifted, lbs',
-                                    totalValue: '${totalVolume.toInt()} lbs',
+                                    legendText:
+                                        'Cumulative volume lifted, ${monthData.weightUnitLabel}',
+                                    totalValue:
+                                        '${totalVolume.toInt()} ${monthData.weightUnitLabel}',
                                   ),
                                   title: 'MONTHLY VOLUME',
                                   lineColor: AppTheme.chartGreen,

@@ -27,7 +27,7 @@ enum ExperienceLevel {
   String get displayName {
     switch (this) {
       case ExperienceLevel.none:
-        return 'Less than 1 year';
+        return 'None';
       case ExperienceLevel.beginner:
         return 'Beginner';
       case ExperienceLevel.intermediate:

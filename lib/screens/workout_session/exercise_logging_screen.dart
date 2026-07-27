@@ -8,12 +8,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/haptic_manager.dart';
 import '../../core/service_locator.dart';
 import '../../models/exercise.dart';
+import '../../models/generator/fitness_plan.dart';
 import '../../models/session/personal_record.dart';
 import '../../models/session/session_exercise.dart';
 import '../../models/session/session_set.dart';
 import '../../models/session/workout_session.dart';
 import '../../repositories/exercise_repository.dart';
 import '../../repositories/asset_exercise_repository.dart';
+import '../../repositories/fitness_plan_repository.dart';
 import '../../repositories/workout_session_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
@@ -855,38 +857,43 @@ class _Headers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        // Reserve the same width the row uses for its SET marker so the
-        // column headers align with the pills underneath.
-        SizedBox(width: 28),
-        SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'WEIGHT (lb)',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.4,
+    // The weight column header carries the active unit label; rebuild it when
+    // the user toggles KG/LB on the Plan screen.
+    return ValueListenableBuilder<WeightUnit>(
+      valueListenable: getIt<FitnessPlanRepository>().units,
+      builder: (context, unit, _) => Row(
+        children: [
+          // Reserve the same width the row uses for its SET marker so the
+          // column headers align with the pills underneath.
+          const SizedBox(width: 28),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'WEIGHT (${unit.displayName})',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.4,
+              ),
             ),
           ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'REPS',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.4,
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'REPS',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.4,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -951,23 +958,29 @@ class _LoggingSetRow extends StatelessWidget {
     final row = _Hp(
       child: PrCelebration(
         controller: celebrationController,
-        child: EffectiveSetRow(
-          key: ValueKey('${_keyPrefix}_${set.id}'),
-          marker: marker,
-          isWarmup: kind == SetKind.warmup,
-          weight: set.weight,
-          reps: set.reps,
-          isLogged: set.isLogged,
-          isCurrent: isCurrent,
-          isPr: isPr,
-          prefillWeight: prefill.weight,
-          prefillReps: prefill.reps,
-          weightFocusNode: weightFocus,
-          repsFocusNode: repsFocus,
-          onSubmitted: onSubmitted,
-          onWeightChanged: onWeightChanged,
-          onRepsChanged: onRepsChanged,
-          readOnly: readOnly,
+        // Weights are stored in canonical pounds; the row displays them in the
+        // user's chosen unit and converts typed values back. Rebuild on toggle.
+        child: ValueListenableBuilder<WeightUnit>(
+          valueListenable: getIt<FitnessPlanRepository>().units,
+          builder: (context, unit, _) => EffectiveSetRow(
+            key: ValueKey('${_keyPrefix}_${set.id}'),
+            marker: marker,
+            isWarmup: kind == SetKind.warmup,
+            weight: set.weight,
+            reps: set.reps,
+            isLogged: set.isLogged,
+            unit: unit,
+            isCurrent: isCurrent,
+            isPr: isPr,
+            prefillWeight: prefill.weight,
+            prefillReps: prefill.reps,
+            weightFocusNode: weightFocus,
+            repsFocusNode: repsFocus,
+            onSubmitted: onSubmitted,
+            onWeightChanged: onWeightChanged,
+            onRepsChanged: onRepsChanged,
+            readOnly: readOnly,
+          ),
         ),
       ),
     );
