@@ -5,6 +5,7 @@ import '../../models/generator/rotation_memory.dart';
 import '../../models/generator/split_type.dart';
 import '../../repositories/asset_exercise_repository.dart';
 import 'build_state.dart';
+import 'exercise_orderer.dart';
 import 'seeded_rng.dart';
 import 'slot_filler.dart';
 import 'set_density_resolver.dart';
@@ -99,8 +100,21 @@ class AssetWorkoutGeneratorService implements WorkoutGeneratorService {
       request.durationMinutes,
     );
 
-    // Fill loop (task 15) resolves each slot; wired in the next step.
-    final exercises = _fill(slots, request, rng);
+    // Experience-aware exercise budget (prototype `maxExercises`,
+    // script.js:6503): `min(DURATION_PROFILES[exp][split][mins].ex, slots)`.
+    // Slot plans are authored at the advanced layout; lower experience tiers
+    // budget fewer exercises, dropping optional tail slots exactly like the
+    // prototype's fill-loop bound (script.js:6874).
+    final profile = _repo.metadataTables?.profileFor(
+      experience: request.experience,
+      splitName: request.splitName,
+      minutes: request.durationMinutes,
+    );
+    final budget = profile == null
+        ? slots.length
+        : (profile.exercises < slots.length ? profile.exercises : slots.length);
+
+    final exercises = _fill(slots, request, rng, maxExercises: budget);
 
     return GeneratedWorkout(
       splitName: request.splitName,
@@ -115,16 +129,23 @@ class AssetWorkoutGeneratorService implements WorkoutGeneratorService {
   /// can't resolve (even to its default) is cleanly skipped rather than
   /// aborting the build — matching the prototype, which tolerates a rare empty
   /// slot rather than producing an invalid workout.
+  ///
+  /// [maxExercises] is the experience-aware budget: the walk keeps trying
+  /// slots in order (a failed slot doesn't consume budget) and stops as soon
+  /// as the budget is met — the prototype's exact loop bound
+  /// (`_psi < slots.length && exercises.length < maxExercises`).
   List<Exercise> _fill(
     List<GeneratorSlot> slots,
     GenerationRequest request,
-    SeededRng rng,
-  ) {
+    SeededRng rng, {
+    required int maxExercises,
+  }) {
     final state = BuildState(
       request.splitName,
       rotationMemory: request.rotationMemory,
     );
     for (final slot in slots) {
+      if (state.exercises.length >= maxExercises) break;
       final picked = _filler.fill(slot, state, request.experience, rng);
       if (picked == null) continue;
       // Apply set density (role × duration, category-capped) so a 45-min and a
@@ -144,7 +165,10 @@ class AssetWorkoutGeneratorService implements WorkoutGeneratorService {
         movementGroup: picked.generatorMeta?.movementGroup,
       );
     }
-    return state.exercises;
+    // FINAL ORDERING PASS (script.js:7599): rebuild in the split's canonical
+    // bodybuilding order — compounds before isolation, core last on Legs —
+    // regardless of slot/generation order.
+    return const ExerciseOrderer().order(request.splitName, state.exercises);
   }
 
   /// Parses a slot default-performance string like "135 x 8", "BW x 10", or

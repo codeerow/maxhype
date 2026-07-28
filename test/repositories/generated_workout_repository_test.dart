@@ -74,25 +74,30 @@ void main() {
     }
   });
 
-  test('bumping generation re-rolls the selection for the same settings',
-      () async {
-    final plan = FitnessPlan.defaults();
-    final base = await (await repoFor(plan)).getWorkouts();
-    final regenerated =
-        await (await repoFor(plan.copyWith(generation: 1))).getWorkouts();
+  test(
+    'bumping generation re-rolls the selection for the same settings',
+    () async {
+      final plan = FitnessPlan.defaults();
+      final base = await (await repoFor(plan)).getWorkouts();
+      final regenerated = await (await repoFor(
+        plan.copyWith(generation: 1),
+      )).getWorkouts();
 
-    // Same settings ⇒ same structure (titles/count), but the exercise
-    // selection differs because the generation counter feeds the seed.
-    expect(
-      regenerated.map((c) => c.title),
-      base.map((c) => c.title),
-    );
-    final baseNames =
-        base.expand((c) => c.exercises.map((e) => e.name)).toList();
-    final regenNames =
-        regenerated.expand((c) => c.exercises.map((e) => e.name)).toList();
-    expect(regenNames, isNot(equals(baseNames)));
-  });
+      // Same settings ⇒ same structure (titles/count), but the exercise
+      // selection differs because the generation counter feeds the seed.
+      expect(
+        regenerated.map((c) => c.title),
+        base.map((c) => c.title),
+      );
+      final baseNames = base
+          .expand((c) => c.exercises.map((e) => e.name))
+          .toList();
+      final regenNames = regenerated
+          .expand((c) => c.exercises.map((e) => e.name))
+          .toList();
+      expect(regenNames, isNot(equals(baseNames)));
+    },
+  );
 
   test('same generation reproduces the same selection', () async {
     final plan = FitnessPlan.defaults().copyWith(generation: 5);
@@ -257,6 +262,31 @@ void main() {
       }
     });
 
+    test('new ISO week → fresh seed → different workouts even with no '
+        'completions', () async {
+      final clock = _FixedWeekClock(DateTime(2026, 7, 22));
+      final repo = await repoWith(clock: clock);
+      final before = await repo.getWorkouts();
+
+      // Cross into the next ISO week with untouched (empty) rotation memory:
+      // the week is folded into the seed, so the new weekly plan must differ
+      // ("every newly generated weekly plan receives a new seed").
+      clock.value = DateTime(2026, 7, 29); // +1 week
+      final after = await repo.getWorkouts();
+
+      final beforeNames = [
+        for (final w in before) w.exercises.map((e) => e.name).join('|'),
+      ];
+      final afterNames = [
+        for (final w in after) w.exercises.map((e) => e.name).join('|'),
+      ];
+      expect(
+        afterNames,
+        isNot(equals(beforeNames)),
+        reason: 'a new ISO week must reseed the weekly plan',
+      );
+    });
+
     test('new ISO week → regenerates (fresh generation runs)', () async {
       final clock = _FixedWeekClock(DateTime(2026, 7, 22));
       final repo = await repoWith(clock: clock);
@@ -338,4 +368,5 @@ void main() {
       );
     });
   });
+
 }

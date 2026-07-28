@@ -25,8 +25,8 @@ class SlotFiller {
   final MovementCaps _caps;
 
   SlotFiller(this.repo, {ExerciseScorer? scorer, MovementCaps? caps})
-      : _caps = caps ?? const MovementCaps(),
-        _scorer = scorer ?? ExerciseScorer(caps: caps ?? const MovementCaps());
+    : _caps = caps ?? const MovementCaps(),
+      _scorer = scorer ?? ExerciseScorer(caps: caps ?? const MovementCaps());
 
   /// `FIRST_SLOT_TIER` (script.js:1661). For the first exercise of a category
   /// in a split, restrict candidates to these tiers (soft filter — applied only
@@ -62,12 +62,23 @@ class SlotFiller {
     // Pass 1: unified pool weighted by categoryBias (when unifyPool), else a
     // strict per-category walk in priority order. Movement-group diversity is
     // preferred here (duplicate groups excluded).
-    final picked = _pickFromPool(effective, state, experience, rng,
-            allowGroupReuse: false) ??
+    final picked =
+        _pickFromPool(
+          effective,
+          state,
+          experience,
+          rng,
+          allowGroupReuse: false,
+        ) ??
         // Pass 2: relax movement-group diversity (name dedup + caps still hold),
         // so a slot whose fresh groups are exhausted can still fill.
-        _pickFromPool(effective, state, experience, rng,
-            allowGroupReuse: true) ??
+        _pickFromPool(
+          effective,
+          state,
+          experience,
+          rng,
+          allowGroupReuse: true,
+        ) ??
         // Pass 3: default exercise, if still eligible and not already used.
         _pickDefault(effective, state, experience);
 
@@ -101,8 +112,15 @@ class SlotFiller {
     }
 
     var eligible = candidates
-        .where((ex) => _isEligible(ex, slot, state, experience,
-            allowGroupReuse: allowGroupReuse))
+        .where(
+          (ex) => _isEligible(
+            ex,
+            slot,
+            state,
+            experience,
+            allowGroupReuse: allowGroupReuse,
+          ),
+        )
         .toList();
     if (eligible.isEmpty) return null;
 
@@ -135,7 +153,8 @@ class SlotFiller {
       for (final ex in eligible)
         (
           item: ex,
-          score: _scorer.scoreOf(ex, slot, state, experience) +
+          score:
+              _scorer.scoreOf(ex, slot, state, experience) +
               (bias?[ex.generatorMeta?.category] ?? 0).toDouble() +
               state.rotationMemory.penaltyFor(ex, state.split, poolSize),
         ),
@@ -161,16 +180,15 @@ class SlotFiller {
     if (allowed == null) return eligible;
 
     // Is this already-not the first of its category? Then no restriction.
-    final alreadyHasCategory =
-        state.exercises.any((e) => e.generatorMeta?.category == category);
+    final alreadyHasCategory = state.exercises.any(
+      (e) => e.generatorMeta?.category == category,
+    );
     if (alreadyHasCategory) return eligible;
 
-    final filtered = eligible
-        .where((ex) {
-          final tier = ex.generatorMeta?.tier;
-          return tier != null && allowed.contains(tier);
-        })
-        .toList();
+    final filtered = eligible.where((ex) {
+      final tier = ex.generatorMeta?.tier;
+      return tier != null && allowed.contains(tier);
+    }).toList();
     return filtered.isNotEmpty ? filtered : eligible;
   }
 
@@ -217,7 +235,9 @@ class SlotFiller {
 
     bool blocked(Exercise ex) {
       final p = ex.generatorMeta?.movementPattern;
-      if (p == null || !BuildState.primaryPullPatterns.contains(p)) return false;
+      if (p == null || !BuildState.primaryPullPatterns.contains(p)) {
+        return false;
+      }
       if (first == 'horizontal_row' || first == 'supported_row') {
         return p == 'horizontal_row' || p == 'supported_row';
       }
@@ -241,11 +261,17 @@ class SlotFiller {
     if (meta == null) return false;
     // Generation eligibility: min-experience + replaceOnly/generatorExclude.
     if (!meta.isGeneratableAt(experience)) return false;
+    // Bodyweight auto-generation gate (script.js:12085): only core-category
+    // or whitelisted (Dips/Chin Ups, tier-gated) bodyweight movements are
+    // auto-picked; the rest stay manual-Replace-only.
+    if (!meta.isBodyweightAutoEligible(ex.name, experience)) return false;
     // Duplicate name — always a hard block.
     if (state.isNameUsed(ex.name)) return false;
     // Movement-group diversity (relaxed on the second pass).
     final mg = meta.movementGroup;
-    if (!allowGroupReuse && mg != null && state.usedMovementGroups.contains(mg)) {
+    if (!allowGroupReuse &&
+        mg != null &&
+        state.usedMovementGroups.contains(mg)) {
       return false;
     }
     // Slot-level movement-group exclusion (e.g. triceps_stretch excludes
@@ -294,6 +320,12 @@ class SlotFiller {
     // passes almost always fill the slot before we ever reach here.)
     final meta = ex.generatorMeta;
     if (meta != null && !meta.isGeneratableAt(experience)) return null;
+    // The bodyweight gate holds on the default path too — the prototype gates
+    // the pool that feeds defaults, so a bodyweight default (e.g. a Legs calf
+    // slot) must not sneak past automatic selection either.
+    if (meta != null && !meta.isBodyweightAutoEligible(ex.name, experience)) {
+      return null;
+    }
     return ex;
   }
 }

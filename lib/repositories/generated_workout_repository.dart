@@ -197,11 +197,18 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
   /// String.hashCode is not stable across runs, so we compute our own). The
   /// [FitnessPlan.generation] counter is folded in so a Regenerate action
   /// yields a different — but still reproducible — set for the same settings.
+  ///
+  /// The current ISO week is folded in too, so every newly generated weekly
+  /// plan receives a new seed: a week rollover produces fresh workouts even
+  /// with no completions, while cards stay stable (reproducible) within the
+  /// week. This mirrors the prototype's spirit — it regenerates with fresh
+  /// randomness on every rebuild — without giving up within-week determinism.
   int _seedForPlan(FitnessPlan plan) {
+    final week = isoWeekOf(_weekClock.now());
     final key =
         '${plan.split.wireValue}|${plan.daysPerWeek}'
         '|${plan.durationMinutes}|${plan.experience.wireValue}'
-        '|${plan.generation}';
+        '|${plan.generation}|${week.year}-${week.week}';
     var hash = 0;
     for (final unit in key.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;

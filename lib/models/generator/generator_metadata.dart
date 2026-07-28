@@ -100,6 +100,44 @@ class GeneratorMetadata {
       userLevel.rank >= minExperience.rank &&
       (maxExperience == null || userLevel.rank <= maxExperience!.rank);
 
+  /// Core-category movements that are inherently bodyweight — always
+  /// auto-generatable (prototype `BODYWEIGHT_CORE_CATEGORIES`,
+  /// script.js:12084).
+  static const Set<String> _bodyweightCoreCategories = {
+    'crunch',
+    'dynamic core',
+    'rotation',
+    'leg raise',
+    'plank',
+    'back extension',
+  };
+
+  /// The only non-core bodyweight exercises the generator may auto-pick, each
+  /// gated by a minimum experience tier (prototype
+  /// `BODYWEIGHT_WHITELIST_MIN_TIER`, script.js:12083).
+  static const Map<String, ExperienceLevel> _bodyweightWhitelistMinExperience =
+      {
+        'Dips': ExperienceLevel.intermediate,
+        'Chin Ups': ExperienceLevel.advanced,
+      };
+
+  /// The prototype's bodyweight auto-generation gate (script.js:12085-12095):
+  /// a `Bodyweight`-equipment exercise is auto-generatable only if its
+  /// category is an inherently-bodyweight core category, or it is whitelisted
+  /// by [exerciseName] AND the user meets that entry's minimum tier. All other
+  /// bodyweight exercises are skipped by automatic selection but remain fully
+  /// available to manual Replace — hence a code predicate here rather than a
+  /// `generatorExclude` data flag (which would block Replace too).
+  bool isBodyweightAutoEligible(
+    String exerciseName,
+    ExperienceLevel userLevel,
+  ) {
+    if (equipment.label != 'Bodyweight') return true;
+    if (_bodyweightCoreCategories.contains(category)) return true;
+    final minTier = _bodyweightWhitelistMinExperience[exerciseName];
+    return minTier != null && userLevel.rank >= minTier.rank;
+  }
+
   factory GeneratorMetadata.fromJson(Map<String, dynamic> json) {
     return GeneratorMetadata(
       category: json['category'] as String,
@@ -113,9 +151,8 @@ class GeneratorMetadata {
           : ExperienceLevel.fromWire(json['maxExperience'] as String?),
       movementGroup: json['movementGroup'] as String?,
       primaryMuscle: json['primaryMuscle'] as String?,
-      secondaryMuscles:
-          (json['secondaryMuscles'] as List<dynamic>? ?? const [])
-              .cast<String>(),
+      secondaryMuscles: (json['secondaryMuscles'] as List<dynamic>? ?? const [])
+          .cast<String>(),
       movementPattern: json['movementPattern'] as String?,
       region: json['region'] as String?,
       jointPattern: json['jointPattern'] as String?,
@@ -128,23 +165,23 @@ class GeneratorMetadata {
   }
 
   Map<String, dynamic> toJson() => {
-        'category': category,
-        'bodyPart': bodyPart.label,
-        'equipment': equipment.label,
-        'type': type.wireValue,
-        'tier': tier.wireValue,
-        'minExperience': minExperience.wireValue,
-        'maxExperience': maxExperience?.wireValue,
-        'movementGroup': movementGroup,
-        'primaryMuscle': primaryMuscle,
-        'secondaryMuscles': secondaryMuscles,
-        'movementPattern': movementPattern,
-        'region': region,
-        'jointPattern': jointPattern,
-        'stimulusType': stimulusType,
-        'hypertrophyRole': hypertrophyRole,
-        'stable': stable,
-        'replaceOnly': replaceOnly,
-        'generatorExclude': generatorExclude,
-      };
+    'category': category,
+    'bodyPart': bodyPart.label,
+    'equipment': equipment.label,
+    'type': type.wireValue,
+    'tier': tier.wireValue,
+    'minExperience': minExperience.wireValue,
+    'maxExperience': maxExperience?.wireValue,
+    'movementGroup': movementGroup,
+    'primaryMuscle': primaryMuscle,
+    'secondaryMuscles': secondaryMuscles,
+    'movementPattern': movementPattern,
+    'region': region,
+    'jointPattern': jointPattern,
+    'stimulusType': stimulusType,
+    'hypertrophyRole': hypertrophyRole,
+    'stable': stable,
+    'replaceOnly': replaceOnly,
+    'generatorExclude': generatorExclude,
+  };
 }

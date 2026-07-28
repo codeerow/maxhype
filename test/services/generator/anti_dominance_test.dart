@@ -14,24 +14,24 @@ import 'package:maxhype/services/generator/workout_generator_service.dart';
 const _ad = AntiDominance();
 
 Exercise ex(String name, {String movementPattern = 'flat_press'}) => Exercise(
-      id: name,
-      name: name,
-      sets: 3,
-      reps: 8,
-      weight: 0,
-      muscleGroups: const [],
-      equipmentType: EquipmentType.barbell,
-      rating: 0,
-      generatorMeta: GeneratorMetadata(
-        category: 'chest press',
-        bodyPart: const BodyPart('Chest'),
-        equipment: const GeneratorEquipment('Barbell'),
-        type: ExerciseType.compound,
-        tier: ExerciseTier.a,
-        minExperience: ExperienceLevel.none,
-        movementPattern: movementPattern,
-      ),
-    );
+  id: name,
+  name: name,
+  sets: 3,
+  reps: 8,
+  weight: 0,
+  muscleGroups: const [],
+  equipmentType: EquipmentType.barbell,
+  rating: 0,
+  generatorMeta: GeneratorMetadata(
+    category: 'chest press',
+    bodyPart: const BodyPart('Chest'),
+    equipment: const GeneratorEquipment('Barbell'),
+    type: ExerciseType.compound,
+    tier: ExerciseTier.a,
+    minExperience: ExperienceLevel.none,
+    movementPattern: movementPattern,
+  ),
+);
 
 void main() {
   group('anti-dominance severity² curve', () {
@@ -80,18 +80,27 @@ void main() {
     test('canonical anchor boosted on primary-compound, experience-scaled', () {
       final bench = ex('Barbell Bench Press');
       expect(
-        _ad.anchorAdjustment(bench, ExperienceLevel.advanced,
-            isPrimaryCompoundSlot: true),
+        _ad.anchorAdjustment(
+          bench,
+          ExperienceLevel.advanced,
+          isPrimaryCompoundSlot: true,
+        ),
         18,
       );
       expect(
-        _ad.anchorAdjustment(bench, ExperienceLevel.intermediate,
-            isPrimaryCompoundSlot: true),
+        _ad.anchorAdjustment(
+          bench,
+          ExperienceLevel.intermediate,
+          isPrimaryCompoundSlot: true,
+        ),
         14,
       );
       expect(
-        _ad.anchorAdjustment(bench, ExperienceLevel.beginner,
-            isPrimaryCompoundSlot: true),
+        _ad.anchorAdjustment(
+          bench,
+          ExperienceLevel.beginner,
+          isPrimaryCompoundSlot: true,
+        ),
         10,
       );
     });
@@ -99,13 +108,19 @@ void main() {
     test('variant anchor penalized (smaller magnitude than boost)', () {
       final hack = ex('Hack Squat');
       expect(
-        _ad.anchorAdjustment(hack, ExperienceLevel.advanced,
-            isPrimaryCompoundSlot: true),
+        _ad.anchorAdjustment(
+          hack,
+          ExperienceLevel.advanced,
+          isPrimaryCompoundSlot: true,
+        ),
         -14,
       );
       expect(
-        _ad.anchorAdjustment(hack, ExperienceLevel.beginner,
-            isPrimaryCompoundSlot: true),
+        _ad.anchorAdjustment(
+          hack,
+          ExperienceLevel.beginner,
+          isPrimaryCompoundSlot: true,
+        ),
         -6,
       );
     });
@@ -113,14 +128,19 @@ void main() {
     test('no adjustment off primary-compound slots or for unknown names', () {
       final bench = ex('Barbell Bench Press');
       expect(
-        _ad.anchorAdjustment(bench, ExperienceLevel.advanced,
-            isPrimaryCompoundSlot: false),
+        _ad.anchorAdjustment(
+          bench,
+          ExperienceLevel.advanced,
+          isPrimaryCompoundSlot: false,
+        ),
         0,
       );
       expect(
-        _ad.anchorAdjustment(ex('Some Random Machine'),
-            ExperienceLevel.advanced,
-            isPrimaryCompoundSlot: true),
+        _ad.anchorAdjustment(
+          ex('Some Random Machine'),
+          ExperienceLevel.advanced,
+          isPrimaryCompoundSlot: true,
+        ),
         0,
       );
     });
@@ -151,13 +171,19 @@ void main() {
             axes.add(p == 'vertical_pull' ? 'vertical' : 'horizontal');
           }
         }
-        // The first two primary pulls must differ in axis (horizontal vs
-        // vertical) — the core pull-alternation guarantee.
+        // Pull-alternation is a SELECTION rule: the second committed primary
+        // pull must alternate axis from the first. The final ordering pass
+        // (script.js:5919, ported) then re-groups rows/pulldowns into blocks,
+        // so commit order is no longer observable in the returned list — the
+        // order-independent consequence is that a workout with 2+ primary
+        // pulls always covers BOTH axes (a same-axis pair could never have
+        // been committed).
         if (axes.length >= 2) {
           expect(
-            axes[0] == axes[1],
-            isFalse,
-            reason: 'seed $seed: first two primary pulls share axis ${axes[0]}',
+            axes.toSet(),
+            {'horizontal', 'vertical'},
+            reason:
+                'seed $seed: 2+ primary pulls must span both axes, got $axes',
           );
         }
       }
