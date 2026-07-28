@@ -63,6 +63,10 @@ class MockWorkoutRepository implements WorkoutRepository {
     return unit == null ? stats : unit.convertStats(stats);
   }
 
+  // The static catalog has no generator behind it — nothing to re-roll.
+  @override
+  Future<void> regenerateWorkout(String workoutId) async {}
+
   @override
   Future<void> replaceExercise({
     required String workoutId,

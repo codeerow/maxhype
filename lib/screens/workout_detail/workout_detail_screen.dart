@@ -84,10 +84,35 @@ class WorkoutDetailScreen extends StatelessWidget {
                   top: 0,
                   left: 0,
                   right: 0,
-                  child: LiquidGlassNavBar(
-                    title: Text(workout.title),
-                    backIcon: CupertinoIcons.back,
-                    onBack: () => Navigator.of(context).pop(),
+                  child: BlocBuilder<WorkoutSessionBloc, WorkoutSessionState>(
+                    buildWhen: (prev, next) =>
+                        (prev is SessionActive) != (next is SessionActive),
+                    builder: (context, sessionState) {
+                      // Per-workout Regenerate mirrors the web details
+                      // header: a glass pill on the right, same style as
+                      // the back pill. Hidden while ANY session is live —
+                      // a card must never change under an active workout
+                      // (identity / one-active-workout rules).
+                      final sessionActive = sessionState is SessionActive;
+                      return LiquidGlassNavBar(
+                        title: Text(workout.title),
+                        backIcon: CupertinoIcons.back,
+                        onBack: () => Navigator.of(context).pop(),
+                        actions: [
+                          if (!sessionActive)
+                            LiquidGlassNavAction(
+                              icon: CupertinoIcons.arrow_2_circlepath,
+                              iconColor: AppTheme.primaryOrange,
+                              onTap: () {
+                                context.read<WorkoutDetailBloc>().add(
+                                  RegenerateWorkout(workout.id),
+                                );
+                                AppToast.show(context, 'Workout regenerated');
+                              },
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],

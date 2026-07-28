@@ -369,4 +369,86 @@ void main() {
     });
   });
 
+  group('per-workout regenerate', () {
+    List<String> names(Workout w) => [for (final e in w.exercises) e.name];
+
+    test('re-rolls only the target card, keeping its identity', () async {
+      final repo = await repoFor(
+        FitnessPlan.defaults().copyWith(daysPerWeek: 3),
+      );
+      final before = await repo.getWorkouts();
+
+      await repo.regenerateWorkout(before[1].id);
+      final after = await repo.getWorkouts();
+
+      // Identity: same ids, same order, same count.
+      expect(
+        after.map((w) => w.id).toList(),
+        before.map((w) => w.id).toList(),
+      );
+      // The target card changed selection; siblings are untouched.
+      expect(names(after[1]), isNot(equals(names(before[1]))));
+      expect(names(after[0]), equals(names(before[0])));
+      expect(names(after[2]), equals(names(before[2])));
+    });
+
+    test('repeated regenerations produce different selections', () async {
+      final repo = await repoFor(FitnessPlan.defaults());
+      final first = await repo.getWorkouts();
+      final id = first.first.id;
+
+      await repo.regenerateWorkout(id);
+      final second = names((await repo.getWorkouts()).first);
+      await repo.regenerateWorkout(id);
+      final third = names((await repo.getWorkouts()).first);
+
+      expect(second, isNot(equals(third)));
+    });
+
+    test('no-op while a session is active (identity protection)', () async {
+      final assetRepo = AssetExerciseRepository(
+        jsonLoader: () async =>
+            File('assets/data/exercise_library.json').readAsString(),
+      );
+      await assetRepo.load();
+      final repo = GeneratedWorkoutRepository(
+        planRepository: _FakePlanRepo(FitnessPlan.defaults()),
+        assembler: WorkoutAssembler(AssetWorkoutGeneratorService(assetRepo)),
+        hasActiveSession: () async => true,
+      );
+      final before = await repo.getWorkouts();
+      await repo.regenerateWorkout(before.first.id);
+      final after = await repo.getWorkouts();
+      expect(names(after.first), equals(names(before.first)));
+    });
+
+    test('unknown workout id is ignored', () async {
+      final repo = await repoFor(FitnessPlan.defaults());
+      final before = await repo.getWorkouts();
+      await repo.regenerateWorkout('nope');
+      final after = await repo.getWorkouts();
+      for (var i = 0; i < before.length; i++) {
+        expect(names(after[i]), equals(names(before[i])));
+      }
+    });
+
+    test('emits the updated list on watchWorkouts', () async {
+      final repo = await repoFor(FitnessPlan.defaults());
+      final emissions = <List<Workout>>[];
+      final sub = repo.watchWorkouts().listen(emissions.add);
+      // First emission is the replayed current list.
+      await Future<void>.delayed(Duration.zero);
+      final id = emissions.first.first.id;
+
+      await repo.regenerateWorkout(id);
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+
+      expect(emissions.length, 2);
+      expect(
+        names(emissions[1].first),
+        isNot(equals(names(emissions[0].first))),
+      );
+    });
+  });
 }

@@ -30,4 +30,10 @@ abstract class WorkoutRepository {
     required String oldExerciseId,
     required Exercise newExercise,
   });
+
+  /// Regenerates a single workout card in place (fresh exercise selection,
+  /// same card identity/id), leaving the other cards untouched. No-op by
+  /// default — only the generated repository can re-roll a card; static
+  /// implementations have nothing to regenerate.
+  Future<void> regenerateWorkout(String workoutId) async {}
 }

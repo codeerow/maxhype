@@ -67,6 +67,12 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
   /// triggers a rebuild. Null until the first generation.
   ({int year, int week})? _generatedWeek;
 
+  /// Per-card Regenerate bump counts (card index → count). Folded into that
+  /// card's seed so each press re-rolls a different — but session-stable —
+  /// selection. In-memory like the Replace mutation: any full rebuild (plan
+  /// edit, Regenerate-all, week rollover) resets them.
+  final Map<int, int> _cardRegenerations = {};
+
   /// Broadcast controller for the reactive [watchWorkouts] view. Broadcast so
   /// multiple listeners (and re-listens) are fine; the latest list is replayed
   /// to new listeners via [watchWorkouts] below.
@@ -94,6 +100,7 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
       final rotation =
           await _rotationMemoryRepository?.load() ??
           const RotationMemory.empty();
+      _cardRegenerations.clear();
       _setWorkouts(
         _assembler.buildCards(
           plan,
@@ -152,6 +159,37 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
   @override
   Future<AllTimeStats> getAllTimeStats() async =>
       _planRepository.units.value.convertStats(MockData.getAllTimeStats());
+
+  /// Re-rolls a single card: same id/identity (split + index), fresh exercise
+  /// selection under a bumped per-card seed. Other cards are untouched, and
+  /// the change is broadcast on [watchWorkouts] like a Replace mutation.
+  ///
+  /// Guarded against a live session (the UI hides the control during one, but
+  /// the identity/one-active-workout rules must hold regardless): a no-op
+  /// while any session is active.
+  @override
+  Future<void> regenerateWorkout(String workoutId) async {
+    if (await _hasActiveSession?.call() ?? false) return;
+    final workouts = List<Workout>.of(await _ensureGenerated());
+    final idx = workouts.indexWhere((w) => w.id == workoutId);
+    if (idx < 0) return;
+
+    final plan = await _planRepository.load();
+    final rotation =
+        await _rotationMemoryRepository?.load() ?? const RotationMemory.empty();
+    final bump = (_cardRegenerations[idx] ?? 0) + 1;
+    _cardRegenerations[idx] = bump;
+    workouts[idx] = _assembler.buildCard(
+      plan,
+      index: idx,
+      // Offset the plan seed by a large odd stride per bump so successive
+      // presses walk distinct seeds without colliding with sibling cards'
+      // `seedBase + index` offsets.
+      seedBase: _seedForPlan(plan) + bump * 1000003,
+      rotationMemory: rotation,
+    );
+    _setWorkouts(workouts);
+  }
 
   @override
   Future<void> replaceExercise({

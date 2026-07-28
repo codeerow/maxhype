@@ -35,21 +35,38 @@ class WorkoutAssembler {
       throw ArgumentError('2A generates PPL only; got ${plan.split}.');
     }
     final days = plan.daysPerWeek.clamp(1, 7);
-    final cards = <Workout>[];
-    for (var i = 0; i < days; i++) {
-      final splitName = _pplCycle[i % _pplCycle.length];
-      final generated = generator.generate(
-        GenerationRequest(
-          splitName: splitName,
-          durationMinutes: plan.durationMinutes,
-          experience: plan.experience,
+    return [
+      for (var i = 0; i < days; i++)
+        buildCard(
+          plan,
+          index: i,
+          seedBase: seedBase,
           rotationMemory: rotationMemory,
         ),
-        seed: seedBase + i,
-      );
-      cards.add(_toWorkout(generated, index: i));
-    }
-    return cards;
+    ];
+  }
+
+  /// Builds the single card at [index] of the plan's cycle. Used by
+  /// [buildCards] for the full set and by the per-workout Regenerate action,
+  /// which re-rolls one card (with an offset [seedBase]) while the card's
+  /// id/identity — derived from split + index — stays stable.
+  Workout buildCard(
+    FitnessPlan plan, {
+    required int index,
+    required int seedBase,
+    RotationMemory rotationMemory = const RotationMemory.empty(),
+  }) {
+    final splitName = _pplCycle[index % _pplCycle.length];
+    final generated = generator.generate(
+      GenerationRequest(
+        splitName: splitName,
+        durationMinutes: plan.durationMinutes,
+        experience: plan.experience,
+        rotationMemory: rotationMemory,
+      ),
+      seed: seedBase + index,
+    );
+    return _toWorkout(generated, index: index);
   }
 
   Workout _toWorkout(GeneratedWorkout g, {required int index}) {

@@ -19,6 +19,31 @@ class WorkoutDetailBloc extends Bloc<WorkoutDetailEvent, WorkoutDetailState> {
     on<LoadWorkoutDetail>(_onLoadWorkoutDetail);
     on<ReplaceExercise>(_onReplaceExercise);
     on<AddExercise>(_onAddExercise);
+    on<RegenerateWorkout>(_onRegenerateWorkout);
+  }
+
+  Future<void> _onRegenerateWorkout(
+    RegenerateWorkout event,
+    Emitter<WorkoutDetailState> emit,
+  ) async {
+    // Keep the current completion lock — regeneration doesn't change whether
+    // this card was finished this week.
+    final completion = state is WorkoutDetailSuccess
+        ? (state as WorkoutDetailSuccess).completionThisWeek
+        : null;
+    try {
+      await workoutRepository.regenerateWorkout(event.workoutId);
+      final workouts = await workoutRepository.getWorkouts();
+      final workout = workouts.firstWhere(
+        (w) => w.id == event.workoutId,
+        orElse: () => throw Exception('Workout not found'),
+      );
+      emit(
+        WorkoutDetailSuccess(workout: workout, completionThisWeek: completion),
+      );
+    } catch (e) {
+      emit(WorkoutDetailError(message: e.toString()));
+    }
   }
 
   Future<void> _onLoadWorkoutDetail(

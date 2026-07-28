@@ -33,6 +33,16 @@ class ReplaceExercise extends WorkoutDetailEvent {
   });
 }
 
+/// Re-rolls this workout card (fresh exercise selection, same card identity)
+/// via the workout repository, then reloads the detail view. Triggered by the
+/// nav-bar Regenerate button; the button is hidden while a session is active,
+/// and the repository additionally no-ops during one.
+class RegenerateWorkout extends WorkoutDetailEvent {
+  final String workoutId;
+
+  RegenerateWorkout(this.workoutId);
+}
+
 class AddExercise extends WorkoutDetailEvent {
   final String workoutId;
   final Exercise exercise;
