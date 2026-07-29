@@ -99,42 +99,42 @@ class _WorkoutDurationScreenState extends State<WorkoutDurationScreen> {
     );
   }
 
-  /// Back arrow on the left with the screen title centered over the full width,
-  /// matching the screenshot (the title is centered, not left-aligned).
-  Widget _topBar(BuildContext context) => Stack(
-    alignment: Alignment.center,
+  /// Back arrow on the left with the left-aligned title, matching the other
+  /// plan sub-screens (`PlanOptionScreen`).
+  Widget _topBar(BuildContext context) => Row(
     children: [
-      const Text(
-        'Workout Duration',
-        style: TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.4,
-        ),
-      ),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TapScale.preset(
-          preset: TapScalePreset.icon,
-          enableHaptic: true,
-          onTap: () => Navigator.of(context).pop(_result),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0x0DFFFFFF), // white @ 5%
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.arrow_back,
-              color: AppTheme.planBackArrow,
-              size: 20,
-            ),
+      TapScale.preset(
+        preset: TapScalePreset.icon,
+        enableHaptic: true,
+        onTap: () => Navigator.of(context).pop(_result),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: const BoxDecoration(
+            color: Color(0x0DFFFFFF), // white @ 5%
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.arrow_back,
+            color: AppTheme.planBackArrow,
+            size: 20,
           ),
         ),
       ),
+      const SizedBox(width: 12),
+      const Expanded(
+        child: Text(
+          'Workout Duration',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.4,
+          ),
+        ),
+      ),
+      const SizedBox(width: 36),
     ],
   );
 
