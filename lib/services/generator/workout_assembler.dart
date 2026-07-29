@@ -76,7 +76,7 @@ class WorkoutAssembler {
       id: 'gen_${g.splitName.replaceAll(RegExp(r'\s+'), '_').toLowerCase()}_$index',
       title: title,
       subtitle: _subtitle(muscles),
-      duration: _durationLabel(g.durationMinutes),
+      duration: _durationLabel(g.estimatedMinutes),
       exerciseCount: g.exercises.length,
       exercises: g.exercises,
       targetMuscles: muscles,
@@ -121,14 +121,7 @@ class WorkoutAssembler {
     return muscles.take(4).map((m) => m.displayName).join(', ');
   }
 
-  /// Human duration label matching the app's style ("60 min", "2 hrs").
-  String _durationLabel(int minutes) {
-    if (minutes < 60) return '$minutes min';
-    if (minutes % 60 == 0) {
-      final hrs = minutes ~/ 60;
-      return hrs == 1 ? '1 hr' : '$hrs hrs';
-    }
-    final hrs = minutes / 60;
-    return '${hrs.toStringAsFixed(1)} hrs';
-  }
+  /// Duration label for the workout card — always in minutes ("90 min"), since
+  /// the value is the generator's per-workout minute estimate.
+  String _durationLabel(int minutes) => '$minutes min';
 }

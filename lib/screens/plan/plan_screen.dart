@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/tap_scale.dart';
 import 'plan_option_screen.dart';
+import 'workout_duration_screen.dart';
 
 /// Minimal fitness-plan configuration surface (Phase 4 Part 2A deliverable
 /// "configure my fitness plan"). Edits the persisted [FitnessPlan]; each change
@@ -39,10 +40,6 @@ class PlanScreen extends StatefulWidget {
 
 class _PlanScreenState extends State<PlanScreen> {
   FitnessPlan? _plan;
-
-  /// True while a Regenerate is in flight — disables the button and shows a
-  /// spinner so a double-tap can't stack regenerations.
-  bool _regenerating = false;
 
   @override
   void initState() {
@@ -71,19 +68,6 @@ class _PlanScreenState extends State<PlanScreen> {
     }
     if (!mounted) return;
     AppToast.showPremium(context, toast);
-  }
-
-  /// Requests a fresh exercise selection for the *same* settings by bumping the
-  /// plan's generation counter (which feeds the generator seed).
-  Future<void> _regenerate(FitnessPlan plan) async {
-    if (_regenerating) return;
-    setState(() => _regenerating = true);
-    await _update(
-      plan.copyWith(generation: plan.generation + 1),
-      toast: 'Workouts regenerated',
-    );
-    if (!mounted) return;
-    setState(() => _regenerating = false);
   }
 
   @override
@@ -155,7 +139,6 @@ class _PlanScreenState extends State<PlanScreen> {
                     ),
                   ]),
                   const SizedBox(height: 28),
-                  _regenerateButton(plan),
                   // Debug-only: fast-forward the app's week to demo the
                   // "Completed this week" lock + rotation memory without
                   // touching the device clock. Compiled out of release builds.
@@ -204,13 +187,10 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Future<void> _pickDuration(FitnessPlan plan) async {
-    final result = await PlanOptionScreen.show<int>(
+    final result = await WorkoutDurationScreen.show(
       context,
-      title: 'Workout duration',
       selected: plan.durationMinutes,
-      options: kSupportedDurations
-          .map((m) => PlanOption<int>(value: m, title: '$m minutes'))
-          .toList(),
+      options: kSupportedDurations,
     );
     if (result != null) await _update(plan.copyWith(durationMinutes: result));
   }
@@ -329,50 +309,6 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
     );
   }
-
-  /// Full-width "Regenerate" action: builds a fresh set of exercises for the
-  /// current settings. Distinct from editing a setting — it keeps the plan the
-  /// same and just re-rolls the selection (via the generation counter).
-  Widget _regenerateButton(FitnessPlan plan) => TapScale(
-        scaleDown: TapScalePreset.cta.scale,
-        enableHaptic: true,
-        onTap: _regenerating ? null : () => _regenerate(plan),
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryOrange.withValues(
-              alpha: _regenerating ? 0.6 : 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          alignment: Alignment.center,
-          child: _regenerating
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.refresh, color: Colors.white, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Regenerate',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      );
 
   /// A `Title → value ›` menu row that opens a picker on tap.
   ///

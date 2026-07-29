@@ -35,17 +35,77 @@ class GenerationRequest {
 /// provenance for diagnostics/tests.
 class GeneratedWorkout {
   final String splitName;
+
+  /// The user's *target* duration (the plan setting, e.g. 75). Drives slot
+  /// selection and set density; it is the request, not the estimate.
   final int durationMinutes;
+
+  /// The generator's per-workout minute estimate shown on the card. Anchored to
+  /// [durationMinutes] and nudged a few minutes by which exercises were picked,
+  /// so a 75-min plan reads as 72 / 75 / 78 across re-rolls rather than a flat
+  /// echo of the pick. See [estimateWorkoutMinutes].
+  final int estimatedMinutes;
+
   final ExperienceLevel experience;
   final List<Exercise> exercises;
 
   const GeneratedWorkout({
     required this.splitName,
     required this.durationMinutes,
+    required this.estimatedMinutes,
     required this.experience,
     required this.exercises,
   });
 }
+
+/// Estimates the per-workout duration shown on the card, in minutes, anchored
+/// to the [targetMinutes] the user picked and nudged a few minutes by *which*
+/// exercises were assembled.
+///
+/// Why not a pure work+rest physics sum: for a fixed plan (same target, level,
+/// split) the generator produces an identical training load on every re-roll —
+/// the exercise *count*, per-exercise `sets`, and `reps` don't change, only
+/// which movements fill the slots. So any volume-derived estimate is constant
+/// (45 → always 45, 75 → always 75), and the card never shows the natural
+/// "72 / 78" spread around the pick.
+///
+/// Instead the shift is a deterministic function of the chosen exercises (their
+/// ids and load), mapped into a tight window around the target. Different rolls
+/// pick different exercises → different shift → the card reads 72 / 75 / 78,
+/// while the same roll always reproduces the same number. The window keeps it
+/// close to the pick (±[_kEstimateWindowFraction] of the target, ≈ ±6 min at
+/// 75), so it always reads as "near 75".
+int estimateWorkoutMinutes(
+  List<Exercise> exercises, {
+  required int targetMinutes,
+}) {
+  if (exercises.isEmpty) return targetMinutes;
+
+  final window = (targetMinutes * _kEstimateWindowFraction).round();
+  if (window == 0) return targetMinutes;
+
+  // Deterministic fingerprint of this exact selection: fold the exercise ids
+  // (identity of what was picked) together with per-exercise load so both a
+  // different movement set and a different volume move the number. FNV-1a-style
+  // mixing over character codes keeps it stable and well-spread without dart:*
+  // hashing (which isn't guaranteed stable across runs).
+  var hash = 0x811c9dc5;
+  for (final e in exercises) {
+    for (final code in e.id.codeUnits) {
+      hash = (hash ^ code) * 0x01000193 & 0x7fffffff;
+    }
+    hash = (hash ^ (e.sets * 31 + e.reps)) * 0x01000193 & 0x7fffffff;
+  }
+
+  // Map the fingerprint uniformly onto [-window, +window].
+  final span = 2 * window + 1;
+  final shift = (hash % span) - window;
+  return targetMinutes + shift;
+}
+
+/// Half-width of the estimate window as a fraction of the target duration: the
+/// card's minute estimate stays within ±(fraction × target) of the pick.
+const double _kEstimateWindowFraction = 0.08;
 
 /// Ports the MaxHype PPL generation engine (Part 2A core).
 ///
@@ -119,6 +179,10 @@ class AssetWorkoutGeneratorService implements WorkoutGeneratorService {
     return GeneratedWorkout(
       splitName: request.splitName,
       durationMinutes: request.durationMinutes,
+      estimatedMinutes: estimateWorkoutMinutes(
+        exercises,
+        targetMinutes: request.durationMinutes,
+      ),
       experience: request.experience,
       exercises: exercises,
     );
