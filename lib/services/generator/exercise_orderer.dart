@@ -20,14 +20,13 @@ import '../../models/generator/exercise_taxonomy.dart';
 /// * **Pull Day** — group blocks `upper_back → lats → rear_delt → biceps →
 ///   support` (unknown groups last); within a block compounds first, then
 ///   section priority.
-/// * **Legs + Core** — phase-based movement ordering (the prototype's final
-///   `_enforceLegsPhaseOrdering` pass, script.js:4343, applied at the very
-///   end of `buildWorkoutForIndex` ON TOP of the group-block pass): squat /
-///   leg-press / lunge patterns → hinge / hip-thrust patterns → leg
-///   isolations → calves → core (always last). The group-block pass still
+/// * **Legs + Core** — phase-based movement ordering matching the Generator
+///   Bible's Legs + Core target flow (see [legsPhaseFor]): squat / primary
+///   bilateral → secondary compound / unilateral (lunge family) → hinge /
+///   hip-thrust → quad isolation → hamstring isolation → other lower-body
+///   isolation → calves → core (always last). The group-block pass still
 ///   runs first, so within a phase the relative order (compounds first,
-///   quad isolations before hamstring before glute) matches the executed
-///   prototype exactly.
+///   then section priority) matches the executed prototype exactly.
 ///
 /// All sorts are stable (the prototype relies on JS's stable `Array.sort` to
 /// preserve generation order on ties, so we use [mergeSort] — Dart's
@@ -168,16 +167,28 @@ class ExerciseOrderer {
     }
   }
 
-  /// The Legs movement phase for an exercise (prototype `_legsPhaseFor`,
-  /// script.js:4307). Metadata-driven, checked in the prototype's exact rule
-  /// order:
+  /// The Legs movement phase for an exercise, mirroring the Generator Bible's
+  /// Legs + Core target flow one-to-one (docs/generator/
+  /// MAXHYPE_GENERATOR_BIBLE_V2.md, "Ordering Philosophy" + the V2.1
+  /// isolation-phase implementation note). Metadata-driven:
   ///
-  /// 1. squat / leg-press / lunge patterns
-  /// 2. hinge / hip-thrust patterns (plus any hamstring/glute compound)
-  /// 3. leg isolations (leg extensions, leg curls, kickbacks, ab/adduction,
-  ///    and any remaining quads/hamstrings/glutes accessory)
-  /// 4. calves
-  /// 5. core (abs / obliques / lower back) — always last
+  /// 1. squat / primary bilateral (squat and leg-press patterns)
+  /// 2. secondary compound / unilateral (lunge pattern — lunges, split
+  ///    squats, step-ups)
+  /// 3. hinge / hip-thrust patterns (plus any hamstring/glute compound)
+  /// 4. quad isolation (leg extensions and remaining quads accessory)
+  /// 5. hamstring isolation (leg curls and remaining hamstrings accessory)
+  /// 6. other lower-body isolation (kickbacks, ab/adduction, glute accessory)
+  /// 7. calves
+  /// 8. core (abs / obliques / lower back) — always last
+  ///
+  /// The prototype (`_legsPhaseFor`, script.js:4307) folds 1+2 into a single
+  /// phase and 4+5+6 into a single phase, and gets the Bible's finer ordering
+  /// from the preceding SECTION_PRIORITY block pass. This finer split keeps
+  /// the classification of every exercise identical (each old phase maps onto
+  /// a contiguous run of new phases, and stable bucketing preserves the
+  /// incoming order) while making the Bible ordering hold by construction —
+  /// independent of SECTION_PRIORITY.
   ///
   /// Unclassifiable exercises (no metadata) return 99 and are placed before
   /// core, honoring the "core must always remain last" rule.
@@ -190,34 +201,33 @@ class ExerciseOrderer {
     final isCompound =
         role == 'primary_compound' || role == 'secondary_compound';
 
-    // Phase 5 — core / abs / obliques / lower back. Always last.
+    // Phase 8 — core / abs / obliques / lower back. Always last.
     if (pm == 'abs' || pm == 'obliques' || pm == 'core' || pm == 'lower_back') {
-      return 5;
+      return 8;
     }
-    // Phase 4 — calves.
-    if (pm == 'calves') return 4;
-    // Phase 1 — primary leg compounds via pattern.
-    if (mp == 'squat' || mp == 'leg_press' || mp == 'lunge') return 1;
-    // Phase 2 — posterior chain compounds via pattern.
-    if (mp == 'hinge' || mp == 'hip_thrust') return 2;
+    // Phase 7 — calves.
+    if (pm == 'calves') return 7;
+    // Phase 1 — squat / primary bilateral via pattern.
+    if (mp == 'squat' || mp == 'leg_press') return 1;
+    // Phase 2 — secondary compound / unilateral via pattern.
+    if (mp == 'lunge') return 2;
+    // Phase 3 — posterior chain compounds via pattern.
+    if (mp == 'hinge' || mp == 'hip_thrust') return 3;
     // Remaining big-leg compounds route to the matching compound phase.
     if (isCompound) {
-      if (pm == 'hamstrings' || pm == 'glutes') return 2;
+      if (pm == 'hamstrings' || pm == 'glutes') return 3;
       if (pm == 'quads') return 1;
     }
-    // Phase 3 — leg isolation / accessory.
-    if (pm == 'quads' || pm == 'hamstrings' || pm == 'glutes') return 3;
+    // Phases 4-6 — isolation / accessory by muscle, in the Bible's quad →
+    // hamstring → other-lower order.
+    if (pm == 'quads') return 4;
+    if (pm == 'hamstrings') return 5;
+    if (pm == 'glutes') return 6;
     // Pattern fallback: the prototype's names plus this library's wire
     // synonyms (knee_extension/knee_flexion for extensions/curls).
-    if (mp == 'leg_extension' ||
-        mp == 'knee_extension' ||
-        mp == 'hamstring_curl' ||
-        mp == 'knee_flexion' ||
-        mp == 'kickback' ||
-        mp == 'abduction' ||
-        mp == 'adduction') {
-      return 3;
-    }
+    if (mp == 'leg_extension' || mp == 'knee_extension') return 4;
+    if (mp == 'hamstring_curl' || mp == 'knee_flexion') return 5;
+    if (mp == 'kickback' || mp == 'abduction' || mp == 'adduction') return 6;
     return 99;
   }
 
@@ -229,14 +239,15 @@ class ExerciseOrderer {
   /// generated exercise is ever unclassifiable — the branch exists only for
   /// safety).
   List<Exercise> _legsPhaseReorder(List<Exercise> exercises) {
+    const order = [1, 2, 3, 4, 5, 6, 7, 99, 8];
     final phases = {
-      for (final p in const [1, 2, 3, 4, 99, 5]) p: <Exercise>[],
+      for (final p in order) p: <Exercise>[],
     };
     for (final e in exercises) {
       phases[legsPhaseFor(e)]!.add(e);
     }
     return [
-      for (final p in const [1, 2, 3, 4, 99, 5]) ...phases[p]!,
+      for (final p in order) ...phases[p]!,
     ];
   }
 

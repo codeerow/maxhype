@@ -136,6 +136,45 @@ void main() {
     expect(mutated.exercises.first.name, 'My Custom Lift');
   });
 
+  test(
+    'replaceExercise is an in-place swap: every position is preserved '
+    '(Generator Bible §Replacement System → Ordering Preservation)',
+    () async {
+      final repo = await repoFor(FitnessPlan.defaults());
+      final cards = await repo.getWorkouts();
+      final target = cards.firstWhere((w) => w.title == 'Legs + Core');
+      final midIdx = target.exercises.length ~/ 2;
+      final oldEx = target.exercises[midIdx];
+      final replacement = Exercise(
+        id: 'custom_mid',
+        name: 'Mid Swap Lift',
+        sets: 3,
+        reps: 10,
+        weight: 40,
+        muscleGroups: const [MuscleGroup.quads],
+        equipmentType: EquipmentType.machine,
+        rating: 0,
+      );
+
+      await repo.replaceExercise(
+        workoutId: target.id,
+        oldExerciseId: oldEx.id,
+        newExercise: replacement,
+      );
+
+      final after = (await repo.getWorkouts()).firstWhere(
+        (w) => w.id == target.id,
+      );
+      // The replacement lands exactly where the old exercise was, and no
+      // other exercise moves — replacement must never re-run ordering.
+      expect(after.exercises[midIdx].name, 'Mid Swap Lift');
+      for (var i = 0; i < target.exercises.length; i++) {
+        if (i == midIdx) continue;
+        expect(after.exercises[i].name, target.exercises[i].name);
+      }
+    },
+  );
+
   test('regenerate rebuilds after a plan change', () async {
     final assetRepo = AssetExerciseRepository(
       jsonLoader: () async =>

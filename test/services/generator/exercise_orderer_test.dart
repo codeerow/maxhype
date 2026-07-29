@@ -286,12 +286,12 @@ void main() {
         final out = _names(orderer.order('Legs + Core', input));
         expect(out, [
           'Squat', // phase 1
-          'Deadlift', // phase 2: hinge
-          'Hip Thrust', // phase 2: hip thrust
-          'Leg Extension', // phase 3: isolations, quad iso first (stable)
-          'Ham Curl',
-          'Calf Raise', // phase 4
-          'Crunch', // phase 5: core strictly last
+          'Deadlift', // phase 3: hinge
+          'Hip Thrust', // phase 3: hip thrust
+          'Leg Extension', // phase 4: quad isolation
+          'Ham Curl', // phase 5: hamstring isolation
+          'Calf Raise', // phase 7
+          'Crunch', // phase 8: core strictly last
         ]);
       },
     );
@@ -469,7 +469,8 @@ void main() {
 
     test(
       'Legs: generated workouts follow the phase sequence '
-      '(squat/lunge → hinge/hip thrust → isolation → calves → core)',
+      '(squat → lunge → hinge/hip thrust → quad iso → ham iso → other iso '
+      '→ calves → core)',
       () {
         for (final experience in ExperienceLevel.values) {
           for (final minutes in const [60, 90, 120]) {
@@ -497,8 +498,8 @@ void main() {
                 );
                 expect(phases[i], isNot(99));
               }
-              // Core (phase 5) is always last: present and terminal.
-              expect(phases.last, 5, reason: 'core must close the workout');
+              // Core (phase 8) is always last: present and terminal.
+              expect(phases.last, 8, reason: 'core must close the workout');
             }
           }
         }
@@ -522,15 +523,16 @@ void main() {
           a.exercises.map((e) => e.name).toList(),
           b.exercises.map((e) => e.name).toList(),
         );
-        // Within phase 3, the group-pass relative order holds: every quad
-        // isolation precedes every hamstring isolation (executed-web parity).
-        final phase3 = a.exercises
-            .where((e) => ExerciseOrderer.legsPhaseFor(e) == 3)
-            .toList();
-        final lastQuad = phase3.lastIndexWhere(
+        // Within the isolation block (phases 4-6), every quad isolation
+        // precedes every hamstring isolation (Bible + executed-web parity).
+        final isoBlock = a.exercises.where((e) {
+          final p = ExerciseOrderer.legsPhaseFor(e);
+          return p >= 4 && p <= 6;
+        }).toList();
+        final lastQuad = isoBlock.lastIndexWhere(
           (e) => quadIso.contains(e.generatorMeta?.category),
         );
-        final firstHam = phase3.indexWhere(
+        final firstHam = isoBlock.indexWhere(
           (e) => hamIso.contains(e.generatorMeta?.category),
         );
         if (lastQuad != -1 && firstHam != -1) {
@@ -539,8 +541,8 @@ void main() {
             isTrue,
             reason:
                 'quad isolations must precede hamstring isolations '
-                'within phase 3 (seed=$seed): '
-                '${phase3.map((e) => e.name).toList()}',
+                'within the isolation block (seed=$seed): '
+                '${isoBlock.map((e) => e.name).toList()}',
           );
         }
       }

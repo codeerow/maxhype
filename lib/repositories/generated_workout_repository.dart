@@ -191,6 +191,12 @@ class GeneratedWorkoutRepository implements WorkoutRepository {
     _setWorkouts(workouts);
   }
 
+  /// In-place swap by design: the replacement takes the old exercise's slot
+  /// and no other exercise moves. Generator ordering rules apply only at
+  /// generation time — replacement intentionally never re-runs the ordering
+  /// pass, even when the swap crosses phases (e.g. Leg Press → Leg
+  /// Extension), per the Generator Bible §Replacement System → Ordering
+  /// Preservation (docs/generator/MAXHYPE_GENERATOR_BIBLE_V2.md).
   @override
   Future<void> replaceExercise({
     required String workoutId,
