@@ -19,6 +19,9 @@ Exercise _ex(
   required ExerciseType type,
   String equipment = 'Barbell',
   String? movementGroup,
+  String? primaryMuscle,
+  String? movementPattern,
+  String? hypertrophyRole,
 }) {
   return Exercise(
     id: name,
@@ -37,6 +40,9 @@ Exercise _ex(
       tier: ExerciseTier.a,
       minExperience: ExperienceLevel.none,
       movementGroup: movementGroup,
+      primaryMuscle: primaryMuscle,
+      movementPattern: movementPattern,
+      hypertrophyRole: hypertrophyRole,
     ),
   );
 }
@@ -199,31 +205,211 @@ void main() {
     );
   });
 
-  group('Legs + Core block order', () {
-    test('quads → hamstrings → glutes → calves → core last', () {
-      final input = [
-        _ex('Crunch', category: 'abs', type: ExerciseType.isolation),
-        _ex('Calf Raise', category: 'calf raise', type: ExerciseType.isolation),
-        _ex('Leg Extension', category: 'quad', type: ExerciseType.isolation),
-        _ex('Hip Thrust', category: 'hip thrust', type: ExerciseType.compound),
-        _ex(
+  group('Legs + Core phase order', () {
+    Exercise leg(
+      String name, {
+      required String category,
+      required ExerciseType type,
+      required String pm,
+      required String mp,
+      required String role,
+    }) => _ex(
+      name,
+      category: category,
+      type: type,
+      primaryMuscle: pm,
+      movementPattern: mp,
+      hypertrophyRole: role,
+    );
+
+    test(
+      'squat/lunge -> hinge/hip thrust -> leg isolation -> calves -> core',
+      () {
+        final input = [
+          leg(
+            'Crunch',
+            category: 'abs',
+            type: ExerciseType.isolation,
+            pm: 'abs',
+            mp: 'crunch',
+            role: 'isolation',
+          ),
+          leg(
+            'Calf Raise',
+            category: 'calf raise',
+            type: ExerciseType.isolation,
+            pm: 'calves',
+            mp: 'calf_raise',
+            role: 'isolation',
+          ),
+          leg(
+            'Leg Extension',
+            category: 'quad',
+            type: ExerciseType.isolation,
+            pm: 'quads',
+            mp: 'knee_extension',
+            role: 'isolation',
+          ),
+          leg(
+            'Hip Thrust',
+            category: 'hip thrust',
+            type: ExerciseType.compound,
+            pm: 'glutes',
+            mp: 'hip_thrust',
+            role: 'secondary_compound',
+          ),
+          leg(
+            'Ham Curl',
+            category: 'hamstring curl',
+            type: ExerciseType.isolation,
+            pm: 'hamstrings',
+            mp: 'knee_flexion',
+            role: 'isolation',
+          ),
+          leg(
+            'Deadlift',
+            category: 'hinge',
+            type: ExerciseType.compound,
+            pm: 'hamstrings',
+            mp: 'hinge',
+            role: 'primary_compound',
+          ),
+          leg(
+            'Squat',
+            category: 'squat',
+            type: ExerciseType.compound,
+            pm: 'quads',
+            mp: 'squat',
+            role: 'primary_compound',
+          ),
+        ];
+        final out = _names(orderer.order('Legs + Core', input));
+        expect(out, [
+          'Squat', // phase 1
+          'Deadlift', // phase 2: hinge
+          'Hip Thrust', // phase 2: hip thrust
+          'Leg Extension', // phase 3: isolations, quad iso first (stable)
           'Ham Curl',
+          'Calf Raise', // phase 4
+          'Crunch', // phase 5: core strictly last
+        ]);
+      },
+    );
+
+    test("customer's reference sequence orders exactly as specified", () {
+      // "Back Squat -> Walking Lunge -> Romanian Deadlift -> Hip Thrust ->
+      //  Leg Extension -> Seated Leg Curl -> Calf Raise -> Core" - fed in
+      // scrambled, the phase pass must reproduce it.
+      final input = [
+        leg(
+          'Seated Leg Curl',
           category: 'hamstring curl',
           type: ExerciseType.isolation,
+          pm: 'hamstrings',
+          mp: 'knee_flexion',
+          role: 'isolation',
         ),
-        _ex('Deadlift', category: 'hinge', type: ExerciseType.compound),
-        _ex('Squat', category: 'squat', type: ExerciseType.compound),
+        leg(
+          'Core Work',
+          category: 'abs',
+          type: ExerciseType.isolation,
+          pm: 'abs',
+          mp: 'crunch',
+          role: 'isolation',
+        ),
+        leg(
+          'Back Squat',
+          category: 'squat',
+          type: ExerciseType.compound,
+          pm: 'quads',
+          mp: 'squat',
+          role: 'primary_compound',
+        ),
+        leg(
+          'Calf Raise',
+          category: 'calf raise',
+          type: ExerciseType.isolation,
+          pm: 'calves',
+          mp: 'calf_raise',
+          role: 'isolation',
+        ),
+        leg(
+          'Romanian Deadlift',
+          category: 'hinge',
+          type: ExerciseType.compound,
+          pm: 'hamstrings',
+          mp: 'hinge',
+          role: 'primary_compound',
+        ),
+        leg(
+          'Leg Extension',
+          category: 'quad',
+          type: ExerciseType.isolation,
+          pm: 'quads',
+          mp: 'knee_extension',
+          role: 'isolation',
+        ),
+        leg(
+          'Walking Lunge',
+          category: 'lunge',
+          type: ExerciseType.compound,
+          pm: 'quads',
+          mp: 'lunge',
+          role: 'secondary_compound',
+        ),
+        leg(
+          'Hip Thrust',
+          category: 'hip thrust',
+          type: ExerciseType.compound,
+          pm: 'glutes',
+          mp: 'hip_thrust',
+          role: 'secondary_compound',
+        ),
       ];
       final out = _names(orderer.order('Legs + Core', input));
       expect(out, [
-        'Squat', // quads: compound first
-        'Leg Extension',
-        'Deadlift', // hamstrings: compound first
-        'Ham Curl',
+        'Back Squat',
+        'Walking Lunge',
+        'Romanian Deadlift',
         'Hip Thrust',
+        'Leg Extension',
+        'Seated Leg Curl',
         'Calf Raise',
-        'Crunch', // core strictly last
+        'Core Work',
       ]);
+    });
+
+    test('metadata-less exercise lands before core, never after', () {
+      final input = [
+        Exercise(
+          id: 'x',
+          name: 'Custom Move',
+          sets: 3,
+          reps: 10,
+          weight: 0,
+          muscleGroups: const [],
+          equipmentType: EquipmentType.barbell,
+          rating: 0,
+        ),
+        leg(
+          'Crunch',
+          category: 'abs',
+          type: ExerciseType.isolation,
+          pm: 'abs',
+          mp: 'crunch',
+          role: 'isolation',
+        ),
+        leg(
+          'Squat',
+          category: 'squat',
+          type: ExerciseType.compound,
+          pm: 'quads',
+          mp: 'squat',
+          role: 'primary_compound',
+        ),
+      ];
+      final out = _names(orderer.order('Legs + Core', input));
+      expect(out, ['Squat', 'Custom Move', 'Crunch']);
     });
   });
 
@@ -277,6 +463,85 @@ void main() {
                   '${w.exercises.map((e) => e.name).toList()}',
             );
           }
+        }
+      }
+    });
+
+    test(
+      'Legs: generated workouts follow the phase sequence '
+      '(squat/lunge → hinge/hip thrust → isolation → calves → core)',
+      () {
+        for (final experience in ExperienceLevel.values) {
+          for (final minutes in const [60, 90, 120]) {
+            for (var seed = 3000; seed < 3015; seed++) {
+              final w = svc.generate(
+                GenerationRequest(
+                  splitName: 'Legs + Core',
+                  durationMinutes: minutes,
+                  experience: experience,
+                ),
+                seed: seed,
+              );
+              final phases = [
+                for (final e in w.exercises) ExerciseOrderer.legsPhaseFor(e),
+              ];
+              // Non-decreasing phases (99 never occurs in generated output).
+              for (var i = 1; i < phases.length; i++) {
+                expect(
+                  phases[i] >= phases[i - 1],
+                  isTrue,
+                  reason:
+                      'phase regression at ${experience.name}@$minutes '
+                      'seed=$seed: '
+                      '${w.exercises.map((e) => '${e.name}(${ExerciseOrderer.legsPhaseFor(e)})').toList()}',
+                );
+                expect(phases[i], isNot(99));
+              }
+              // Core (phase 5) is always last: present and terminal.
+              expect(phases.last, 5, reason: 'core must close the workout');
+            }
+          }
+        }
+      },
+    );
+
+    test('Legs: ordering is stable within each phase (deterministic + '
+        'group-pass order preserved)', () {
+      const quadIso = {'quad'};
+      const hamIso = {'hamstring curl'};
+      for (var seed = 3000; seed < 3020; seed++) {
+        const req = GenerationRequest(
+          splitName: 'Legs + Core',
+          durationMinutes: 90,
+          experience: ExperienceLevel.advanced,
+        );
+        final a = svc.generate(req, seed: seed);
+        final b = svc.generate(req, seed: seed);
+        // Same seed → identical order (stability/determinism).
+        expect(
+          a.exercises.map((e) => e.name).toList(),
+          b.exercises.map((e) => e.name).toList(),
+        );
+        // Within phase 3, the group-pass relative order holds: every quad
+        // isolation precedes every hamstring isolation (executed-web parity).
+        final phase3 = a.exercises
+            .where((e) => ExerciseOrderer.legsPhaseFor(e) == 3)
+            .toList();
+        final lastQuad = phase3.lastIndexWhere(
+          (e) => quadIso.contains(e.generatorMeta?.category),
+        );
+        final firstHam = phase3.indexWhere(
+          (e) => hamIso.contains(e.generatorMeta?.category),
+        );
+        if (lastQuad != -1 && firstHam != -1) {
+          expect(
+            lastQuad < firstHam,
+            isTrue,
+            reason:
+                'quad isolations must precede hamstring isolations '
+                'within phase 3 (seed=$seed): '
+                '${phase3.map((e) => e.name).toList()}',
+          );
         }
       }
     });

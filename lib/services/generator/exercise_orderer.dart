@@ -20,9 +20,14 @@ import '../../models/generator/exercise_taxonomy.dart';
 /// * **Pull Day** — group blocks `upper_back → lats → rear_delt → biceps →
 ///   support` (unknown groups last); within a block compounds first, then
 ///   section priority.
-/// * **Legs + Core** — group blocks `quads → hamstrings → glutes → calves →
-///   accessories → core` (core deliberately last; unknown groups after);
-///   within a block compounds first, then section priority.
+/// * **Legs + Core** — phase-based movement ordering (the prototype's final
+///   `_enforceLegsPhaseOrdering` pass, script.js:4343, applied at the very
+///   end of `buildWorkoutForIndex` ON TOP of the group-block pass): squat /
+///   leg-press / lunge patterns → hinge / hip-thrust patterns → leg
+///   isolations → calves → core (always last). The group-block pass still
+///   runs first, so within a phase the relative order (compounds first,
+///   quad isolations before hamstring before glute) matches the executed
+///   prototype exactly.
 ///
 /// All sorts are stable (the prototype relies on JS's stable `Array.sort` to
 /// preserve generation order on ties, so we use [mergeSort] — Dart's
@@ -152,10 +157,87 @@ class ExerciseOrderer {
       case 'Pull Day':
         return _orderBlocks(exercises, 'Pull Day', _pullGroupOrder);
       case 'Legs + Core':
-        return _orderBlocks(exercises, 'Legs + Core', _legsGroupOrder);
+        // Two passes, exactly like the executed prototype: the group-block
+        // pass establishes within-phase relative order, then the stable
+        // phase pass regroups by movement phase.
+        return _legsPhaseReorder(
+          _orderBlocks(exercises, 'Legs + Core', _legsGroupOrder),
+        );
       default:
         return List.of(exercises);
     }
+  }
+
+  /// The Legs movement phase for an exercise (prototype `_legsPhaseFor`,
+  /// script.js:4307). Metadata-driven, checked in the prototype's exact rule
+  /// order:
+  ///
+  /// 1. squat / leg-press / lunge patterns
+  /// 2. hinge / hip-thrust patterns (plus any hamstring/glute compound)
+  /// 3. leg isolations (leg extensions, leg curls, kickbacks, ab/adduction,
+  ///    and any remaining quads/hamstrings/glutes accessory)
+  /// 4. calves
+  /// 5. core (abs / obliques / lower back) — always last
+  ///
+  /// Unclassifiable exercises (no metadata) return 99 and are placed before
+  /// core, honoring the "core must always remain last" rule.
+  static int legsPhaseFor(Exercise e) {
+    final meta = e.generatorMeta;
+    if (meta == null) return 99;
+    final pm = meta.primaryMuscle ?? '';
+    final mp = meta.movementPattern ?? '';
+    final role = meta.hypertrophyRole ?? '';
+    final isCompound =
+        role == 'primary_compound' || role == 'secondary_compound';
+
+    // Phase 5 — core / abs / obliques / lower back. Always last.
+    if (pm == 'abs' || pm == 'obliques' || pm == 'core' || pm == 'lower_back') {
+      return 5;
+    }
+    // Phase 4 — calves.
+    if (pm == 'calves') return 4;
+    // Phase 1 — primary leg compounds via pattern.
+    if (mp == 'squat' || mp == 'leg_press' || mp == 'lunge') return 1;
+    // Phase 2 — posterior chain compounds via pattern.
+    if (mp == 'hinge' || mp == 'hip_thrust') return 2;
+    // Remaining big-leg compounds route to the matching compound phase.
+    if (isCompound) {
+      if (pm == 'hamstrings' || pm == 'glutes') return 2;
+      if (pm == 'quads') return 1;
+    }
+    // Phase 3 — leg isolation / accessory.
+    if (pm == 'quads' || pm == 'hamstrings' || pm == 'glutes') return 3;
+    // Pattern fallback: the prototype's names plus this library's wire
+    // synonyms (knee_extension/knee_flexion for extensions/curls).
+    if (mp == 'leg_extension' ||
+        mp == 'knee_extension' ||
+        mp == 'hamstring_curl' ||
+        mp == 'knee_flexion' ||
+        mp == 'kickback' ||
+        mp == 'abduction' ||
+        mp == 'adduction') {
+      return 3;
+    }
+    return 99;
+  }
+
+  /// Stable phase regroup (prototype `_enforceLegsPhaseOrdering`,
+  /// script.js:4343): concat phase buckets in order, preserving the incoming
+  /// relative order within each. One deliberate spec deviation, per the
+  /// customer's decision: unclassifiable (99) exercises land BEFORE core so
+  /// that core is always last (the prototype appends them after core, but no
+  /// generated exercise is ever unclassifiable — the branch exists only for
+  /// safety).
+  List<Exercise> _legsPhaseReorder(List<Exercise> exercises) {
+    final phases = {
+      for (final p in const [1, 2, 3, 4, 99, 5]) p: <Exercise>[],
+    };
+    for (final e in exercises) {
+      phases[legsPhaseFor(e)]!.add(e);
+    }
+    return [
+      for (final p in const [1, 2, 3, 4, 99, 5]) ...phases[p]!,
+    ];
   }
 
   bool _isCompound(Exercise e) =>
