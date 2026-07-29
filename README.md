@@ -76,6 +76,12 @@ Data Layer (Mock/API)
 
 For detailed architecture information, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Generator Specification
+
+The canonical MaxHype workout-generator specification is located at:
+
+`docs/generator/MAXHYPE_GENERATOR_BIBLE_V2.md`
+
 ## Dependencies
 
 - `flutter_bloc` - State management
