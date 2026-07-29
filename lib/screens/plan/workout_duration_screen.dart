@@ -167,19 +167,60 @@ class _WorkoutDurationScreenState extends State<WorkoutDurationScreen> {
         height: 64,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: const Color(0xFF181C2D),
+          // Selected cell glows orange from the inside: a radial gradient that's
+          // near-neutral at the centre and warms to orange toward the edges, so
+          // the glow hugs the border and fades inward (matches the mockup).
+          // Unselected cells keep the flat navy fill.
+          color: isSelected ? null : AppTheme.planDurationSegment,
+          gradient: isSelected
+              ? RadialGradient(
+                  // Centre pushed down so the bright ring sits toward the top —
+                  // the glow reads stronger up top and fainter along the bottom.
+                  center: const Alignment(0, 0.5),
+                  radius: 0.95,
+                  colors: [
+                    Color.lerp(
+                      AppTheme.planDurationSegment,
+                      AppTheme.primaryOrange,
+                      0.05,
+                    )!,
+                    Color.lerp(
+                      AppTheme.planDurationSegment,
+                      AppTheme.primaryOrange,
+                      0.28,
+                    )!,
+                  ],
+                )
+              : null,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
                 ? AppTheme.primaryOrange
-                : const Color(0x14FFFFFF),
+                : AppTheme.planCardBorder,
             width: isSelected ? 2 : 1,
           ),
+          // Faint orange halo bleeding just outside the selected cell, nudged
+          // upward so the glow is stronger at the top and lighter at the bottom
+          // (matches the mockup, where the bottom barely glows).
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.30),
+                    blurRadius: 12,
+                    spreadRadius: 0.5,
+                    offset: const Offset(0, -3),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           '$minutes',
           style: TextStyle(
-            color: isSelected ? AppTheme.primaryOrange : AppTheme.textPrimary,
+            // Selected digits use the mockup's lighter, warmer peach-orange
+            // (distinct from the saturated border/glow orange).
+            color: isSelected
+                ? AppTheme.planDurationSelectedText
+                : AppTheme.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w700,
           ),

@@ -39,6 +39,15 @@ class AppTheme {
   /// Orange used for the circular back arrow on the plan screen.
   static const Color planBackArrow = Color(0xFFFF8C42);
 
+  /// Fill for an individual duration segment (the tappable 45/60/… cells),
+  /// slightly deeper than the track they sit on ([planCardBackground]).
+  static const Color planDurationSegment = Color(0xFF181C2D);
+
+  /// Lighter, warmer peach-orange for the label inside the *selected* duration
+  /// segment — softer than [primaryOrange] (used for that segment's border and
+  /// glow), matching the picker mockup.
+  static const Color planDurationSelectedText = Color(0xFFF3AF76);
+
   // Recovery status colors
   static const Color recoveryGreen = Color(0xFF4ADE80);
   static const Color recoveryYellow = Color(0xFFFBBF24);
